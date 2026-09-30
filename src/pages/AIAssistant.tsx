@@ -14,7 +14,7 @@ import {
   Search,
   Zap,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatNumber, formatTime, formatDate, getPersianDayName } from '@/lib/format';
 import type { Patient, Appointment, Invoice, PageKey } from '@/lib/types';
 
@@ -46,17 +46,11 @@ export function AIAssistant({ onNavigate, onOpenPatient }: AIAssistantProps) {
   const [asking, setAsking] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<{ date: string; time: string; dayName: string }[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [patRes, aptRes, invRes] = await Promise.all([
-      supabase.from('patients').select('*'),
-      supabase.from('appointments').select('*, patient:patients(*)'),
-      supabase.from('invoices').select('*, patient:patients(*)'),
-    ]);
-
-    const patients = patRes.data || [];
-    const appointments = aptRes.data || [];
-    const invoices = invRes.data || [];
+    const patients = db.list('patients');
+    const appointments = db.withOne(db.list('appointments'), 'patient', 'patients', 'patient_id');
+    const invoices = db.withOne(db.list('invoices'), 'patient', 'patients', 'patient_id');
 
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
@@ -229,9 +223,9 @@ export function AIAssistant({ onNavigate, onOpenPatient }: AIAssistantProps) {
 
   useEffect(() => { load(); }, [load]);
 
-  async function findFirstAvailableSlot(): Promise<string> {
+  function findFirstAvailableSlot(): string {
     const now = new Date();
-    const allAppts = (await supabase.from('appointments').select('appointment_date, start_time, end_time, status')).data || [];
+    const allAppts = db.list('appointments');
 
     for (let dayOffset = 0; dayOffset < 14; dayOffset++) {
       const d = new Date(now);
@@ -273,11 +267,8 @@ export function AIAssistant({ onNavigate, onOpenPatient }: AIAssistantProps) {
     let response = '';
 
     if (q.includes('نوبت') && (q.includes('خالی') || q.includes('اول') || q.includes('باز') || q.includes('آزاد'))) {
-      setAsking(true);
-      findFirstAvailableSlot().then((result) => {
-        setAnswer(result);
-        setAsking(false);
-      });
+      setAnswer(findFirstAvailableSlot());
+      setAsking(false);
       return;
     }
 

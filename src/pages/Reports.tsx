@@ -9,7 +9,7 @@ import {
   Award,
   Clock,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatNumber, getPersianDayName } from '@/lib/format';
 
 export function Reports() {
@@ -27,21 +27,13 @@ export function Reports() {
     weeklyData: [] as { day: string; appointments: number; revenue: number }[],
   });
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [invRes, patRes, aptRes, svcRes, stfRes] = await Promise.all([
-      supabase.from('invoices').select('total, paid_amount, balance, status, created_at'),
-      supabase.from('patients').select('id, status'),
-      supabase.from('appointments').select('id, status, price, staff_id, appointment_date, start_time'),
-      supabase.from('services').select('id, name, default_price'),
-      supabase.from('staff').select('id, full_name, color'),
-    ]);
-
-    const invoices = invRes.data || [];
-    const patients = patRes.data || [];
-    const appointments = aptRes.data || [];
-    const services = svcRes.data || [];
-    const staff = stfRes.data || [];
+    const invoices = db.list('invoices');
+    const patients = db.list('patients');
+    const appointments = db.list('appointments');
+    const services = db.list('services');
+    const staff = db.list('staff');
 
     const totalRevenue = invoices.reduce((s, i) => s + (i.paid_amount || 0), 0);
     const pendingPayments = invoices.filter((i) => i.status !== 'paid').reduce((s, i) => s + (i.balance || 0), 0);

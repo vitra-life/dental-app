@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Save, Building2, Clock, Bell, User, Plus, Trash2, ClipboardList } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Settings as SettingsIcon, Save, Building2, Clock, Bell, User, Plus, Trash2, ClipboardList, RotateCcw } from 'lucide-react';
+import * as db from '@/lib/store';
 import { showToast } from '@/components/ui/Toast';
 import type { ClinicSettings, Staff, Service, TreatmentPlan } from '@/lib/types';
 import { formatCurrency, formatNumber, formatDate } from '@/lib/format';
@@ -15,92 +15,87 @@ export function Settings() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [clinicRes, staffRes, svcRes, plansRes] = await Promise.all([
-        supabase.from('clinic_settings').select('*').maybeSingle(),
-        supabase.from('staff').select('*').order('full_name'),
-        supabase.from('services').select('*').order('name'),
-        supabase.from('treatment_plans').select('*, patient:patients(first_name, last_name), items:treatment_plan_items(id, status)').order('created_at', { ascending: false }),
-      ]);
-      setClinic(clinicRes.data as ClinicSettings);
-      setStaff(staffRes.data || []);
-      setServices(svcRes.data || []);
-      setPlans(plansRes.data || []);
-      setLoading(false);
-    })();
+    setClinic(db.first('clinic_settings'));
+    setStaff(db.orderBy(db.list('staff'), 'full_name'));
+    setServices(db.orderBy(db.list('services'), 'name'));
+    const plans = db.orderBy(db.list('treatment_plans'), 'created_at', { ascending: false });
+    setPlans(db.withMany(db.withOne(plans, 'patient', 'patients', 'patient_id'), 'items', 'treatment_plan_items', 'plan_id'));
+    setLoading(false);
   }, []);
 
-  async function saveClinic() {
+  function saveClinic() {
     if (!clinic) return;
     setSaving(true);
-    const { error } = await supabase.from('clinic_settings').update({
+    db.update('clinic_settings', clinic.id, {
       name: clinic.name,
       address: clinic.address,
       phone: clinic.phone,
       email: clinic.email,
       tax_rate: clinic.tax_rate,
-    }).eq('id', clinic.id);
-    if (error) showToast('خطا در ذخیره', 'error');
-    else showToast('تنظیمات ذخیره شد');
+    });
+    showToast('تنظیمات ذخیره شد');
     setSaving(false);
   }
 
-  async function addStaff() {
-    const { data, error } = await supabase.from('staff').insert({
+  function addStaff() {
+    const created = db.insert('staff', {
       full_name: 'نام جدید',
       role: 'dentist',
       color: '#3b82f6',
-    }).select().single();
-    if (error) showToast('خطا در افزودن', 'error');
-    else { setStaff([...staff, data]); showToast('عضو جدید اضافه شد'); }
+    });
+    setStaff([...staff, created]);
+    showToast('عضو جدید اضافه شد');
   }
 
-  async function updateStaff(s: Staff) {
-    const { error } = await supabase.from('staff').update({
+  function updateStaff(s: Staff) {
+    db.update('staff', s.id, {
       full_name: s.full_name,
       role: s.role,
       phone: s.phone,
       color: s.color,
       active: s.active,
-    }).eq('id', s.id);
-    if (error) showToast('خطا', 'error');
-    else showToast('بروزرسانی شد');
+    });
+    showToast('بروزرسانی شد');
   }
 
-  async function deleteStaff(id: string) {
-    const { error } = await supabase.from('staff').delete().eq('id', id);
-    if (error) showToast('خطا در حذف', 'error');
-    else { setStaff(staff.filter((s) => s.id !== id)); showToast('حذف شد'); }
+  function deleteStaff(id: string) {
+    db.remove('staff', id);
+    setStaff(staff.filter((s) => s.id !== id));
+    showToast('حذف شد');
   }
 
-  async function addService() {
-    const { data, error } = await supabase.from('services').insert({
+  function addService() {
+    const created = db.insert('services', {
       name: 'خدمت جدید',
       category: 'general',
       default_price: 0,
       duration_minutes: 30,
-    }).select().single();
-    if (error) showToast('خطا در افزودن', 'error');
-    else { setServices([...services, data]); showToast('خدمت جدید اضافه شد'); }
+    });
+    setServices([...services, created]);
+    showToast('خدمت جدید اضافه شد');
   }
 
-  async function updateService(s: Service) {
-    const { error } = await supabase.from('services').update({
+  function updateService(s: Service) {
+    db.update('services', s.id, {
       name: s.name,
       category: s.category,
       default_price: s.default_price,
       duration_minutes: s.duration_minutes,
       active: s.active,
-    }).eq('id', s.id);
-    if (error) showToast('خطا', 'error');
-    else showToast('بروزرسانی شد');
+    });
+    showToast('بروزرسانی شد');
   }
 
-  async function deleteService(id: string) {
-    const { error } = await supabase.from('services').delete().eq('id', id);
-    if (error) showToast('خطا در حذف', 'error');
-    else { setServices(services.filter((s) => s.id !== id)); showToast('حذف شد'); }
+  function deleteService(id: string) {
+    db.remove('services', id);
+    setServices(services.filter((s) => s.id !== id));
+    showToast('حذف شد');
+  }
+
+  function resetData() {
+    if (!window.confirm('همه تغییرات حذف شده و داده‌های نمونه بازگردانده می‌شوند. ادامه می‌دهید؟')) return;
+    db.resetStore();
+    window.location.reload();
   }
 
   const tabs = [
@@ -166,6 +161,19 @@ export function Settings() {
           <button onClick={saveClinic} disabled={saving} className="btn-primary">
             <Save size={18} />
             {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
+          </button>
+        </div>
+      )}
+
+      {tab === 'clinic' && (
+        <div className="card p-6 max-w-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-semibold text-surface-800">داده‌های نمونه</h3>
+            <p className="text-sm text-surface-400 mt-1">اطلاعات در همین مرورگر ذخیره می‌شود. بازنشانی، همه تغییرات را حذف و داده‌های نمونه را بازمی‌گرداند.</p>
+          </div>
+          <button onClick={resetData} className="btn-danger shrink-0">
+            <RotateCcw size={18} />
+            بازنشانی داده‌ها
           </button>
         </div>
       )}

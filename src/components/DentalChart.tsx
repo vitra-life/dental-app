@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Trash2, Smile } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { showToast } from '@/components/ui/Toast';
 import type { DentalRecord, Service } from '@/lib/types';
@@ -38,20 +38,14 @@ export function DentalChart({ patientId }: DentalChartProps) {
   const [form, setForm] = useState({ status: 'decayed', treatment_type: '', notes: '' });
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('dental_records')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
-    setRecords(data || []);
+  const load = useCallback(() => {
+    setRecords(db.orderBy(db.list('dental_records', (r) => r.patient_id === patientId), 'created_at', { ascending: false }));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    supabase.from('services').select('*').eq('active', true).then(({ data }) => setServices(data || []));
+    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
   function getToothStatus(toothNum: number): string {
@@ -59,46 +53,31 @@ export function DentalChart({ patientId }: DentalChartProps) {
     return record?.status || 'healthy';
   }
 
-  async function saveRecord() {
+  function saveRecord() {
     if (selectedTooth === null) return;
     const existing = records.find((r) => r.tooth_number === selectedTooth);
+    const values = {
+      status: form.status as DentalRecord['status'],
+      treatment_type: form.treatment_type || null,
+      notes: form.notes || null,
+      treatment_date: new Date().toISOString().split('T')[0],
+    };
     if (existing) {
-      const { error } = await supabase
-        .from('dental_records')
-        .update({
-          status: form.status,
-          treatment_type: form.treatment_type || null,
-          notes: form.notes || null,
-          treatment_date: new Date().toISOString().split('T')[0],
-        })
-        .eq('id', existing.id);
-      if (error) showToast('خطا در بروزرسانی', 'error');
-      else showToast('نمودار دندان بروزرسانی شد');
+      db.update('dental_records', existing.id, values);
+      showToast('نمودار دندان بروزرسانی شد');
     } else {
-      const { error } = await supabase.from('dental_records').insert({
-        patient_id: patientId,
-        tooth_number: selectedTooth,
-        status: form.status,
-        treatment_type: form.treatment_type || null,
-        notes: form.notes || null,
-        treatment_date: new Date().toISOString().split('T')[0],
-      });
-      if (error) showToast('خطا در ثبت', 'error');
-      else showToast('درمان دندان ثبت شد');
+      db.insert('dental_records', { ...values, patient_id: patientId, tooth_number: selectedTooth });
+      showToast('درمان دندان ثبت شد');
     }
     setShowModal(false);
     setForm({ status: 'decayed', treatment_type: '', notes: '' });
     load();
   }
 
-  async function deleteRecord(toothNum: number) {
-    const { error } = await supabase
-      .from('dental_records')
-      .delete()
-      .eq('patient_id', patientId)
-      .eq('tooth_number', toothNum);
-    if (error) showToast('خطا در حذف', 'error');
-    else { showToast('رکورد حذف شد'); load(); }
+  function deleteRecord(toothNum: number) {
+    db.removeWhere('dental_records', (r) => r.patient_id === patientId && r.tooth_number === toothNum);
+    showToast('رکورد حذف شد');
+    load();
   }
 
   function openTooth(toothNum: number) {

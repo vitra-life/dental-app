@@ -16,7 +16,7 @@ import {
   CalendarCheck,
   Dot,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatNumber, formatTime, getPersianDayName, persianDays } from '@/lib/format';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -56,18 +56,16 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
     status: 'pending' as string,
   });
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [apptsRes, patRes, svcRes, stfRes] = await Promise.all([
-      supabase.from('appointments').select('*, patient:patients(*), staff:staff(*), service:services(*)').eq('appointment_date', selectedDate).order('start_time'),
-      supabase.from('patients').select('*').order('first_name'),
-      supabase.from('services').select('*').eq('active', true),
-      supabase.from('staff').select('*').eq('active', true),
-    ]);
-    setAppointments(apptsRes.data || []);
-    setPatients(patRes.data || []);
-    setServices(svcRes.data || []);
-    setStaffList(stfRes.data || []);
+    let appts = db.orderBy(db.list('appointments', (a) => a.appointment_date === selectedDate), 'start_time');
+    appts = db.withOne(appts, 'patient', 'patients', 'patient_id');
+    appts = db.withOne(appts, 'staff', 'staff', 'staff_id');
+    appts = db.withOne(appts, 'service', 'services', 'service_id');
+    setAppointments(appts);
+    setPatients(db.orderBy(db.list('patients'), 'first_name'));
+    setServices(db.list('services', (s) => s.active));
+    setStaffList(db.list('staff', (s) => s.active));
     setLoading(false);
   }, [selectedDate]);
 
@@ -77,31 +75,26 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
   useEffect(() => {
     const firstDay = new Date(calendarMonth.year, calendarMonth.month, 1).toISOString().split('T')[0];
     const lastDay = new Date(calendarMonth.year, calendarMonth.month + 1, 0).toISOString().split('T')[0];
-    supabase
-      .from('appointments')
-      .select('appointment_date, start_time, end_time, status')
-      .gte('appointment_date', firstDay)
-      .lte('appointment_date', lastDay)
-      .then(({ data }) => {
-        const counts: Record<string, { count: number; emptySlots: number }> = {};
-        (data || []).forEach((a: { appointment_date: string; start_time: string; end_time: string; status: string }) => {
-          if (!counts[a.appointment_date]) counts[a.appointment_date] = { count: 0, emptySlots: allSlots.length };
-          counts[a.appointment_date].count++;
-          const start = a.start_time.slice(0, 5);
-          const end = a.end_time.slice(0, 5);
-          if (a.status !== 'cancelled') {
-            allSlots.forEach((slot) => {
-              if (slot >= start && slot < end) counts[a.appointment_date].emptySlots--;
-            });
-          }
+    const monthAppts = db.list('appointments', (a) => a.appointment_date >= firstDay && a.appointment_date <= lastDay);
+    const counts: Record<string, { count: number; emptySlots: number }> = {};
+    monthAppts.forEach((a) => {
+      if (!counts[a.appointment_date]) counts[a.appointment_date] = { count: 0, emptySlots: allSlots.length };
+      counts[a.appointment_date].count++;
+      const start = a.start_time.slice(0, 5);
+      const end = a.end_time.slice(0, 5);
+      if (a.status !== 'cancelled') {
+        allSlots.forEach((slot) => {
+          if (slot >= start && slot < end) counts[a.appointment_date].emptySlots--;
         });
-        setMonthAppointments(counts);
-      });
-  }, [calendarMonth]);
+      }
+    });
+    setMonthAppointments(counts);
+    // `appointments` is a dependency so the calendar badges refresh after edits.
+  }, [calendarMonth, appointments]);
 
-  async function createAppointment() {
+  function createAppointment() {
     if (!form.patient_id || !form.service_id) { showToast('بیمار و خدمت را انتخاب کنید', 'error'); return; }
-    const { error } = await supabase.from('appointments').insert({
+    db.insert('appointments', {
       patient_id: form.patient_id,
       service_id: form.service_id,
       staff_id: form.staff_id || null,
@@ -110,22 +103,24 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
       end_time: form.end_time,
       notes: form.notes || null,
       price: form.price,
-      status: form.status,
+      status: form.status as Appointment['status'],
     });
-    if (error) showToast('خطا در ثبت نوبت', 'error');
-    else { showToast('نوبت ثبت شد'); setShowForm(false); setForm({ patient_id: '', service_id: '', staff_id: '', start_time: '09:00', end_time: '09:30', notes: '', price: 0, status: 'pending' }); load(); }
+    showToast('نوبت ثبت شد');
+    setShowForm(false);
+    setForm({ patient_id: '', service_id: '', staff_id: '', start_time: '09:00', end_time: '09:30', notes: '', price: 0, status: 'pending' });
+    load();
   }
 
-  async function updateStatus(id: string, status: string) {
-    const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
-    if (error) showToast('خطا در بروزرسانی', 'error');
-    else { showToast('وضعیت نوبت بروزرسانی شد'); load(); }
+  function updateStatus(id: string, status: string) {
+    db.update('appointments', id, { status: status as Appointment['status'] });
+    showToast('وضعیت نوبت بروزرسانی شد');
+    load();
   }
 
-  async function deleteAppointment(id: string) {
-    const { error } = await supabase.from('appointments').delete().eq('id', id);
-    if (error) showToast('خطا در حذف', 'error');
-    else { showToast('نوبت حذف شد'); load(); }
+  function deleteAppointment(id: string) {
+    db.remove('appointments', id);
+    showToast('نوبت حذف شد');
+    load();
   }
 
   function changeDay(delta: number) {

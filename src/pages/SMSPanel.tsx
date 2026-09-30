@@ -16,7 +16,7 @@ import {
   Calendar,
   Mail,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatNumber, formatDate, formatDateShort, getPersianDayName } from '@/lib/format';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -40,18 +40,13 @@ export function SMSPanel({ onNavigate }: SMSPanelProps) {
   const [showPackageForm, setShowPackageForm] = useState(false);
   const [detailCampaign, setDetailCampaign] = useState<SmsCampaign | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [pkgRes, campRes, msgRes, patRes] = await Promise.all([
-      supabase.from('sms_packages').select('*').order('created_at', { ascending: false }),
-      supabase.from('sms_campaigns').select('*').order('created_at', { ascending: false }),
-      supabase.from('sms_messages').select('*, patient:patients(*)').order('created_at', { ascending: false }).limit(100),
-      supabase.from('patients').select('*').order('first_name'),
-    ]);
-    setPackages(pkgRes.data || []);
-    setCampaigns(campRes.data || []);
-    setMessages(msgRes.data || []);
-    setPatients(patRes.data || []);
+    const recentMessages = db.orderBy(db.list('sms_messages'), 'created_at', { ascending: false }).slice(0, 100);
+    setPackages(db.orderBy(db.list('sms_packages'), 'created_at', { ascending: false }));
+    setCampaigns(db.orderBy(db.list('sms_campaigns'), 'created_at', { ascending: false }));
+    setMessages(db.withOne(recentMessages, 'patient', 'patients', 'patient_id'));
+    setPatients(db.orderBy(db.list('patients'), 'first_name'));
     setLoading(false);
   }, []);
 
@@ -505,8 +500,8 @@ const PREDEFINED_PACKAGES = [
   { credits: 10000, price: 950000, label: 'سازمانی' },
 ];
 
-async function buyPackage(pkg: { credits: number; price: number; label: string }, reload: () => Promise<void>) {
-  const { error } = await supabase.from('sms_packages').insert({
+function buyPackage(pkg: { credits: number; price: number; label: string }, reload: () => void) {
+  db.insert('sms_packages', {
     package_name: `بسته ${pkg.label} (${formatNumber(pkg.credits)} پیامک)`,
     total_credits: pkg.credits,
     used_credits: 0,
@@ -515,8 +510,8 @@ async function buyPackage(pkg: { credits: number; price: number; label: string }
     status: 'active',
     expiry_date: new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0],
   });
-  if (error) showToast('خطا در خرید بسته', 'error');
-  else { showToast(`بسته ${pkg.label} خریداری شد`); await reload(); }
+  showToast(`بسته ${pkg.label} خریداری شد`);
+  reload();
 }
 
 function campaignStatusConfig(status: string): { label: string; bg: string; text: string } {
@@ -576,7 +571,7 @@ function CampaignForm({ patients, remainingCredits, onClose, onSaved }: {
   const smsCount = Math.ceil(messageLength / 70) || 1;
   const totalNeeded = recipientCount * smsCount;
 
-  async function handleSend() {
+  function handleSend() {
     if (!title.trim() || !message.trim()) { showToast('عنوان و متن پیام الزامی است', 'error'); return; }
     if (recipientCount === 0) { showToast('گیرنده‌ای انتخاب نشده است', 'error'); return; }
     if (totalNeeded > remainingCredits) { showToast(`موجودی کافی نیست. ${formatNumber(totalNeeded)} پیامک نیاز است`, 'error'); return; }
@@ -587,7 +582,7 @@ function CampaignForm({ patients, remainingCredits, onClose, onSaved }: {
       ? patients.filter((p) => selectedIds.has(p.id))
       : targetPatients;
 
-    const { data: campaign, error: campError } = await supabase.from('sms_campaigns').insert({
+    const campaign = db.insert('sms_campaigns', {
       title: title.trim(),
       message_body: message.trim(),
       target_filter: { type: target },
@@ -596,9 +591,7 @@ function CampaignForm({ patients, remainingCredits, onClose, onSaved }: {
       failed_count: 0,
       pending_count: recipients.length,
       status: 'sending',
-    }).select().single();
-
-    if (campError || !campaign) { showToast('خطا در ایجاد کمپین', 'error'); setSending(false); return; }
+    });
 
     const msgInserts = recipients.map((p) => ({
       campaign_id: campaign.id,
@@ -609,31 +602,24 @@ function CampaignForm({ patients, remainingCredits, onClose, onSaved }: {
       sent_at: new Date().toISOString(),
     }));
 
-    const { error: msgError } = await supabase.from('sms_messages').insert(msgInserts);
+    db.insertMany('sms_messages', msgInserts);
 
-    if (msgError) {
-      await supabase.from('sms_campaigns').update({ status: 'cancelled', failed_count: recipients.length, pending_count: 0 }).eq('id', campaign.id);
-      showToast('خطا در ارسال پیامک‌ها', 'error');
-      setSending(false);
-      return;
-    }
-
-    await supabase.from('sms_campaigns').update({
+    db.update('sms_campaigns', campaign.id, {
       status: 'completed',
       sent_count: recipients.length,
       pending_count: 0,
       sent_at: new Date().toISOString(),
-    }).eq('id', campaign.id);
+    });
 
-    const activePkg = await supabase.from('sms_packages').select('*').eq('status', 'active').order('created_at', { ascending: true }).maybeSingle();
-    if (activePkg.data) {
-      const newUsed = activePkg.data.used_credits + totalNeeded;
-      const newRemaining = Math.max(0, activePkg.data.remaining_credits - totalNeeded);
-      await supabase.from('sms_packages').update({
+    const activePkg = db.orderBy(db.list('sms_packages', (p) => p.status === 'active'), 'created_at')[0];
+    if (activePkg) {
+      const newUsed = activePkg.used_credits + totalNeeded;
+      const newRemaining = Math.max(0, activePkg.remaining_credits - totalNeeded);
+      db.update('sms_packages', activePkg.id, {
         used_credits: newUsed,
         remaining_credits: newRemaining,
         status: newRemaining <= 0 ? 'expired' : 'active',
-      }).eq('id', activePkg.data.id);
+      });
     }
 
     showToast(`${formatNumber(recipients.length)} پیامک ارسال شد`);
@@ -742,23 +728,24 @@ function CampaignDetail({ campaign, onClose, onUpdated }: {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('sms_messages').select('*, patient:patients(*)').eq('campaign_id', campaign.id).order('created_at', { ascending: false }).then(({ data }) => {
-      setMessages(data || []);
-      setLoading(false);
-    });
+    const rows = db.orderBy(db.list('sms_messages', (m) => m.campaign_id === campaign.id), 'created_at', { ascending: false });
+    setMessages(db.withOne(rows, 'patient', 'patients', 'patient_id'));
+    setLoading(false);
   }, [campaign.id]);
 
-  async function cancelCampaign() {
-    const { error } = await supabase.from('sms_campaigns').update({ status: 'cancelled' }).eq('id', campaign.id);
-    if (error) showToast('خطا', 'error');
-    else { showToast('کمپین لغو شد'); onUpdated(); onClose(); }
+  function cancelCampaign() {
+    db.update('sms_campaigns', campaign.id, { status: 'cancelled' });
+    showToast('کمپین لغو شد');
+    onUpdated();
+    onClose();
   }
 
-  async function deleteCampaign() {
-    await supabase.from('sms_messages').delete().eq('campaign_id', campaign.id);
-    const { error } = await supabase.from('sms_campaigns').delete().eq('id', campaign.id);
-    if (error) showToast('خطا در حذف', 'error');
-    else { showToast('کمپین حذف شد'); onUpdated(); onClose(); }
+  function deleteCampaign() {
+    // Removing the campaign cascades to its messages.
+    db.remove('sms_campaigns', campaign.id);
+    showToast('کمپین حذف شد');
+    onUpdated();
+    onClose();
   }
 
   const sc = campaignStatusConfig(campaign.status);
