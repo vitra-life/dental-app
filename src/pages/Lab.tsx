@@ -12,7 +12,7 @@ import {
   Clock,
   Truck,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatDate, formatNumber, getInitials } from '@/lib/format';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -39,20 +39,15 @@ export function Lab({ onOpenPatient }: LabProps) {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [labsRes, ordersRes, payRes, patRes, stfRes] = await Promise.all([
-      supabase.from('labs').select('*').order('name'),
-      supabase.from('lab_orders').select('*, lab:labs(*), patient:patients(*)').order('created_at', { ascending: false }),
-      supabase.from('lab_payments').select('*, lab:labs(*)').order('payment_date', { ascending: false }),
-      supabase.from('patients').select('*').order('first_name'),
-      supabase.from('staff').select('*').eq('active', true),
-    ]);
-    setLabs(labsRes.data || []);
-    setOrders(ordersRes.data || []);
-    setLabPayments(payRes.data || []);
-    setPatients(patRes.data || []);
-    setStaffList(stfRes.data || []);
+    const orderRows = db.orderBy(db.list('lab_orders'), 'created_at', { ascending: false });
+    const paymentRows = db.orderBy(db.list('lab_payments'), 'payment_date', { ascending: false });
+    setLabs(db.orderBy(db.list('labs'), 'name'));
+    setOrders(db.withOne(db.withOne(orderRows, 'lab', 'labs', 'lab_id'), 'patient', 'patients', 'patient_id'));
+    setLabPayments(db.withOne(paymentRows, 'lab', 'labs', 'lab_id'));
+    setPatients(db.orderBy(db.list('patients'), 'first_name'));
+    setStaffList(db.list('staff', (s) => s.active));
     setLoading(false);
   }, []);
 
@@ -191,13 +186,13 @@ export function Lab({ onOpenPatient }: LabProps) {
                   {order.status !== 'delivered' && (
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-surface-100">
                       {order.status === 'pending' && (
-                        <button onClick={async () => { await supabase.from('lab_orders').update({ status: 'in_progress' }).eq('id', order.id); showToast('وضعیت بروزرسانی شد'); load(); }} className="btn-ghost text-xs">شروع ساخت</button>
+                        <button onClick={() => { db.update('lab_orders', order.id, { status: 'in_progress' }); showToast('وضعیت بروزرسانی شد'); load(); }} className="btn-ghost text-xs">شروع ساخت</button>
                       )}
                       {order.status === 'in_progress' && (
-                        <button onClick={async () => { await supabase.from('lab_orders').update({ status: 'ready' }).eq('id', order.id); showToast('وضعیت بروزرسانی شد'); load(); }} className="btn-ghost text-xs">آماده شد</button>
+                        <button onClick={() => { db.update('lab_orders', order.id, { status: 'ready' }); showToast('وضعیت بروزرسانی شد'); load(); }} className="btn-ghost text-xs">آماده شد</button>
                       )}
                       {order.status === 'ready' && (
-                        <button onClick={async () => { await supabase.from('lab_orders').update({ status: 'delivered', delivered_date: new Date().toISOString().split('T')[0] }).eq('id', order.id); showToast('تحویل داده شد'); load(); }} className="btn-ghost text-xs">تحویل به بیمار</button>
+                        <button onClick={() => { db.update('lab_orders', order.id, { status: 'delivered', delivered_date: new Date().toISOString().split('T')[0] }); showToast('تحویل داده شد'); load(); }} className="btn-ghost text-xs">تحویل به بیمار</button>
                       )}
                     </div>
                   )}
@@ -297,12 +292,18 @@ function LabForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => voi
   const [form, setForm] = useState({ name: '', contact_person: '', phone: '', email: '', address: '' });
   const [saving, setSaving] = useState(false);
 
-  async function save() {
+  function save() {
     if (!form.name) { showToast('نام لابراتوار الزامی است', 'error'); return; }
     setSaving(true);
-    const { error } = await supabase.from('labs').insert(form);
-    if (error) showToast('خطا در ثبت', 'error');
-    else { showToast('لابراتوار ثبت شد'); onSaved(); }
+    db.insert('labs', {
+      name: form.name,
+      contact_person: form.contact_person || null,
+      phone: form.phone || null,
+      email: form.email || null,
+      address: form.address || null,
+    });
+    showToast('لابراتوار ثبت شد');
+    onSaved();
     setSaving(false);
   }
 
@@ -363,14 +364,14 @@ function OrderForm({ labs, patients, staffList, preselectedLab, onClose, onSaved
 
   useEffect(() => {
     if (form.lab_id) {
-      supabase.from('lab_services').select('*').eq('lab_id', form.lab_id).then(({ data }) => setLabServices(data || []));
+      setLabServices(db.list('lab_services', (s) => s.lab_id === form.lab_id));
     }
   }, [form.lab_id]);
 
-  async function save() {
+  function save() {
     if (!form.lab_id || !form.patient_id || !form.service_name) { showToast('لابراتوار، بیمار و خدمت الزامی است', 'error'); return; }
     setSaving(true);
-    const { error } = await supabase.from('lab_orders').insert({
+    db.insert('lab_orders', {
       lab_id: form.lab_id,
       patient_id: form.patient_id,
       staff_id: form.staff_id || null,
@@ -383,8 +384,8 @@ function OrderForm({ labs, patients, staffList, preselectedLab, onClose, onSaved
       due_date: form.due_date || null,
       notes: form.notes || null,
     });
-    if (error) showToast('خطا در ثبت سفارش', 'error');
-    else { showToast('سفارش ثبت شد'); onSaved(); }
+    showToast('سفارش ثبت شد');
+    onSaved();
     setSaving(false);
   }
 
@@ -455,18 +456,16 @@ function PaymentForm({ lab, onClose, onSaved }: { lab: Lab; onClose: () => void;
   const [method, setMethod] = useState('cash');
   const [saving, setSaving] = useState(false);
 
-  async function save() {
+  function save() {
     if (amount <= 0) { showToast('مبلغ را وارد کنید', 'error'); return; }
     setSaving(true);
-    const { error } = await supabase.from('lab_payments').insert({
+    db.insert('lab_payments', {
       lab_id: lab.id,
       amount,
       payment_method: method,
       payment_date: new Date().toISOString().split('T')[0],
     });
-    if (error) { showToast('خطا در ثبت', 'error'); setSaving(false); return; }
-
-    await supabase.from('labs').update({ balance: Math.max(0, lab.balance - amount) }).eq('id', lab.id);
+    db.update('labs', lab.id, { balance: Math.max(0, lab.balance - amount) });
     showToast('پرداخت ثبت شد');
     onSaved();
     setSaving(false);

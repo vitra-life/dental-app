@@ -8,6 +8,7 @@ export interface ClinicSettings {
   working_hours: Record<string, { start: string; end: string } | null> | null;
   tax_rate: number;
   currency: string;
+  created_at: string;
 }
 
 export interface Staff {
@@ -18,6 +19,7 @@ export interface Staff {
   email: string | null;
   color: string;
   active: boolean;
+  created_at: string;
 }
 
 export interface Service {
@@ -28,6 +30,7 @@ export interface Service {
   duration_minutes: number;
   description: string | null;
   active: boolean;
+  created_at: string;
 }
 
 export interface Patient {
@@ -64,6 +67,7 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   notes: string | null;
   price: number;
+  created_at: string;
   patient?: Patient;
   staff?: Staff;
   service?: Service;
@@ -81,6 +85,7 @@ export interface Treatment {
   cost: number;
   treatment_date: string;
   notes: string | null;
+  created_at: string;
   service?: Service;
   staff?: Staff;
 }
@@ -93,6 +98,7 @@ export interface DentalRecord {
   treatment_type: string | null;
   treatment_date: string | null;
   notes: string | null;
+  created_at: string;
 }
 
 export interface Invoice {
@@ -124,6 +130,7 @@ export interface InvoiceItem {
   quantity: number;
   unit_price: number;
   total: number;
+  created_at: string;
 }
 
 export interface Payment {
@@ -135,6 +142,7 @@ export interface Payment {
   payment_date: string;
   reference_number: string | null;
   notes: string | null;
+  created_at: string;
 }
 
 export interface Installment {
@@ -146,6 +154,7 @@ export interface Installment {
   paid: boolean;
   paid_date: string | null;
   payment_id: string | null;
+  created_at: string;
 }
 
 export interface RvgImage {
@@ -168,6 +177,7 @@ export interface Lab {
   address: string | null;
   balance: number;
   active: boolean;
+  created_at: string;
 }
 
 export interface LabService {
@@ -176,6 +186,7 @@ export interface LabService {
   name: string;
   price: number;
   description: string | null;
+  created_at: string;
 }
 
 export interface LabOrder {
@@ -192,6 +203,7 @@ export interface LabOrder {
   due_date: string | null;
   delivered_date: string | null;
   notes: string | null;
+  created_at: string;
   lab?: Lab;
   patient?: Patient;
 }
@@ -205,6 +217,7 @@ export interface LabPayment {
   payment_date: string;
   reference_number: string | null;
   notes: string | null;
+  created_at: string;
 }
 
 export interface TreatmentPlan {
@@ -237,6 +250,7 @@ export interface TreatmentPlanItem {
   completed_date: string | null;
   sort_order: number;
   notes: string | null;
+  created_at: string;
   service?: Service;
 }
 
@@ -280,6 +294,35 @@ export interface SmsMessage {
   created_at: string;
   patient?: Patient;
 }
+
+/** Every persisted table, keyed by name, mapped to its row type. */
+export interface Tables {
+  clinic_settings: ClinicSettings;
+  staff: Staff;
+  services: Service;
+  patients: Patient;
+  appointments: Appointment;
+  treatments: Treatment;
+  dental_records: DentalRecord;
+  invoices: Invoice;
+  invoice_items: InvoiceItem;
+  payments: Payment;
+  installments: Installment;
+  rvg_images: RvgImage;
+  labs: Lab;
+  lab_services: LabService;
+  lab_orders: LabOrder;
+  lab_payments: LabPayment;
+  treatment_plans: TreatmentPlan;
+  treatment_plan_items: TreatmentPlanItem;
+  sms_packages: SmsPackage;
+  sms_campaigns: SmsCampaign;
+  sms_messages: SmsMessage;
+}
+
+export type TableName = keyof Tables;
+
+export type Database = { [K in TableName]: Tables[K][] };
 
 export type PageKey =
   | 'dashboard'

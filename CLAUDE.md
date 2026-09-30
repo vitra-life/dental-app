@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A dental clinic management app, **دنتاکلینیک**. The UI is entirely in Persian (Farsi) and right-to-left. It was generated in Bolt (`bolt-vite-react-ts` template) and runs as a single-page React 18 + TypeScript + Vite + Tailwind app on top of Supabase. It has no custom backend and no test suite.
+A dental clinic management app, **دنتاکلینیک**. The UI is entirely in Persian (Farsi) and right-to-left. It was generated in Bolt (`bolt-vite-react-ts` template) and runs as a single-page React 18 + TypeScript + Vite + Tailwind app with no backend: all data lives in the browser (see Data below). It has no test suite.
 
 ## Commands
 
@@ -34,16 +34,31 @@ npm run preview
 
 Pages receive `onNavigate(page)` and, for cross-page links, `onOpenPatient(id)`. `onOpenPatient` sets `selectedPatientId` and switches to `patients`.
 
-**Data access:** every page calls the shared client in `src/lib/supabase.ts` directly with `supabase.from(...)`. There is no data layer, no React Query, and no global store. Each page defines a `load` callback (`useCallback` plus `Promise.all` across several tables) and uses PostgREST embedded selects for relations, e.g. `select('*, patient:patients(*), staff:staff(*)')`. Table row shapes live as hand-written interfaces in `src/lib/types.ts`, not generated types. Keep them in sync with the migrations.
+**Data:** there is no database or server. The data flows like this:
+- `src/constants/` holds the sample data, one typed array per table, assembled into `seedData` in `index.ts`.
+  - Dates are relative to load time (`dateOffset` / `timestampOffset` in `dates.ts`), so "today" views always have content.
+  - IDs are readable strings (`pat-01`, `inv-04`) and cross-reference each other.
+  - Derived numbers must stay consistent when you edit the seed: `patients.balance` equals the sum of open invoice balances, and payments add up to each invoice's `paid_amount`.
+- `src/lib/store.ts` (imported as `import * as db from '@/lib/store'`) is the only data API.
+  - Reads: `list(table, where?)`, `get`, `first`.
+  - Writes: `insert` / `insertMany` (fills column defaults, `id` and `created_at`), `update` / `updateWhere`, `remove` / `removeWhere`.
+  - Query helpers: `orderBy`, plus `withOne` / `withMany` to attach related rows (e.g. `withOne(appts, 'patient', 'patients', 'patient_id')`).
+  - It's synchronous and returns copies. Pages call `load()` again after writing.
+- Every write is saved to localStorage under `dentaclinic:data:v1`. Settings → "بازنشانی داده‌ها" (reset data) calls `resetStore()` and reloads.
+- Deletes follow the foreign-key rules in `store.ts` (`foreignKeys`: cascade or set null), matching the old SQL schema.
+- Row shapes are the interfaces in `src/lib/types.ts`. The `Tables` map there ties table names to types.
+- To add a table:
+  1. Add its interface and a `Tables` entry.
+  2. Add a `defaults` entry and any `foreignKeys` in `store.ts`.
+  3. Add seed rows to `src/constants/`.
+- Bump the storage key when a change would make existing saved data invalid.
 
-**Business logic is client-side.** The database has no triggers or functions that keep derived fields up to date. Examples:
-- `patients.balance` and the invoice `balance`/`status` are recalculated and written by `src/pages/Billing.tsx` when invoices or payments change.
+**Business logic is client-side.** Nothing keeps derived fields up to date automatically. Examples:
+- Invoice `balance` and `status` are written by `src/pages/Billing.tsx`, and `syncPatientBalance` there recomputes `patients.balance` from the patient's invoices.
 - SMS sending in `src/pages/SMSPanel.tsx` has no real provider. It inserts `sms_campaigns` and `sms_messages` rows marked `sent`, then decrements credits in `sms_packages`.
-- The "AI assistant" (`src/pages/AIAssistant.tsx`) calls no LLM. It computes insights from Supabase data and answers questions by matching Persian keywords.
+- The "AI assistant" (`src/pages/AIAssistant.tsx`) calls no LLM. It computes insights from the store's data and answers questions by matching Persian keywords.
 
 A change to a derived value has to be made in every page that writes it.
-
-**Supabase schema:** the source of truth is `supabase/migrations/*.sql`. It's single-tenant with no auth: `persistSession: false`, and RLS is enabled but every policy is `TO anon, authenticated USING (true)`. New tables should follow the same pattern: an explanatory comment block at the top, `CREATE TABLE IF NOT EXISTS`, and `DROP POLICY IF EXISTS` before each `CREATE POLICY`. The client reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from `.env`, which is gitignored.
 
 **UI kit:**
 - Shared primitives: `src/components/ui/` (Modal, StatCard, EmptyState, Toast).
@@ -61,4 +76,4 @@ A change to a derived value has to be made in every page that writes it.
   - `formatDate` and `formatDateShort` output Persian calendar dates through `Intl`.
   - `formatTime` uses a صبح/بعدازظهر (AM/PM) suffix.
   - `getPersianDayName` gives weekday names, with the week starting on Saturday.
-- Dates are stored in the database as ISO/Gregorian values.
+- Dates are stored as ISO/Gregorian values: `YYYY-MM-DD` for dates, `HH:MM:SS` for appointment times, and ISO timestamps for `created_at`.

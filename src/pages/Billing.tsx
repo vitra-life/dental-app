@@ -12,12 +12,18 @@ import {
   AlertCircle,
   Bell,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatDate, formatNumber, getInitials } from '@/lib/format';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { showToast } from '@/components/ui/Toast';
 import type { Invoice, Patient, Service, InvoiceItem, Installment, Payment, PageKey } from '@/lib/types';
+
+/** A patient's balance is the sum of what they still owe across all their invoices. */
+function syncPatientBalance(patientId: string) {
+  const owed = db.list('invoices', (i) => i.patient_id === patientId).reduce((sum, i) => sum + i.balance, 0);
+  db.update('patients', patientId, { balance: owed });
+}
 
 interface BillingProps {
   onNavigate: (page: PageKey) => void;
@@ -34,21 +40,23 @@ export function Billing({ onOpenPatient }: BillingProps) {
   const [filter, setFilter] = useState<'all' | 'unpaid' | 'partial' | 'paid'>('all');
   const [installmentReminders, setInstallmentReminders] = useState<(Installment & { patient?: Patient; invoice?: Invoice })[]>([]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     setLoading(true);
-    const [invRes, instRes] = await Promise.all([
-      supabase.from('invoices').select('*, patient:patients(*)').order('created_at', { ascending: false }),
-      supabase.from('installments').select('*, invoice:invoices(*), patient:patients(*)').eq('paid', false).order('due_date'),
-    ]);
-    setInvoices(invRes.data || []);
-    setInstallmentReminders(instRes.data || []);
+    const invoiceRows = db.orderBy(db.list('invoices'), 'created_at', { ascending: false });
+    setInvoices(db.withOne(invoiceRows, 'patient', 'patients', 'patient_id'));
+    // Installments have no patient_id; the patient is reached through the invoice.
+    const unpaid = db.withOne(db.orderBy(db.list('installments', (i) => !i.paid), 'due_date'), 'invoice', 'invoices', 'invoice_id');
+    setInstallmentReminders(unpaid.map((inst) => ({
+      ...inst,
+      patient: inst.invoice ? db.get('patients', inst.invoice.patient_id) ?? undefined : undefined,
+    })));
     setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
-    supabase.from('patients').select('*').order('first_name').then(({ data }) => setPatients(data || []));
-    supabase.from('services').select('*').eq('active', true).then(({ data }) => setServices(data || []));
+    setPatients(db.orderBy(db.list('patients'), 'first_name'));
+    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
   const filtered = invoices.filter((inv) => {
@@ -301,13 +309,13 @@ function InvoiceForm({ patients, services, onClose, onSaved }: {
     setItems(items.filter((_, i) => i !== index));
   }
 
-  async function handleSave() {
+  function handleSave() {
     if (!patientId) { showToast('بیمار را انتخاب کنید', 'error'); return; }
     if (items.length === 0) { showToast('حداقل یک خدمت اضافه کنید', 'error'); return; }
     setSaving(true);
 
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
-    const { data: invoice, error: invError } = await supabase.from('invoices').insert({
+    const invoice = db.insert('invoices', {
       patient_id: patientId,
       invoice_number: invoiceNumber,
       subtotal,
@@ -318,9 +326,7 @@ function InvoiceForm({ patients, services, onClose, onSaved }: {
       status: 'unpaid',
       payment_type: paymentType === 'installment' ? 'installment' : 'full',
       installment_count: paymentType === 'installment' ? installmentCount : 0,
-    }).select().single();
-
-    if (invError || !invoice) { showToast('خطا در ثبت صورتحساب', 'error'); setSaving(false); return; }
+    });
 
     const itemInserts = items.map((item) => ({
       invoice_id: invoice.id,
@@ -330,11 +336,11 @@ function InvoiceForm({ patients, services, onClose, onSaved }: {
       unit_price: item.unit_price,
       total: item.unit_price * item.quantity,
     }));
-    await supabase.from('invoice_items').insert(itemInserts);
+    db.insertMany('invoice_items', itemInserts);
 
     if (paymentType === 'installment' && installmentCount > 0) {
       const installmentAmount = Math.round(total / installmentCount);
-      const installments: Omit<Installment, 'id' | 'created_at' | 'paid_date' | 'payment_id'>[] = [];
+      const installments: db.Insert<'installments'>[] = [];
       for (let i = 0; i < installmentCount; i++) {
         const dueDate = new Date();
         dueDate.setMonth(dueDate.getMonth() + i + 1);
@@ -346,10 +352,10 @@ function InvoiceForm({ patients, services, onClose, onSaved }: {
           paid: false,
         });
       }
-      await supabase.from('installments').insert(installments);
+      db.insertMany('installments', installments);
     }
 
-    await supabase.from('patients').update({ balance: total }).eq('id', patientId);
+    syncPatientBalance(patientId);
 
     showToast('صورتحساب ایجاد شد');
     setSaving(false);
@@ -482,53 +488,45 @@ function InvoiceDetail({ invoice, onClose, onOpenPatient, onUpdated }: {
   const [payAmount, setPayAmount] = useState(0);
   const [payMethod, setPayMethod] = useState('cash');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const [itemsRes, instRes, payRes] = await Promise.all([
-      supabase.from('invoice_items').select('*').eq('invoice_id', invoice.id),
-      supabase.from('installments').select('*').eq('invoice_id', invoice.id).order('installment_number'),
-      supabase.from('payments').select('*').eq('invoice_id', invoice.id).order('payment_date', { ascending: false }),
-    ]);
-    setItems(itemsRes.data || []);
-    setInstallments(instRes.data || []);
-    setPayments(payRes.data || []);
+  const load = useCallback(() => {
+    setItems(db.list('invoice_items', (i) => i.invoice_id === invoice.id));
+    setInstallments(db.orderBy(db.list('installments', (i) => i.invoice_id === invoice.id), 'installment_number'));
+    setPayments(db.orderBy(db.list('payments', (p) => p.invoice_id === invoice.id), 'payment_date', { ascending: false }));
     setLoading(false);
   }, [invoice.id]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function recordPayment() {
+  function recordPayment() {
     if (payAmount <= 0) { showToast('مبلغ را وارد کنید', 'error'); return; }
-    const { data: payment, error: payError } = await supabase.from('payments').insert({
+    const payment = db.insert('payments', {
       invoice_id: invoice.id,
       patient_id: invoice.patient_id,
       amount: payAmount,
-      payment_method: payMethod,
+      payment_method: payMethod as Payment['payment_method'],
       payment_date: new Date().toISOString().split('T')[0],
-    }).select().single();
-
-    if (payError || !payment) { showToast('خطا در ثبت پرداخت', 'error'); return; }
+    });
 
     const newPaid = invoice.paid_amount + payAmount;
     const newBalance = invoice.total - newPaid;
     const newStatus = newBalance <= 0 ? 'paid' : newPaid > 0 ? 'partial' : 'unpaid';
 
-    await supabase.from('invoices').update({
+    db.update('invoices', invoice.id, {
       paid_amount: newPaid,
       balance: newBalance,
       status: newStatus,
-    }).eq('id', invoice.id);
+    });
 
-    await supabase.from('patients').update({ balance: newBalance }).eq('id', invoice.patient_id);
+    syncPatientBalance(invoice.patient_id);
 
     if (invoice.payment_type === 'installment' && installments.length > 0) {
       const unpaid = installments.find((inst) => !inst.paid);
       if (unpaid) {
-        await supabase.from('installments').update({
+        db.update('installments', unpaid.id, {
           paid: true,
           paid_date: new Date().toISOString().split('T')[0],
           payment_id: payment.id,
-        }).eq('id', unpaid.id);
+        });
       }
     }
 
@@ -539,10 +537,10 @@ function InvoiceDetail({ invoice, onClose, onOpenPatient, onUpdated }: {
     load();
   }
 
-  async function updateInstallmentDueDate(instId: string, dueDate: string) {
-    const { error } = await supabase.from('installments').update({ due_date: dueDate }).eq('id', instId);
-    if (error) showToast('خطا در بروزرسانی', 'error');
-    else { showToast('تاریخ قسط بروزرسانی شد'); load(); }
+  function updateInstallmentDueDate(instId: string, dueDate: string) {
+    db.update('installments', instId, { due_date: dueDate });
+    showToast('تاریخ قسط بروزرسانی شد');
+    load();
   }
 
   const statusConfig = {

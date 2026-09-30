@@ -13,7 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatNumber, formatTime, getPersianDayName } from '@/lib/format';
 import type { Appointment, Patient, PageKey } from '@/lib/types';
 
@@ -48,27 +48,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     loadDashboard();
   }, []);
 
-  async function loadDashboard() {
+  function loadDashboard() {
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
+    const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString();
 
-    const [appts, patients, invoices, staff, services, labOrders, monthlyInv] = await Promise.all([
-      supabase.from('appointments').select('*, patient:patients(*), staff:staff(*), service:services(*)').eq('appointment_date', today).order('start_time'),
-      supabase.from('patients').select('id, balance, status, created_at'),
-      supabase.from('invoices').select('total, paid_amount, balance, created_at, status'),
-      supabase.from('staff').select('id').eq('active', true),
-      supabase.from('services').select('id').eq('active', true),
-      supabase.from('lab_orders').select('id, status'),
-      supabase.from('invoices').select('total, created_at').gte('created_at', new Date(Date.now() - 60 * 86400000).toISOString()),
-    ]);
-
-    const todayAppts = appts.data || [];
-    const allPatients = patients.data || [];
-    const allInvoices = invoices.data || [];
-    const allStaff = staff.data || [];
-    const allServices = services.data || [];
-    const allLabOrders = labOrders.data || [];
-    const monthlyData = monthlyInv.data || [];
+    let todayAppts = db.orderBy(db.list('appointments', (a) => a.appointment_date === today), 'start_time');
+    todayAppts = db.withOne(todayAppts, 'patient', 'patients', 'patient_id');
+    todayAppts = db.withOne(todayAppts, 'staff', 'staff', 'staff_id');
+    todayAppts = db.withOne(todayAppts, 'service', 'services', 'service_id');
+    const allPatients = db.list('patients');
+    const allInvoices = db.list('invoices');
+    const allStaff = db.list('staff', (s) => s.active);
+    const allServices = db.list('services', (s) => s.active);
+    const allLabOrders = db.list('lab_orders');
+    const monthlyData = allInvoices.filter((i) => i.created_at >= sixtyDaysAgo);
 
     const todayRevenue = todayAppts
       .filter((a) => a.status === 'completed')
@@ -101,16 +95,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       const d = new Date(Date.now() - i * 86400000);
       const dateStr = d.toISOString().split('T')[0];
       weekDays.push({ day: getPersianDayName(d), count: 0, amount: 0 });
-      const dayAppts = await supabase
-        .from('appointments')
-        .select('price, status')
-        .eq('appointment_date', dateStr);
-      if (dayAppts.data) {
-        weekDays[6 - i].count = dayAppts.data.length;
-        weekDays[6 - i].amount = dayAppts.data
-          .filter((a) => a.status === 'completed')
-          .reduce((s, a) => s + (a.price || 0), 0);
-      }
+      const dayAppts = db.list('appointments', (a) => a.appointment_date === dateStr);
+      weekDays[6 - i].count = dayAppts.length;
+      weekDays[6 - i].amount = dayAppts
+        .filter((a) => a.status === 'completed')
+        .reduce((s, a) => s + (a.price || 0), 0);
     }
 
     // Service distribution

@@ -19,7 +19,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import * as db from '@/lib/store';
 import { formatCurrency, formatDate, formatNumber, getAge, getInitials } from '@/lib/format';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -43,13 +43,9 @@ export function Patients({ selectedPatientId }: PatientsProps) {
   const [detailPatient, setDetailPatient] = useState<Patient | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('info');
 
-  const loadPatients = useCallback(async () => {
+  const loadPatients = useCallback(() => {
     setLoading(true);
-    const { data } = await supabase
-      .from('patients')
-      .select('*')
-      .order('created_at', { ascending: false });
-    setPatients(data || []);
+    setPatients(db.orderBy(db.list('patients'), 'created_at', { ascending: false }));
     setLoading(false);
   }, []);
 
@@ -62,9 +58,8 @@ export function Patients({ selectedPatientId }: PatientsProps) {
       const p = patients.find((p) => p.id === selectedPatientId);
       if (p) setDetailPatient(p);
       else {
-        supabase.from('patients').select('*').eq('id', selectedPatientId).maybeSingle().then(({ data }) => {
-          if (data) setDetailPatient(data);
-        });
+        const found = db.get('patients', selectedPatientId);
+        if (found) setDetailPatient(found);
       }
     }
   }, [selectedPatientId, patients]);
@@ -224,21 +219,24 @@ function PatientForm({ patient, onClose, onSaved }: {
   });
   const [saving, setSaving] = useState(false);
 
-  async function handleSave() {
+  function handleSave() {
     if (!form.first_name || !form.last_name || !form.phone) {
       showToast('نام، نام خانوادگی و تلفن الزامی است', 'error');
       return;
     }
     setSaving(true);
+    // Optional fields left blank are stored as null, not ''.
+    const values = Object.fromEntries(
+      Object.entries(form).map(([key, value]) => [key, value === '' ? null : value]),
+    ) as unknown as db.Patch<'patients'>;
     if (patient) {
-      const { error } = await supabase.from('patients').update(form).eq('id', patient.id);
-      if (error) showToast('خطا در بروزرسانی', 'error');
-      else { showToast('بیمار بروزرسانی شد'); onSaved(); }
+      db.update('patients', patient.id, values);
+      showToast('بیمار بروزرسانی شد');
     } else {
-      const { error } = await supabase.from('patients').insert(form);
-      if (error) showToast('خطا در ثبت بیمار', 'error');
-      else { showToast('بیمار جدید ثبت شد'); onSaved(); }
+      db.insert('patients', values);
+      showToast('بیمار جدید ثبت شد');
     }
+    onSaved();
     setSaving(false);
   }
 
@@ -474,36 +472,34 @@ function RvgManager({ patientId }: { patientId: string }) {
   const [imageDesc, setImageDesc] = useState('');
   const [toothNum, setToothNum] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('rvg_images')
-      .select('*')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
-    setImages(data || []);
+  const load = useCallback(() => {
+    setImages(db.orderBy(db.list('rvg_images', (r) => r.patient_id === patientId), 'created_at', { ascending: false }));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => { load(); }, [load]);
 
-  async function addImage() {
+  function addImage() {
     if (!imageUrl) { showToast('آدرس تصویر را وارد کنید', 'error'); return; }
-    const { error } = await supabase.from('rvg_images').insert({
+    db.insert('rvg_images', {
       patient_id: patientId,
       image_url: imageUrl,
       description: imageDesc || null,
       tooth_number: toothNum ? parseInt(toothNum) : null,
       image_type: 'rvg',
     });
-    if (error) showToast('خطا در ثبت تصویر', 'error');
-    else { showToast('تصویر ثبت شد'); setImageUrl(''); setImageDesc(''); setToothNum(''); setShowAdd(false); load(); }
+    showToast('تصویر ثبت شد');
+    setImageUrl('');
+    setImageDesc('');
+    setToothNum('');
+    setShowAdd(false);
+    load();
   }
 
-  async function deleteImage(id: string) {
-    const { error } = await supabase.from('rvg_images').delete().eq('id', id);
-    if (error) showToast('خطا در حذف', 'error');
-    else { showToast('تصویر حذف شد'); load(); }
+  function deleteImage(id: string) {
+    db.remove('rvg_images', id);
+    showToast('تصویر حذف شد');
+    load();
   }
 
   return (
@@ -572,14 +568,9 @@ function PatientLabOrders({ patientId }: { patientId: string }) {
   const [orders, setOrders] = useState<LabOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('lab_orders')
-      .select('*, lab:labs(*)')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
-    setOrders(data || []);
+  const load = useCallback(() => {
+    const rows = db.orderBy(db.list('lab_orders', (o) => o.patient_id === patientId), 'created_at', { ascending: false });
+    setOrders(db.withOne(rows, 'lab', 'labs', 'lab_id'));
     setLoading(false);
   }, [patientId]);
 
@@ -626,26 +617,21 @@ function TreatmentHistory({ patientId }: { patientId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('treatments')
-      .select('*, service:services(*), staff:staff(*)')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
-    setTreatments(data || []);
+  const load = useCallback(() => {
+    const rows = db.orderBy(db.list('treatments', (t) => t.patient_id === patientId), 'created_at', { ascending: false });
+    setTreatments(db.withOne(db.withOne(rows, 'service', 'services', 'service_id'), 'staff', 'staff', 'staff_id'));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    supabase.from('services').select('*').eq('active', true).then(({ data }) => setServices(data || []));
-    supabase.from('staff').select('*').eq('active', true).then(({ data }) => setStaffList(data || []));
+    setServices(db.list('services', (s) => s.active));
+    setStaffList(db.list('staff', (s) => s.active));
   }, [load]);
 
-  async function addTreatment() {
+  function addTreatment() {
     const svc = services.find((s) => s.id === form.service_id);
-    const { error } = await supabase.from('treatments').insert({
+    db.insert('treatments', {
       patient_id: patientId,
       service_id: form.service_id || null,
       tooth_number: form.tooth_number ? parseInt(form.tooth_number) : null,
@@ -655,8 +641,10 @@ function TreatmentHistory({ patientId }: { patientId: string }) {
       treatment_date: new Date().toISOString().split('T')[0],
       status: 'completed',
     });
-    if (error) showToast('خطا در ثبت درمان', 'error');
-    else { showToast('درمان ثبت شد'); setForm({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' }); setShowAdd(false); load(); }
+    showToast('درمان ثبت شد');
+    setForm({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' });
+    setShowAdd(false);
+    load();
   }
 
   if (loading) return <div className="h-32 bg-surface-50 rounded-xl animate-pulse-soft" />;
@@ -745,25 +733,23 @@ function TreatmentPlanTab({ patientId }: { patientId: string }) {
   const [showItemForm, setShowItemForm] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from('treatment_plans')
-      .select('*, items:treatment_plan_items(*, service:services(*))')
-      .eq('patient_id', patientId)
-      .order('created_at', { ascending: false });
-    setPlans(data || []);
+  const load = useCallback(() => {
+    const rows = db.orderBy(db.list('treatment_plans', (p) => p.patient_id === patientId), 'created_at', { ascending: false });
+    setPlans(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id').map((plan) => ({
+      ...plan,
+      items: db.withOne(plan.items, 'service', 'services', 'service_id'),
+    })));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    supabase.from('services').select('*').eq('active', true).then(({ data }) => setServices(data || []));
+    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
-  async function createPlan() {
+  function createPlan() {
     if (!planForm.title) { showToast('عنوان طرح الزامی است', 'error'); return; }
-    const { error } = await supabase.from('treatment_plans').insert({
+    db.insert('treatment_plans', {
       patient_id: patientId,
       title: planForm.title,
       target_end_date: planForm.target_end_date || null,
@@ -771,14 +757,16 @@ function TreatmentPlanTab({ patientId }: { patientId: string }) {
       total_estimated_cost: 0,
       status: 'active',
     });
-    if (error) showToast('خطا در ثبت طرح', 'error');
-    else { showToast('طرح درمان ایجاد شد'); setPlanForm({ title: '', target_end_date: '', notes: '' }); setShowPlanForm(false); load(); }
+    showToast('طرح درمان ایجاد شد');
+    setPlanForm({ title: '', target_end_date: '', notes: '' });
+    setShowPlanForm(false);
+    load();
   }
 
-  async function addItem(planId: string) {
+  function addItem(planId: string) {
     const svc = services.find((s) => s.id === itemForm.service_id);
     const cost = itemForm.estimated_cost ? parseFloat(itemForm.estimated_cost) : svc?.default_price || 0;
-    const { error } = await supabase.from('treatment_plan_items').insert({
+    db.insert('treatment_plan_items', {
       plan_id: planId,
       patient_id: patientId,
       service_id: itemForm.service_id || null,
@@ -789,11 +777,10 @@ function TreatmentPlanTab({ patientId }: { patientId: string }) {
       notes: itemForm.notes || null,
       status: 'planned',
     });
-    if (error) { showToast('خطا در افزودن', 'error'); return; }
 
     const plan = plans.find((p) => p.id === planId);
     const newTotal = (plan?.total_estimated_cost || 0) + cost;
-    await supabase.from('treatment_plans').update({ total_estimated_cost: newTotal }).eq('id', planId);
+    db.update('treatment_plans', planId, { total_estimated_cost: newTotal });
 
     showToast('آیتم اضافه شد');
     setItemForm({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
@@ -801,24 +788,24 @@ function TreatmentPlanTab({ patientId }: { patientId: string }) {
     load();
   }
 
-  async function updateItemStatus(itemId: string, status: string) {
-    const update: Record<string, string | null> = { status };
-    if (status === 'completed') update.completed_date = new Date().toISOString().split('T')[0];
-    const { error } = await supabase.from('treatment_plan_items').update(update).eq('id', itemId);
-    if (error) showToast('خطا', 'error');
-    else { showToast('وضعیت بروزرسانی شد'); load(); }
+  function updateItemStatus(itemId: string, status: string) {
+    const patch: db.Patch<'treatment_plan_items'> = { status: status as TreatmentPlanItem['status'] };
+    if (status === 'completed') patch.completed_date = new Date().toISOString().split('T')[0];
+    db.update('treatment_plan_items', itemId, patch);
+    showToast('وضعیت بروزرسانی شد');
+    load();
   }
 
-  async function deleteItem(itemId: string) {
-    const { error } = await supabase.from('treatment_plan_items').delete().eq('id', itemId);
-    if (error) showToast('خطا در حذف', 'error');
-    else { showToast('آیتم حذف شد'); load(); }
+  function deleteItem(itemId: string) {
+    db.remove('treatment_plan_items', itemId);
+    showToast('آیتم حذف شد');
+    load();
   }
 
-  async function deletePlan(planId: string) {
-    const { error } = await supabase.from('treatment_plans').delete().eq('id', planId);
-    if (error) showToast('خطا در حذف طرح', 'error');
-    else { showToast('طرح حذف شد'); load(); }
+  function deletePlan(planId: string) {
+    db.remove('treatment_plans', planId);
+    showToast('طرح حذف شد');
+    load();
   }
 
   const itemStatusConfig: Record<string, { label: string; bg: string; text: string }> = {
