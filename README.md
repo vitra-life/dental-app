@@ -84,5 +84,6 @@ Files and folders under `src/` are kebab-case (`patient-form.tsx`); lint enforce
 
 ## More documentation
 
+- [docs/project-structure.md](docs/project-structure.md): every folder and file, and where new code goes.
 - [docs/architecture.md](docs/architecture.md): how the code is organised and how to add a page, a table, a status or a date field.
 - [CLAUDE.md](CLAUDE.md): working notes for AI coding assistants.

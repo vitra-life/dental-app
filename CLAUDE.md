@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A dental clinic management app, **دنتاکلینیک**. The UI is entirely in Persian (Farsi), right-to-left, and shows every date in the Jalali calendar. It runs as a single-page React 18 + TypeScript + Vite + Tailwind app with no backend: all data lives in the browser (see Data below).
 
-`README.md` is the overview for people; `docs/architecture.md` has the full component list and step-by-step recipes.
+`README.md` is the overview for people, `docs/architecture.md` has the full component list and step-by-step recipes, and `docs/project-structure.md` maps every file. Update that map when you add, move or remove a file.
 
 ## Commands
 
