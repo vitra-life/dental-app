@@ -1,0 +1,202 @@
+import { useState } from 'react';
+import { X } from 'lucide-react';
+import { ChoiceChips } from '@/components/ui/choice-chips';
+import { Modal } from '@/components/ui/modal';
+import { jalaliMonthsFromToday } from '@/lib/date';
+import { formatCurrency, formatNumber } from '@/lib/format';
+import * as db from '@/lib/store';
+import { showToast } from '@/lib/toast';
+import type { Patient, Service } from '@/lib/types';
+import { syncPatientBalance } from './patient-balance';
+
+const installmentOptions = [2, 3, 4, 6, 12].map((n) => ({ value: n, label: `${formatNumber(n)} قسط` }));
+
+export function InvoiceForm({ patients, services, onClose, onSaved }: {
+  patients: Patient[];
+  services: Service[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [patientId, setPatientId] = useState('');
+  const [items, setItems] = useState<{ service_id: string; description: string; quantity: number; unit_price: number }[]>([]);
+  const [discount, setDiscount] = useState(0);
+  const [paymentType, setPaymentType] = useState<'full' | 'installment'>('full');
+  const [installmentCount, setInstallmentCount] = useState(3);
+  const [saving, setSaving] = useState(false);
+
+  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const total = Math.max(0, subtotal - discount);
+
+  function addItem() {
+    setItems([...items, { service_id: '', description: '', quantity: 1, unit_price: 0 }]);
+  }
+
+  function updateItem(index: number, field: string, value: string | number) {
+    const newItems = [...items];
+    (newItems[index] as Record<string, string | number>)[field] = value;
+    setItems(newItems);
+  }
+
+  function selectService(index: number, serviceId: string) {
+    const svc = services.find((s) => s.id === serviceId);
+    if (svc) {
+      const newItems = [...items];
+      newItems[index] = { ...newItems[index], service_id: serviceId, description: svc.name, unit_price: svc.default_price };
+      setItems(newItems);
+    }
+  }
+
+  function removeItem(index: number) {
+    setItems(items.filter((_, i) => i !== index));
+  }
+
+  function handleSave() {
+    if (!patientId) { showToast('بیمار را انتخاب کنید', 'error'); return; }
+    if (items.length === 0) { showToast('حداقل یک خدمت اضافه کنید', 'error'); return; }
+    setSaving(true);
+
+    const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+    const invoice = db.insert('invoices', {
+      patient_id: patientId,
+      invoice_number: invoiceNumber,
+      subtotal,
+      discount,
+      total,
+      paid_amount: 0,
+      balance: total,
+      status: 'unpaid',
+      payment_type: paymentType === 'installment' ? 'installment' : 'full',
+      installment_count: paymentType === 'installment' ? installmentCount : 0,
+    });
+
+    const itemInserts = items.map((item) => ({
+      invoice_id: invoice.id,
+      service_id: item.service_id || null,
+      description: item.description,
+      quantity: item.quantity,
+      unit_price: item.unit_price,
+      total: item.unit_price * item.quantity,
+    }));
+    db.insertMany('invoice_items', itemInserts);
+
+    if (paymentType === 'installment' && installmentCount > 0) {
+      const installmentAmount = Math.round(total / installmentCount);
+      const installments: db.Insert<'installments'>[] = [];
+      for (let i = 0; i < installmentCount; i++) {
+        installments.push({
+          invoice_id: invoice.id,
+          installment_number: i + 1,
+          amount: i === installmentCount - 1 ? total - installmentAmount * (installmentCount - 1) : installmentAmount,
+          due_date: jalaliMonthsFromToday(i + 1),
+          paid: false,
+        });
+      }
+      db.insertMany('installments', installments);
+    }
+
+    syncPatientBalance(patientId);
+
+    showToast('صورتحساب ایجاد شد');
+    setSaving(false);
+    onSaved();
+  }
+
+  return (
+    <Modal open onClose={onClose} title="صورتحساب جدید" size="lg">
+      <div className="space-y-5">
+        <div>
+          <label className="label-field">بیمار *</label>
+          <select className="input-field" value={patientId} onChange={(e) => setPatientId(e.target.value)}>
+            <option value="">انتخاب بیمار</option>
+            {patients.map((p) => <option key={p.id} value={p.id}>{p.first_name} {p.last_name} - {p.phone}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-medium text-surface-600">خدمات</label>
+            <button onClick={addItem} className="text-xs text-primary-600 font-medium hover:text-primary-700">+ افزودن</button>
+          </div>
+          <div className="space-y-2">
+            {items.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 p-3 bg-surface-50 rounded-xl">
+                <select
+                  className="input-field flex-1"
+                  value={item.service_id}
+                  onChange={(e) => selectService(i, e.target.value)}
+                >
+                  <option value="">انتخاب خدمت</option>
+                  {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <input
+                  type="number"
+                  className="input-field w-16"
+                  value={item.quantity}
+                  onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
+                  placeholder="تعداد"
+                />
+                <input
+                  type="number"
+                  className="input-field w-28"
+                  value={item.unit_price}
+                  onChange={(e) => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
+                  placeholder="قیمت"
+                />
+                <button onClick={() => removeItem(i)} className="p-2 rounded-lg hover:bg-error-50">
+                  <X size={16} className="text-error-400" />
+                </button>
+              </div>
+            ))}
+            {items.length === 0 && (
+              <p className="text-sm text-surface-400 text-center py-4">هیچ خدمتی اضافه نشده</p>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label-field">تخفیف (تومان)</label>
+            <input type="number" className="input-field" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} />
+          </div>
+          <div>
+            <label className="label-field">نوع پرداخت</label>
+            <select className="input-field" value={paymentType} onChange={(e) => setPaymentType(e.target.value as 'full' | 'installment')}>
+              <option value="full">پرداخت کامل</option>
+              <option value="installment">اقساطی</option>
+            </select>
+          </div>
+        </div>
+
+        {paymentType === 'installment' && (
+          <div>
+            <label className="label-field">تعداد اقساط</label>
+            <ChoiceChips options={installmentOptions} value={installmentCount} onChange={setInstallmentCount} />
+            <p className="text-xs text-surface-400 mt-2">مبلغ هر قسط: {formatCurrency(Math.round(total / installmentCount))}</p>
+          </div>
+        )}
+
+        <div className="p-4 bg-surface-50 rounded-xl space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-surface-500">جمع کل:</span>
+            <span className="font-medium text-surface-700">{formatCurrency(subtotal)}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-surface-500">تخفیف:</span>
+            <span className="font-medium text-error-600">- {formatCurrency(discount)}</span>
+          </div>
+          <div className="flex items-center justify-between text-base font-bold pt-2 border-t border-surface-200">
+            <span className="text-surface-700">مبلغ نهایی:</span>
+            <span className="text-primary-600">{formatCurrency(total)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">
+            {saving ? 'در حال ثبت...' : 'ثبت صورتحساب'}
+          </button>
+          <button onClick={onClose} className="btn-secondary">انصراف</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
