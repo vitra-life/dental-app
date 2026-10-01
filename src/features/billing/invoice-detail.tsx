@@ -146,7 +146,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
                               value={inst.due_date}
                               disabled={inst.paid}
                               onChange={(dueDate) => updateInstallmentDueDate(inst.id, dueDate)}
-                              className="text-xs text-surface-500 bg-transparent border-0 outline-none cursor-pointer hover:text-primary-600 transition-colors"
+                              className="text-xs text-surface-500 bg-transparent border-0 outline-hidden cursor-pointer hover:text-primary-600 transition-colors"
                             />
                             {isOverdue && <span className="text-[10px] text-error-600 font-medium">سررسید گذشته</span>}
                           </div>

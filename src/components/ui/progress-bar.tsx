@@ -10,7 +10,7 @@ interface ProgressBarProps {
 }
 
 /** A thin horizontal progress bar. */
-export function ProgressBar({ value, barClassName = 'bg-gradient-to-l from-primary-500 to-primary-300', color, slow = false }: ProgressBarProps) {
+export function ProgressBar({ value, barClassName = 'bg-linear-to-l/srgb from-primary-500 to-primary-300', color, slow = false }: ProgressBarProps) {
   return (
     <div className="h-2 bg-surface-100 rounded-full overflow-hidden">
       <div

@@ -65,7 +65,7 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden bg-gradient-to-l from-primary-600 via-secondary-500 to-primary-500 rounded-2xl p-6 lg:p-8 shadow-elevated">
+      <div className="relative overflow-hidden bg-linear-to-l/srgb from-primary-600 via-secondary-500 to-primary-500 rounded-2xl p-6 lg:p-8 shadow-elevated">
         <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-32 -translate-y-32 blur-2xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-2">
@@ -74,14 +74,14 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
           </div>
           <h2 className="text-white text-xl lg:text-2xl font-bold mb-2">تحلیل و پیشنهادهای هوشمند</h2>
           <p className="text-white/70 text-sm mb-4">سوال خود را از من بپرسید تا وضعیت کلینیک را تحلیل کنم</p>
-          <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-xl p-2">
+          <div className="flex items-center gap-2 bg-white/15 backdrop-blur-xs rounded-xl p-2">
             <input
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
               placeholder="مثلا: اولین نوبت خالی کی است؟ یا درآمدم چطور است؟"
-              className="flex-1 bg-transparent text-white text-sm outline-none placeholder:text-white/50 px-2"
+              className="flex-1 bg-transparent text-white text-sm outline-hidden placeholder:text-white/50 px-2"
             />
             <button onClick={handleAsk} disabled={asking} className="p-2.5 bg-white/20 hover:bg-white/30 rounded-lg transition-colors">
               <Send size={18} className="text-white" />
@@ -101,7 +101,7 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
           </div>
 
           {answer && (
-            <div className="mt-4 p-4 bg-white/15 backdrop-blur-sm rounded-xl animate-slide-up">
+            <div className="mt-4 p-4 bg-white/15 backdrop-blur-xs rounded-xl animate-slide-up">
               <div className="flex items-start gap-2">
                 <Lightbulb size={18} className="text-white/80 shrink-0 mt-0.5" />
                 <p className="text-white/90 text-sm whitespace-pre-line">{answer}</p>

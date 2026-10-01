@@ -9,9 +9,7 @@ A map of every folder and file in the project and what each one is for. For how 
 ├── index.html              HTML shell: sets Persian + right-to-left, loads the Vazirmatn font
 ├── package.json            scripts and dependencies
 ├── package-lock.json       exact dependency versions
-├── vite.config.ts          build config, the `@/` import alias and the test setup
-├── tailwind.config.js      colour scales, shadows, radii and animations
-├── postcss.config.js       runs Tailwind and autoprefixer
+├── vite.config.ts          build config: React and Tailwind plugins, the `@/` alias, the test setup
 ├── eslint.config.js        lint rules, including kebab-case file names
 ├── tsconfig.json           points at the two configs below
 ├── tsconfig.app.json       TypeScript settings for `src/`
@@ -39,7 +37,7 @@ src/
 ├── main.tsx                mounts the app
 ├── app.tsx                 holds the current page and renders it
 ├── app.test.tsx            smoke test: opens every page from the sidebar
-├── index.css               Tailwind layers and shared classes (card, btn-primary, input-field…)
+├── index.css               Tailwind theme (colours, shadows, radii, animations) and shared classes
 ├── vite-env.d.ts           Vite type declarations
 ├── components/             UI shared by more than one page
 ├── features/               one folder per page

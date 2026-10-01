@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A dental clinic management app, **دنتاکلینیک**. The UI is entirely in Persian (Farsi), right-to-left, and shows every date in the Jalali calendar. It runs as a single-page React 18 + TypeScript + Vite + Tailwind app with no backend: all data lives in the browser (see Data below).
+A dental clinic management app, **دنتاکلینیک**. The UI is entirely in Persian (Farsi), right-to-left, and shows every date in the Jalali calendar. It runs as a single-page React 18 + TypeScript + Vite + Tailwind CSS 4 app with no backend: all data lives in the browser (see Data below).
 
 `README.md` is the overview for people, `docs/architecture.md` has the full component list and step-by-step recipes, and `docs/project-structure.md` maps every file. Update that map when you add, move or remove a file.
 
@@ -31,7 +31,7 @@ Tests run in jsdom with the time zone pinned to Asia/Tehran (`vite.config.ts`). 
 - Import project modules through the `@/` alias, which maps to `src/` (set in `vite.config.ts` and, as `paths`, in `tsconfig.app.json`). Use relative imports only between files of the same feature folder.
 - Files and folders under `src/` are kebab-case (`patient-form.tsx`). Components keep PascalCase names in code. Lint fails otherwise.
 - Use `lucide-react` for all icons and logos. Don't add UI, theme, or icon packages unless they're truly needed.
-- New UI should look like the existing screens: build it from the components in `src/components/ui/`, the component classes in `src/index.css` and the color scales in `tailwind.config.js`, with the same white rounded cards, soft shadows, teal primary and Vazirmatn type. Don't introduce a new visual style.
+- New UI should look like the existing screens: build it from the components in `src/components/ui/`, the component classes and the color scales in `src/index.css`, with the same white rounded cards, soft shadows, teal primary and Vazirmatn type. Don't introduce a new visual style.
 - Write Tailwind class names out in full. Pick them from a lookup of complete names (see `src/components/ui/tones.ts`); a class assembled from pieces such as `bg-${tone}-50` is not generated.
 
 ## Architecture
@@ -84,8 +84,16 @@ A change to a derived value has to be made in every place that writes it.
 
 **UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs`, `Modal`, `StatusBadge`, `StatTile` / `MiniStat`, `SectionHeader`, `BarChart`, `ProgressBar`, `ChoiceChips`, `Skeleton`, `EmptyState`, `JalaliDateInput`.
 - Toasts: call `showToast(message, 'success' | 'error' | 'info')` from `@/lib/toast`; `<ToastContainer />` is mounted once in `app.tsx`.
-- Reusable Tailwind component classes are defined in `src/index.css` under `@layer components`, e.g. `card`, `btn-primary`, `btn-secondary`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.
-- Color scales are defined in `tailwind.config.js`. The app uses `primary` (teal), `secondary` (blue), `accent` (green, for success and completed states), `warning`, `error` and `surface` (grays).
+- Reusable component classes are defined in `src/index.css` as `@utility` rules, e.g. `card`, `btn-primary`, `btn-secondary`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.
+- Color scales are defined in the `@theme` block of `src/index.css`. The app uses `primary` (teal), `secondary` (blue), `accent` (green, for success and completed states), `warning`, `error` and `surface` (grays).
+
+## Tailwind CSS 4
+
+- There is no `tailwind.config.js` or PostCSS config. Tailwind runs through the `@tailwindcss/vite` plugin, and the theme (colors, font, shadows, radii, animations) is the `@theme` block at the top of `src/index.css`. Add a color as `--color-<name>-<shade>`, a shadow as `--shadow-<name>`, an animation as `--animate-<name>` plus its `@keyframes`.
+- Use the v4 utility names: `bg-linear-to-*` (not `bg-gradient-to-*`), `outline-hidden` (not `outline-none`), `rounded-xs` / `rounded-sm` (were `rounded-sm` / `rounded`), `backdrop-blur-xs` (was `backdrop-blur-sm`), `shrink-0`.
+- Write gradients as `bg-linear-to-br/srgb`. Without `/srgb`, v4 blends in oklab and the gradient's middle shades differ from the rest of the app.
+- The first `@layer base` block in `src/index.css` restores v3 defaults (border color, button cursor, color-picker background, time-input and option padding). Leave it in place unless you also update every element that relies on it.
+- `space-y-*` puts the margin under each child except the last, so a fixed-position dialog rendered as the last child gets no margin.
 
 ## Localization / RTL
 

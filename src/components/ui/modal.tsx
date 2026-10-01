@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, children, size = 'md' }: ModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <div className="absolute inset-0 bg-surface-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-surface-900/40 backdrop-blur-xs" onClick={onClose} />
       <div
         className={`relative bg-white rounded-2xl shadow-elevated w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col animate-scale-in`}
       >

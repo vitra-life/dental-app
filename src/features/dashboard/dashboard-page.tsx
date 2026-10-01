@@ -54,7 +54,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-l from-primary-600 via-primary-500 to-secondary-500 rounded-2xl p-6 lg:p-8 shadow-elevated">
+      <div className="relative overflow-hidden bg-linear-to-l/srgb from-primary-600 via-primary-500 to-secondary-500 rounded-2xl p-6 lg:p-8 shadow-elevated">
         <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-32 -translate-y-32 blur-2xl" />
         <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/10 rounded-full translate-x-24 translate-y-24 blur-2xl" />
         <div className="relative">
@@ -65,15 +65,15 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           <h2 className="text-white text-xl lg:text-2xl font-bold mb-1">دکتر سارا احمدی</h2>
           <p className="text-white/70 text-sm">امروز {getPersianDayName(new Date())}، {formatNumber(stats.todayAppointments)} بیمار نوبت دارند</p>
           <div className="flex flex-wrap gap-3 mt-4">
-            <button onClick={() => onNavigate('appointments')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
+            <button onClick={() => onNavigate('appointments')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
               <CalendarDays size={16} />
               نوبت‌دهی
             </button>
-            <button onClick={() => onNavigate('patients')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
+            <button onClick={() => onNavigate('patients')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
               <Users size={16} />
               بیماران
             </button>
-            <button onClick={() => onNavigate('ai')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-sm">
+            <button onClick={() => onNavigate('ai')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
               <Sparkles size={16} />
               دستیار هوشمند
             </button>

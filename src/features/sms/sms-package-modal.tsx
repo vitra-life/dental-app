@@ -19,7 +19,7 @@ export function SmsPackageModal({ onBuy, onClose }: SmsPackageModalProps) {
               onClick={() => { onBuy(offer); onClose(); }}
               className="p-4 border border-surface-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center mx-auto mb-2">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br/srgb from-primary-100 to-primary-50 flex items-center justify-center mx-auto mb-2">
                 <Package size={20} className="text-primary-600" />
               </div>
               <p className="font-bold text-surface-800 text-sm">{formatNumber(offer.credits)} پیامک</p>

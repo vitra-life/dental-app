@@ -16,7 +16,7 @@ interface AvatarProps {
 /** A soft gradient tile holding someone's initials. */
 export function Avatar({ children, className, tone = 'primary' }: AvatarProps) {
   return (
-    <div className={`${className} bg-gradient-to-br ${avatarTones[tone]} flex items-center justify-center font-bold`}>
+    <div className={`${className} bg-linear-to-br/srgb ${avatarTones[tone]} flex items-center justify-center font-bold`}>
       {children}
     </div>
   );

@@ -90,7 +90,7 @@ export function DentalChart({ patientId }: DentalChartProps) {
       <div className="flex flex-wrap items-center gap-2 p-3 bg-surface-50 rounded-xl">
         {toothStatuses.map((key) => (
           <div key={key} className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded" style={{ backgroundColor: toothStatus[key].color }} />
+            <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: toothStatus[key].color }} />
             <span className="text-xs text-surface-600">{toothStatus[key].label}</span>
           </div>
         ))}
@@ -111,14 +111,14 @@ export function DentalChart({ patientId }: DentalChartProps) {
                 className="group relative flex flex-col items-center"
               >
                 <div
-                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-t-full rounded-b-sm border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
+                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-t-full rounded-b-xs border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
                   style={{
                     backgroundColor: color + '20',
                     borderColor: color,
                   }}
                 >
                   <div
-                    className="w-full h-full rounded-t-full rounded-b-sm opacity-30"
+                    className="w-full h-full rounded-t-full rounded-b-xs opacity-30"
                     style={{ backgroundColor: color }}
                   />
                 </div>
@@ -142,14 +142,14 @@ export function DentalChart({ patientId }: DentalChartProps) {
               >
                 <span className="text-[9px] lg:text-[10px] text-surface-400 mb-0.5">{formatNumber(tooth)}</span>
                 <div
-                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-b-full rounded-t-sm border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
+                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-b-full rounded-t-xs border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
                   style={{
                     backgroundColor: color + '20',
                     borderColor: color,
                   }}
                 >
                   <div
-                    className="w-full h-full rounded-b-full rounded-t-sm opacity-30"
+                    className="w-full h-full rounded-b-full rounded-t-xs opacity-30"
                     style={{ backgroundColor: color }}
                   />
                 </div>
@@ -192,7 +192,7 @@ export function DentalChart({ patientId }: DentalChartProps) {
 
       {showModal && selectedTooth !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="absolute inset-0 bg-surface-900/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="absolute inset-0 bg-surface-900/40 backdrop-blur-xs" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-elevated w-full max-w-md p-6 animate-scale-in">
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-3">

@@ -89,7 +89,7 @@ export function RvgManager({ patientId }: { patientId: string }) {
           {images.map((img) => (
             <div key={img.id} className="group relative overflow-hidden rounded-xl border border-surface-100 bg-surface-50">
               <img src={img.image_url} alt={img.description || 'RVG'} className="w-full h-40 object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-surface-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
+              <div className="absolute inset-0 bg-linear-to-t/srgb from-surface-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
                 <p className="text-white text-xs font-medium">{img.description || 'تصویر RVG'}</p>
                 {img.tooth_number && <p className="text-white/70 text-[11px]">دندان شماره {formatNumber(img.tooth_number)}</p>}
                 <div className="flex items-center gap-2 mt-2">

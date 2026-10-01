@@ -26,7 +26,7 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
               onClick={() => onBuy(offer)}
               className="p-4 border border-surface-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center group"
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br/srgb from-primary-100 to-primary-50 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <Package size={20} className="text-primary-600" />
               </div>
               <p className="font-bold text-surface-800 text-sm">{formatNumber(offer.credits)} پیامک</p>
@@ -64,7 +64,7 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
                     <span>{formatNumber(pkg.used_credits)} استفاده شده از {formatNumber(pkg.total_credits)}</span>
                     <span className="font-medium text-primary-600">{formatNumber(pkg.remaining_credits)} باقی‌مانده</span>
                   </div>
-                  <ProgressBar value={percent(pkg.used_credits, pkg.total_credits)} barClassName="bg-gradient-to-l from-primary-500 to-accent-400" />
+                  <ProgressBar value={percent(pkg.used_credits, pkg.total_credits)} barClassName="bg-linear-to-l/srgb from-primary-500 to-accent-400" />
                 </div>
               );
             })}

@@ -54,7 +54,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 fixed inset-y-0 right-0 bg-white border-l border-surface-100 z-30">
         <div className="flex items-center gap-3 px-5 h-16 border-b border-surface-100">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
+          <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
             <Stethoscope className="text-white" size={22} />
           </div>
           <div>
@@ -81,7 +81,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
         <div className="p-4 border-t border-surface-100">
           <div className="flex items-center gap-3 p-2">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-9 h-9 rounded-full bg-linear-to-br/srgb from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
               س
             </div>
             <div className="flex-1 min-w-0">
@@ -95,7 +95,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-surface-900/40 backdrop-blur-sm z-40 animate-fade-in"
+          className="lg:hidden fixed inset-0 bg-surface-900/40 backdrop-blur-xs z-40 animate-fade-in"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -108,7 +108,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       >
         <div className="flex items-center justify-between px-5 h-16 border-b border-surface-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center">
               <Stethoscope className="text-white" size={22} />
             </div>
             <div>
@@ -155,7 +155,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <input
                 type="text"
                 placeholder="جستجو..."
-                className="bg-transparent text-sm outline-none flex-1 placeholder:text-surface-400 text-surface-700"
+                className="bg-transparent text-sm outline-hidden flex-1 placeholder:text-surface-400 text-surface-700"
               />
             </div>
           </div>
@@ -165,7 +165,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <Bell size={20} className="text-surface-600" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error-500 rounded-full" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
+            <div className="w-9 h-9 rounded-full bg-linear-to-br/srgb from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
               س
             </div>
           </div>

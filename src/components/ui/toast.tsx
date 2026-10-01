@@ -32,7 +32,7 @@ export function ToastContainer() {
   const Icon = c.icon;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-100 animate-slide-up">
       <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl border ${c.bg} ${c.border} shadow-elevated`}>
         <Icon size={20} className={c.iconColor} />
         <span className={`text-sm font-medium ${c.text}`}>{toast.message}</span>

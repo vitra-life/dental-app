@@ -34,7 +34,7 @@ Then open the address Vite prints (by default http://localhost:5173).
 ## Tech stack
 
 - React 18, TypeScript and Vite
-- Tailwind CSS for styling, lucide-react for icons
+- Tailwind CSS 4 for styling (configured in `src/index.css`, no config file), lucide-react for icons
 - moment-jalaali for the Jalali calendar and date-fns for date arithmetic
 - Vitest and Testing Library for tests
 
@@ -43,7 +43,7 @@ Then open the address Vite prints (by default http://localhost:5173).
 ```
 src/
 ├── main.tsx, app.tsx     entry point and page switching
-├── index.css             Tailwind layers and shared component classes
+├── index.css             Tailwind theme and shared component classes
 ├── components/
 │   ├── layout.tsx        sidebar and top bar
 │   └── ui/               shared building blocks (modal, tabs, date input, charts…)

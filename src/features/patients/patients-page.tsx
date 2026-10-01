@@ -74,7 +74,7 @@ export function Patients({ selectedPatientId }: PatientsProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="جستجو با نام، تلفن یا کد ملی..."
-          className="bg-transparent text-sm outline-none flex-1 text-surface-700 placeholder:text-surface-400"
+          className="bg-transparent text-sm outline-hidden flex-1 text-surface-700 placeholder:text-surface-400"
         />
         {search && (
           <button onClick={() => setSearch('')} className="p-1 rounded-lg hover:bg-surface-100">

@@ -52,7 +52,12 @@ A feature may import from `components/`, `constants/` and `lib/`. Features shoul
 | `EmptyState` | The "nothing here yet" block |
 | `ToastContainer` | Renders toasts; call `showToast()` from `lib/toast.ts` to show one |
 
-Reusable Tailwind classes (`card`, `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger`, `input-field`, `label-field`, `badge`, `stat-card`, `nav-item`) are defined in `src/index.css`. Colour scales are defined in `tailwind.config.js`; the app uses `primary`, `secondary`, `accent`, `warning`, `error` and `surface`.
+Reusable classes (`card`, `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger`, `input-field`, `label-field`, `badge`, `stat-card`, `nav-item`) are defined in `src/index.css` as `@utility` rules. The colour scales are in the `@theme` block of the same file; the app uses `primary`, `secondary`, `accent`, `warning`, `error` and `surface`.
+
+The project uses Tailwind CSS 4, which has no `tailwind.config.js`: the theme lives in CSS and Tailwind runs as a Vite plugin. Two things to remember when writing classes:
+
+- Write gradients as `bg-linear-to-br/srgb`. The `/srgb` keeps the blend the same as the rest of the app.
+- The first `@layer base` block in `src/index.css` restores a few defaults that Tailwind 4 changed (border colour, button cursor, some input padding). Leave it in place.
 
 Tailwind only sees class names that are written out in full. Build a class from a lookup table of complete names (as `components/ui/tones.ts` does), never by joining pieces such as `bg-${tone}-50`.
 

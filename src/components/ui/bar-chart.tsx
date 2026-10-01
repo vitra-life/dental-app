@@ -33,7 +33,7 @@ export function BarChart({ bars, tone, className, minHeight = 8, hover = true, c
         <div key={i} className="flex-1 flex flex-col items-center gap-2">
           <div className="w-full flex-1 flex items-end">
             <div
-              className={`w-full bg-gradient-to-t ${t.bar} rounded-t-lg transition-all duration-500${hover ? ` ${t.hover}` : ''} group relative`}
+              className={`w-full bg-linear-to-t/srgb ${t.bar} rounded-t-lg transition-all duration-500${hover ? ` ${t.hover}` : ''} group relative`}
               style={{ height: `${(bar.value / max) * 100}%`, minHeight: `${minHeight}px` }}
             >
               <span
