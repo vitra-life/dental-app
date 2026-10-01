@@ -14,7 +14,7 @@ A dental clinic management app, **دنتاکلینیک**. The UI is entirely in 
 npm install
 npm run dev         # Vite dev server
 npm run build       # production build (Vite only, no type-check)
-npm run typecheck   # tsc --noEmit -p tsconfig.app.json, unused code is an error
+npm run typecheck   # tsc on src/ and on vite.config.ts; unused code is an error
 npm run lint        # eslint ., includes the kebab-case file-name rule
 npm test            # vitest run
 npx vitest run src/lib/date.test.ts          # one test file
@@ -28,7 +28,7 @@ Tests run in jsdom with the time zone pinned to Asia/Tehran (`vite.config.ts`). 
 
 ## Conventions
 
-- Import project modules through the `@/` alias, which maps to `src/` (set in `vite.config.ts` and `tsconfig.app.json`). Use relative imports only between files of the same feature folder.
+- Import project modules through the `@/` alias, which maps to `src/` (set in `vite.config.ts` and, as `paths`, in `tsconfig.app.json`). Use relative imports only between files of the same feature folder.
 - Files and folders under `src/` are kebab-case (`patient-form.tsx`). Components keep PascalCase names in code. Lint fails otherwise.
 - Use `lucide-react` for all icons and logos. Don't add UI, theme, or icon packages unless they're truly needed.
 - New UI should look like the existing screens: build it from the components in `src/components/ui/`, the component classes in `src/index.css` and the color scales in `tailwind.config.js`, with the same white rounded cards, soft shadows, teal primary and Vazirmatn type. Don't introduce a new visual style.
