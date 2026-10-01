@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import checkFile from 'eslint-plugin-check-file';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
@@ -14,6 +15,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: {
+      'check-file': checkFile,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
     },
@@ -23,6 +25,13 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+      // Files and folders under src/ are kebab-case: `patient-form.tsx`, `ai-assistant/`.
+      'check-file/filename-naming-convention': [
+        'error',
+        { 'src/**/*.{ts,tsx}': 'KEBAB_CASE' },
+        { ignoreMiddleExtensions: true },
+      ],
+      'check-file/folder-naming-convention': ['error', { 'src/**/': 'KEBAB_CASE' }],
     },
   }
 );

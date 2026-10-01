@@ -1,8 +1,9 @@
-import { createSeedData } from '@/constants';
+import { createSeedData } from '@/constants/seed';
+import { todayISO as today } from '@/lib/date';
 import type { Database, TableName, Tables } from '@/lib/types';
 
 /**
- * Local data store. Starts from the sample data in `src/constants/` and
+ * Local data store. Starts from the sample data in `src/constants/seed/` and
  * persists every change to localStorage, so edits survive a reload.
  * All reads return copies; mutate only through the write functions below.
  */
@@ -12,7 +13,6 @@ const STORAGE_KEY = 'dentaclinic:data:v1';
 export type Insert<T extends TableName> = Partial<Omit<Tables[T], 'id'>>;
 export type Patch<T extends TableName> = Partial<Omit<Tables[T], 'id' | 'created_at'>>;
 
-const today = () => new Date().toISOString().split('T')[0];
 const now = () => new Date().toISOString();
 
 // Column defaults, applied on insert for fields the caller leaves out.

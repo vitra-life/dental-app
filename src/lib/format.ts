@@ -1,3 +1,5 @@
+// Display helpers for numbers, money, times and names. Date formatting lives in `@/lib/date`.
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fa-IR').format(Math.round(amount)) + ' تومان';
 }
@@ -6,23 +8,7 @@ export function formatNumber(n: number): string {
   return new Intl.NumberFormat('fa-IR').format(n);
 }
 
-export function formatDate(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('fa-IR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(d);
-}
-
-export function formatDateShort(date: string | Date): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('fa-IR', {
-    month: 'short',
-    day: 'numeric',
-  }).format(d);
-}
-
+/** `14:30` or `14:30:00` → `2:30 بعدازظهر`. */
 export function formatTime(time: string): string {
   const [h, m] = time.split(':');
   const hour = parseInt(h, 10);
@@ -35,23 +21,26 @@ export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`;
 }
 
-export function getAge(birthDate: string): number {
-  const birth = new Date(birthDate);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
-  return age;
+/** "First Last", or `fallback` when the person is missing. */
+export function fullName(
+  person: { first_name: string; last_name: string } | null | undefined,
+  fallback = 'نامشخص',
+): string {
+  return person ? `${person.first_name} ${person.last_name}` : fallback;
 }
 
-export const persianDays = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
-export const persianMonths = [
-  'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
-  'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند',
-];
+/** `part` as a whole percentage of `total`; 0 when `total` is 0. */
+export function percent(part: number, total: number): number {
+  return total > 0 ? Math.round((part / total) * 100) : 0;
+}
 
-export function getPersianDayName(date: Date): string {
-  return persianDays[(date.getDay() + 1) % 7];
+const paymentMethodLabels: Record<string, string> = {
+  cash: 'نقدی',
+  card: 'کارت',
+  online: 'آنلاین',
+  transfer: 'انتقال',
+};
+
+export function paymentMethodLabel(method: string): string {
+  return paymentMethodLabels[method] || method;
 }
