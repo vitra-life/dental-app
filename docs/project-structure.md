@@ -38,6 +38,7 @@ src/
 ├── app.tsx                 holds the current page and renders it
 ├── app.test.tsx            smoke test: opens every page from the sidebar
 ├── index.css               Tailwind theme (colours, shadows, radii, animations) and shared classes
+├── assets/                 images: `vitra-life-logo.svg`, the logo and favicon
 ├── vite-env.d.ts           Vite type declarations
 ├── components/             UI shared by more than one page
 ├── features/               one folder per page

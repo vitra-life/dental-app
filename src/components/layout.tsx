@@ -10,11 +10,11 @@ import {
   Settings,
   Menu,
   X,
-  Stethoscope,
   Bell,
   Search,
   MessageSquare,
 } from 'lucide-react';
+import logo from '@/assets/vitra-life-logo.svg';
 import type { PageKey } from '@/lib/types';
 
 interface LayoutProps {
@@ -54,11 +54,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 fixed inset-y-0 right-0 bg-white border-l border-surface-100 z-30">
         <div className="flex items-center gap-3 px-5 h-16 border-b border-surface-100">
-          <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
-            <Stethoscope className="text-white" size={22} />
-          </div>
+          <img src={logo} alt="" className="w-10 h-10 shrink-0" />
           <div>
-            <h1 className="font-bold text-surface-800 text-base leading-tight">دنتاکلینیک</h1>
+            <h1 className="font-bold text-surface-800 text-base leading-tight">ویترا لایف</h1>
             <p className="text-[11px] text-surface-400 leading-tight">سیستم مدیریت دندانپزشکی</p>
           </div>
         </div>
@@ -108,11 +106,9 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       >
         <div className="flex items-center justify-between px-5 h-16 border-b border-surface-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center">
-              <Stethoscope className="text-white" size={22} />
-            </div>
+            <img src={logo} alt="" className="w-10 h-10 shrink-0" />
             <div>
-              <h1 className="font-bold text-surface-800 text-base leading-tight">دنتاکلینیک</h1>
+              <h1 className="font-bold text-surface-800 text-base leading-tight">ویترا لایف</h1>
               <p className="text-[11px] text-surface-400">سیستم مدیریت</p>
             </div>
           </div>
