@@ -8,11 +8,11 @@ interface IconBoxProps {
   size?: number;
 }
 
-/** A 40px rounded square with a tinted background and a matching icon. */
-export function IconBox({ icon: Icon, tone, size = 20 }: IconBoxProps) {
+/** A 36px rounded square with a tinted background and a matching icon. */
+export function IconBox({ icon: Icon, tone, size = 18 }: IconBoxProps) {
   return (
-    <div className={`w-10 h-10 rounded-xl ${tones[tone].bg} flex items-center justify-center`}>
-      <Icon size={size} className={tones[tone].icon} />
+    <div className={`w-9 h-9 rounded-xl ${tones[tone].bg} flex items-center justify-center shrink-0`}>
+      <Icon size={size} strokeWidth={1.8} className={tones[tone].icon} />
     </div>
   );
 }

@@ -1,151 +1,110 @@
-import { AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Plus, XCircle } from 'lucide-react';
+import { useState } from 'react';
+import { CalendarDays, Plus } from 'lucide-react';
+import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { appointmentStatus, statusStyle } from '@/constants/status';
-import { addDaysISO, formatDateShort, getPersianDayName, todayISO } from '@/lib/date';
-import { formatCurrency, formatNumber, formatTime, fullName } from '@/lib/format';
-import { ALL_SLOTS } from '@/lib/schedule';
+import { formatDateShort, getPersianDayName, todayISO } from '@/lib/date';
+import { formatNumber, formatClock, fullName } from '@/lib/format';
 import type { Appointment } from '@/lib/types';
 
 interface AppointmentListViewProps {
-  selectedDate: string;
-  onSelectDate: (date: string) => void;
-  /** The selected day's appointments. */
+  /** Every appointment, oldest first. */
   appointments: Appointment[];
-  /** Slots already taken on the selected day. */
-  booked: Set<string>;
+  /** Ids of the appointments booked for a treatment-plan item. */
+  planned: Set<string>;
   loading: boolean;
-  /** Opens the booking form, optionally with a start time prefilled. */
-  onNew: (startTime?: string) => void;
+  onNew: () => void;
   onStatusChange: (id: string, status: Appointment['status']) => void;
   onOpenPatient: (patientId: string) => void;
 }
 
-export function AppointmentListView({ selectedDate, onSelectDate, appointments, booked, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
+type Period = 'upcoming' | 'past';
+type StatusFilter = 'all' | Appointment['status'];
+
+const periods: { value: Period; label: string }[] = [
+  { value: 'upcoming', label: 'امروز و آینده' },
+  { value: 'past', label: 'گذشته' },
+];
+
+const statusFilters: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'همه' },
+  ...(['pending', 'confirmed', 'completed', 'cancelled'] as const).map((value) => ({ value, label: appointmentStatus[value].label })),
+];
+
+/** Minutes between two `HH:MM[:SS]` times. */
+function duration(start: string, end: string): number {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return eh * 60 + em - (sh * 60 + sm);
+}
+
+/** All appointments as a filterable list, with the status actions on each row. */
+export function AppointmentListView({ appointments, planned, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
+  const [period, setPeriod] = useState<Period>('upcoming');
+  const [status, setStatus] = useState<StatusFilter>('all');
+  const today = todayISO();
+
+  const inPeriod = period === 'upcoming' ? appointments.filter((a) => a.appointment_date >= today) : appointments.filter((a) => a.appointment_date < today).reverse();
+  const filtered = status === 'all' ? inPeriod : inPeriod.filter((a) => a.status === status);
+
   return (
-    <>
-      {/* Date Navigation */}
-      <div className="card p-4">
-        <div className="flex items-center justify-between">
-          <button onClick={() => onSelectDate(addDaysISO(selectedDate, -1))} className="p-2 rounded-xl hover:bg-surface-100 transition-colors">
-            <ChevronRight size={20} className="text-surface-500" />
-          </button>
-          <div className="text-center">
-            <p className="font-bold text-surface-800">{getPersianDayName(selectedDate)}</p>
-            <p className="text-xs text-surface-400 mt-0.5">{formatDateShort(selectedDate)}</p>
-          </div>
-          <button onClick={() => onSelectDate(addDaysISO(selectedDate, 1))} className="p-2 rounded-xl hover:bg-surface-100 transition-colors">
-            <ChevronLeft size={20} className="text-surface-500" />
-          </button>
-        </div>
-        {selectedDate === todayISO() && (
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <span className="text-xs text-primary-600 font-medium">امروز</span>
-          </div>
-        )}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <ChoiceChips options={periods} value={period} onChange={setPeriod} />
+        <span className="hidden sm:block w-px h-5 bg-surface-200" />
+        <ChoiceChips options={statusFilters} value={status} onChange={setStatus} />
       </div>
 
-      {/* Empty slots bar */}
-      {!loading && (
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={16} className="text-secondary-500" />
-              <span className="text-sm font-medium text-surface-700">ساعات خالی</span>
-            </div>
-            <span className="text-sm text-surface-500">
-              <span className="font-bold text-secondary-600">{formatNumber(ALL_SLOTS.length - booked.size)}</span> از {formatNumber(ALL_SLOTS.length)} ساعت خالی
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {ALL_SLOTS.map((slot) => {
-              const isBooked = booked.has(slot);
-              return (
-                <div
-                  key={slot}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    isBooked
-                      ? 'bg-primary-100 text-primary-600 cursor-default'
-                      : 'bg-secondary-50 text-secondary-600 hover:bg-secondary-100 cursor-pointer'
-                  }`}
-                  onClick={() => {
-                    if (!isBooked) onNew(slot);
-                  }}
-                  title={isBooked ? 'رزرو شده' : 'خالی - کلیک برای رزرو'}
-                >
-                  {formatTime(slot)}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Appointments List */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           <SkeletonList count={4} className="h-20" />
         </div>
-      ) : appointments.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
-          title="هیچ نوبتی برای این روز"
-          description="برای این تاریخ نوبتی ثبت نشده است"
-          action={<button onClick={() => onNew()} className="btn-primary"><Plus size={18} />نوبت جدید</button>}
+          title="نوبتی یافت نشد"
+          description="فیلترها را تغییر دهید یا نوبت جدیدی ثبت کنید"
+          action={<button onClick={onNew} className="btn-primary"><Plus size={16} />نوبت جدید</button>}
         />
       ) : (
-        <div className="space-y-3">
-          {appointments.map((apt, i) => {
-            const [clock, period] = formatTime(apt.start_time).split(' ');
-            return (
-              <div
-                key={apt.id}
-                className="card card-hover p-4 animate-slide-up"
-                style={{ animationDelay: `${i * 50}ms` }}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-surface-50 shrink-0">
-                    <span className="text-xs text-surface-400">{period}</span>
-                    <span className="font-bold text-surface-700 text-sm">{clock}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => onOpenPatient(apt.patient_id)}
-                      className="font-medium text-surface-800 text-sm hover:text-primary-600 transition-colors"
-                    >
-                      {fullName(apt.patient)}
-                    </button>
-                    <p className="text-xs text-surface-400 mt-0.5">
-                      {apt.service?.name || 'نوبت عمومی'} • {apt.staff?.full_name || 'بدون دکتر'}
-                    </p>
-                    {apt.notes && <p className="text-xs text-surface-500 mt-1">{apt.notes}</p>}
-                    <div className="flex items-center gap-2 mt-2">
-                      <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} showIcon />
-                      <span className="text-xs text-surface-400">{formatCurrency(apt.price)}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    {apt.status === 'pending' && (
-                      <button onClick={() => onStatusChange(apt.id, 'confirmed')} className="p-1.5 rounded-lg bg-secondary-50 hover:bg-secondary-100" title="تایید">
-                        <CheckCircle2 size={16} className="text-secondary-500" />
-                      </button>
-                    )}
-                    {apt.status === 'confirmed' && (
-                      <button onClick={() => onStatusChange(apt.id, 'completed')} className="p-1.5 rounded-lg bg-accent-50 hover:bg-accent-100" title="تکمیل">
-                        <CheckCircle2 size={16} className="text-accent-500" />
-                      </button>
-                    )}
-                    <button onClick={() => onStatusChange(apt.id, 'cancelled')} className="p-1.5 rounded-lg bg-error-50 hover:bg-error-100" title="لغو">
-                      <XCircle size={16} className="text-error-500" />
-                    </button>
-                  </div>
-                </div>
+        <div className="space-y-2">
+          {filtered.map((apt) => (
+            <div key={apt.id} className="card p-4 flex flex-wrap sm:flex-nowrap items-center gap-x-4 gap-y-3">
+              <div className="text-center shrink-0 w-20">
+                <p className="text-xs text-surface-400">{apt.appointment_date === today ? 'امروز' : `${getPersianDayName(apt.appointment_date)} ${formatDateShort(apt.appointment_date)}`}</p>
+                <p className="text-base font-bold text-surface-800">{formatClock(apt.start_time)}</p>
+                <p className="text-xs text-surface-400">{formatNumber(duration(apt.start_time, apt.end_time))} دقیقه</p>
               </div>
-            );
-          })}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onOpenPatient(apt.patient_id)} className="text-sm font-semibold text-surface-800 hover:text-primary-600 transition-colors">
+                    {fullName(apt.patient)}
+                  </button>
+                  {planned.has(apt.id) && <span className="text-xs bg-primary-50 text-primary-600 border border-primary-200 px-1.5 py-0.5 rounded-lg whitespace-nowrap">طرح درمان</span>}
+                </div>
+                <p className="text-xs text-surface-500 mt-0.5 truncate">
+                  {apt.service?.name || 'نوبت عمومی'} · {apt.staff?.full_name || 'بدون دکتر'}
+                </p>
+                {apt.notes && <p className="text-xs text-surface-400 mt-1 truncate">{apt.notes}</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} />
+                {apt.status === 'pending' && (
+                  <button onClick={() => onStatusChange(apt.id, 'confirmed')} className="btn-chip px-2 py-1 bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100">تأیید</button>
+                )}
+                {(apt.status === 'pending' || apt.status === 'confirmed') && (
+                  <>
+                    <button onClick={() => onStatusChange(apt.id, 'completed')} className="btn-chip px-2 py-1 bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100">انجام شد</button>
+                    <button onClick={() => onStatusChange(apt.id, 'cancelled')} className="btn-chip px-2 py-1 bg-error-50 text-error-600 border-error-200 hover:bg-error-100">لغو</button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
-    </>
+    </div>
   );
 }

@@ -10,12 +10,14 @@ function invoice(
   total: number,
   paid_amount: number,
   installment_count = 0,
+  treatment_plan_id: string | null = null,
 ): Invoice {
   const balance = total - paid_amount;
   return {
     id,
     patient_id,
     appointment_id,
+    treatment_plan_id,
     invoice_number: `INV-${number}`,
     subtotal: total,
     tax_amount: 0,
@@ -36,7 +38,7 @@ export const invoices: Invoice[] = [
   invoice('inv-01', 100101, 'pat-01', 'apt-01', -150, 2_800_000, 2_800_000),
   invoice('inv-02', 100102, 'pat-11', 'apt-02', -240, 300_000, 300_000),
   invoice('inv-03', 100103, 'pat-07', 'apt-03', -100, 4_500_000, 4_500_000),
-  invoice('inv-04', 100104, 'pat-06', 'apt-04', -70, 35_000_000, 14_000_000, 5),
+  invoice('inv-04', 100104, 'pat-06', 'apt-04', -70, 35_000_000, 14_000_000, 5, 'tp-02'),
   invoice('inv-05', 100105, 'pat-05', 'apt-05', -65, 5_000_000, 5_000_000),
   invoice('inv-06', 100106, 'pat-02', 'apt-06', -40, 12_000_000, 4_000_000, 3),
   invoice('inv-07', 100107, 'pat-10', 'apt-07', -35, 1_500_000, 0),

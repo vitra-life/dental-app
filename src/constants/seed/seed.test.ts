@@ -47,7 +47,19 @@ describe('sample data is internally consistent', () => {
       expect(!a.staff_id || staff.has(a.staff_id), a.id).toBe(true);
       expect(!a.service_id || services.has(a.service_id), a.id).toBe(true);
     }
-    for (const i of seedData.invoices) expect(patients.has(i.patient_id), i.id).toBe(true);
+    const plans = ids('treatment_plans');
+    const appointments = ids('appointments');
+    for (const i of seedData.invoices) {
+      expect(patients.has(i.patient_id), i.id).toBe(true);
+      expect(!i.treatment_plan_id || plans.has(i.treatment_plan_id), i.id).toBe(true);
+    }
+    for (const item of seedData.treatment_plan_items) {
+      expect(plans.has(item.plan_id), item.id).toBe(true);
+      expect(!item.appointment_id || appointments.has(item.appointment_id), item.id).toBe(true);
+    }
+    for (const template of seedData.treatment_plan_templates) {
+      for (const item of template.items) expect(!item.service_id || services.has(item.service_id), template.id).toBe(true);
+    }
     for (const p of seedData.payments) expect(invoices.has(p.invoice_id), p.id).toBe(true);
     for (const o of seedData.lab_orders) {
       expect(labs.has(o.lab_id), o.id).toBe(true);

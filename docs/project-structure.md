@@ -52,21 +52,20 @@ Dependencies point one way: `features` → `components` → `lib` and `constants
 
 ```
 components/
-├── layout.tsx              sidebar, mobile menu and top bar around every page
+├── layout.tsx              collapsible sidebar, mobile menu, top bar and the scrolling page area
 └── ui/
     ├── modal.tsx               dialog
     ├── page-header.tsx         page title, subtitle and action buttons
-    ├── tabs.tsx                underlined tab bar
+    ├── tabs.tsx                segmented (pill) tab bar
     ├── section-header.tsx      title row of a card
     ├── icon-box.tsx            tinted square holding an icon
     ├── tones.ts                the colour pairs icon boxes and tiles use
-    ├── stat-card.tsx           large summary figure (dashboard)
-    ├── stat-tile.tsx           medium and compact summary figures
+    ├── stat-tile.tsx           summary figure: label, value, note, icon
     ├── status-badge.tsx        coloured pill for a status
     ├── avatar.tsx              initials on a gradient tile
-    ├── bar-chart.tsx           vertical bar chart
+    ├── charts.tsx              area, bar and donut charts (recharts)
     ├── progress-bar.tsx        thin horizontal progress bar
-    ├── choice-chips.tsx        single-choice row of pill buttons
+    ├── choice-chips.tsx        single-choice row of pill buttons (filters, form choices)
     ├── jalali-date-input.tsx   Jalali date field with a calendar popover
     ├── skeleton.tsx            loading placeholders
     ├── empty-state.tsx         "nothing here yet" block
@@ -80,29 +79,31 @@ Each folder is one page. The `*-page.tsx` file is the entry point that `app.tsx`
 ```
 features/
 ├── dashboard/
-│   ├── dashboard-page.tsx          welcome banner, figures, weekly charts, today's appointments
+│   ├── dashboard-page.tsx          figures, revenue and service charts, today's appointments, assistant notes
 │   └── dashboard-stats.ts          computes everything the dashboard shows
 │
 ├── patients/
-│   ├── patients-page.tsx           searchable patient list
+│   ├── patients-page.tsx           patient cards with search and balance filters; shows the record when one is open
 │   ├── patient-form.tsx            add or edit a patient
-│   ├── patient-detail.tsx          patient record dialog and its tabs
-│   ├── patient-info-tab.tsx        contact, medical and insurance details
+│   ├── patient-detail.tsx          patient record page: breadcrumb, summary card, tabs
+│   ├── patient-info-tab.tsx        base details, allergies, medical history, emergency contact
+│   ├── patient-history-tab.tsx     treatments, appointments, invoices and lab orders in one tab
 │   ├── dental-chart.tsx            per-tooth chart and tooth history
 │   ├── rvg-manager.tsx             radiology images
 │   ├── patient-lab-orders.tsx      the patient's lab orders
 │   ├── treatment-history.tsx       treatments done
-│   └── treatment-plan-tab.tsx      treatment plans and their items
+│   └── treatment-plan-tab.tsx      treatment plans and their items; new plans can start from a template
 │
 ├── appointments/
-│   ├── appointments-page.tsx           day summary and view switch
-│   ├── appointment-list-view.tsx       day list with free time slots
-│   ├── appointment-calendar-view.tsx   Jalali month calendar and week strip
-│   └── appointment-form.tsx            book an appointment
+│   ├── appointments-page.tsx           today's figures and the list / day / calendar switch
+│   ├── appointment-list-view.tsx       every appointment, filtered by period and status, with status actions
+│   ├── appointment-day-view.tsx        one day: nearby days, free slots, that day's appointments
+│   ├── appointment-calendar-view.tsx   Jalali month calendar beside the selected day's list
+│   └── appointment-form.tsx            book an appointment, optionally for a treatment-plan item
 │
 ├── billing/
-│   ├── billing-page.tsx            invoice list, figures, instalment reminders
-│   ├── invoice-form.tsx            create an invoice, optionally in instalments
+│   ├── billing-page.tsx            invoice cards, figures, instalment reminders
+│   ├── invoice-form.tsx            create an invoice, optionally from a treatment plan and in instalments
 │   ├── invoice-detail.tsx          invoice items, instalments, payments
 │   ├── patient-balance.ts          keeps a patient's balance equal to what they owe
 │   └── patient-balance.test.ts
@@ -118,7 +119,7 @@ features/
 │   └── report-stats.ts             computes the report figures
 │
 ├── ai-assistant/
-│   ├── ai-assistant-page.tsx       question box, free slots, insights, patient segments
+│   ├── ai-assistant-page.tsx       chat with the assistant; insights, free slots and segments beside it
 │   └── ai-insights.ts              builds the insights and answers questions by keyword
 │
 ├── sms/
@@ -135,9 +136,12 @@ features/
 └── settings/
     ├── settings-page.tsx           tab container
     ├── clinic-tab.tsx              clinic details and the reset-data button
+    ├── hours-tab.tsx               opening hours per weekday
     ├── staff-tab.tsx               staff list
-    ├── services-tab.tsx            service catalogue and prices
-    ├── plans-tab.tsx               read-only list of all treatment plans
+    ├── services-tab.tsx            service catalogue table with category filters
+    ├── service-form.tsx            add or edit a service
+    ├── plans-tab.tsx               treatment-plan templates, and a read-only list of all plans
+    ├── template-form.tsx           add or edit a template
     └── notifications-tab.tsx       reminder switches (not saved yet)
 ```
 
@@ -146,14 +150,15 @@ features/
 ```
 constants/
 ├── status.ts               label and colours for every status (appointment, invoice, lab order…)
-├── schedule.ts             working hours and slot length
+├── schedule.ts             default working day and slot length
+├── service-categories.ts   the categories a service can have
 └── seed/                   the sample data the app starts with
     ├── index.ts            gathers every table into `seedData`
     ├── clinic.ts           clinic settings, staff, services
     ├── patients.ts         patients
     ├── appointments.ts     appointments around today
     ├── billing.ts          invoices, invoice items, payments, instalments
-    ├── clinical.ts         treatments, tooth records, radiology images, treatment plans
+    ├── clinical.ts         treatments, tooth records, radiology images, treatment plans and templates
     ├── lab.ts              labs, lab services, lab orders, lab payments
     ├── sms.ts              SMS bundles, campaigns, messages
     └── seed.test.ts        checks that the sample numbers agree with each other
@@ -170,8 +175,10 @@ lib/
 ├── date.test.ts
 ├── format.ts               numbers, money, times, names, payment-method labels
 ├── format.test.ts
-├── schedule.ts             appointment slots: all, booked, next free
+├── schedule.ts             appointment slots from the clinic's working hours: all, booked, free
 ├── schedule.test.ts
+├── treatment-plans.ts      links plans to appointments and invoices; creates plans from templates
+├── treatment-plans.test.ts
 ├── revenue.ts              revenue per Jalali month and month-over-month change
 └── toast.ts                `showToast()`
 ```

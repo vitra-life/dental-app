@@ -1,4 +1,4 @@
-import type { DentalRecord, RvgImage, Treatment, TreatmentPlan, TreatmentPlanItem } from '@/lib/types';
+import type { DentalRecord, RvgImage, Treatment, TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 import { daysFromToday, timestampFromNow } from '@/lib/date';
 
 export const treatments: Treatment[] = [
@@ -93,4 +93,34 @@ export const treatmentPlanItems: TreatmentPlanItem[] = [
   planItem('tpi-04', 'tp-02', 'pat-06', 'svc-08', 36, 'ایمپلنت', 35_000_000, 'completed', 1, { completed_date: daysFromToday(-70), appointment_id: 'apt-04', created_at: timestampFromNow(-70) }),
   planItem('tpi-05', 'tp-02', 'pat-06', 'svc-07', 36, 'روکش روی ایمپلنت', 12_000_000, 'planned', 2, { appointment_id: 'apt-25', due_date: daysFromToday(2), created_at: timestampFromNow(-70) }),
   planItem('tpi-06', 'tp-03', 'pat-07', 'svc-06', 38, 'جراحی دندان عقل', 4_500_000, 'completed', 1, { completed_date: daysFromToday(-100), appointment_id: 'apt-03', created_at: timestampFromNow(-110) }),
+];
+
+const templateItem = (service_id: string, description: string, price: number) => ({ service_id, description, price });
+
+// Prices are the services' default prices.
+export const treatmentPlanTemplates: TreatmentPlanTemplate[] = [
+  {
+    id: 'tpt-01',
+    name: 'پکیج ایمپلنت استاندارد',
+    description: 'معاینه، کاشت ایمپلنت و روکش نهایی',
+    items: [templateItem('svc-01', 'ویزیت و معاینه', 300_000), templateItem('svc-08', 'ایمپلنت', 35_000_000), templateItem('svc-07', 'روکش زیرکونیا', 12_000_000)],
+    active: true,
+    created_at: timestampFromNow(-200),
+  },
+  {
+    id: 'tpt-02',
+    name: 'درمان ریشه و روکش',
+    description: 'عصب‌کشی، ترمیم و روکش دندان خلفی',
+    items: [templateItem('svc-04', 'عصب‌کشی', 6_000_000), templateItem('svc-03', 'ترمیم کامپوزیت', 2_500_000), templateItem('svc-07', 'روکش زیرکونیا', 12_000_000)],
+    active: true,
+    created_at: timestampFromNow(-200),
+  },
+  {
+    id: 'tpt-03',
+    name: 'پکیج زیبایی لبخند',
+    description: 'جرمگیری و بلیچینگ',
+    items: [templateItem('svc-02', 'جرمگیری و بروساژ', 1_200_000), templateItem('svc-09', 'بلیچینگ', 5_000_000)],
+    active: true,
+    created_at: timestampFromNow(-120),
+  },
 ];

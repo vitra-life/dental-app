@@ -11,7 +11,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, showIcon = false, className }: StatusBadgeProps) {
   const Icon = status.icon;
   return (
-    <span className={`badge ${status.bg} ${status.text}${className ? ` ${className}` : ''}`}>
+    <span className={`badge border ${status.bg} ${status.text} ${status.border}${className ? ` ${className}` : ''}`}>
       {showIcon && Icon && <Icon size={12} />}
       {status.label}
     </span>

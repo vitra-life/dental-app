@@ -3,38 +3,53 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import App from './app';
 import * as db from './lib/store';
 
+// The sidebar entry (matched from its start: the assistant's also carries a badge) and the page title it opens.
 const pages = [
-  { nav: 'داشبورد', shows: 'خوش آمدید' },
-  { nav: 'بیماران', shows: 'مدیریت بیماران' },
-  { nav: 'نوبت‌دهی', shows: 'مدیریت نوبت‌های کلینیک' },
-  { nav: 'صورتحساب', shows: 'مدیریت مالی و پرداخت‌ها' },
-  { nav: 'لابراتوار', shows: 'مدیریت سفارشات و پرداخت‌های لابراتوار' },
-  { nav: 'گزارش‌ها', shows: 'تحلیل عملکرد کلینیک' },
-  { nav: 'دستیار هوشمند', shows: 'تحلیل و پیشنهادهای هوشمند' },
-  { nav: 'پنل پیامک', shows: 'ارسال پیامک انبوه، مدیریت کمپین‌ها و بسته‌ها' },
-  { nav: 'تنظیمات', shows: 'مدیریت اطلاعات کلینیک و سیستم' },
+  { nav: 'داشبورد', title: 'داشبورد' },
+  { nav: 'بیماران', title: 'بیماران' },
+  { nav: 'نوبت‌دهی', title: 'نوبت‌دهی' },
+  { nav: 'صورتحساب', title: 'صورتحساب' },
+  { nav: 'لابراتوار', title: 'لابراتوار' },
+  { nav: 'گزارش‌ها', title: 'گزارش‌ها' },
+  { nav: 'دستیار هوشمند', title: 'دستیار هوشمند' },
+  { nav: 'پنل پیامک', title: 'پنل پیامک' },
+  { nav: 'تنظیمات', title: 'تنظیمات' },
 ];
+
+// The sidebar is rendered twice (desktop and mobile); either copy navigates.
+const openFromSidebar = (nav: string) => fireEvent.click(screen.getAllByRole('button', { name: new RegExp(`^${nav}`) })[0]);
+const pageTitle = (name: string) => screen.getByRole('heading', { level: 1, name });
 
 beforeEach(() => {
   db.resetStore();
-  window.scrollTo = () => {};
 });
 
 afterEach(cleanup);
 
 describe('App', () => {
-  it.each(pages)('opens $nav from the sidebar', ({ nav, shows }) => {
+  it.each(pages)('opens $nav from the sidebar', ({ nav, title }) => {
     render(<App />);
-    // The sidebar is rendered twice (desktop and mobile); either copy navigates.
-    fireEvent.click(screen.getAllByRole('button', { name: nav })[0]);
-    expect(screen.getByText(shows)).toBeTruthy();
+    openFromSidebar(nav);
+    expect(pageTitle(title)).toBeTruthy();
   });
 
-  it('opens a patient record from the appointments list', () => {
+  it('opens a patient record from the appointments list and returns to the patient list', () => {
     render(<App />);
-    fireEvent.click(screen.getAllByRole('button', { name: 'نوبت‌دهی' })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'علیرضا کاظمی' }));
-    expect(screen.getByText('مدیریت بیماران')).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 2, name: 'علیرضا کاظمی' })).toBeTruthy();
+    openFromSidebar('نوبت‌دهی');
+    fireEvent.click(screen.getAllByRole('button', { name: 'علیرضا کاظمی' })[0]);
+    expect(pageTitle('علیرضا کاظمی')).toBeTruthy();
+
+    openFromSidebar('بیماران');
+    expect(pageTitle('بیماران')).toBeTruthy();
+  });
+
+  it('opens a patient record from the patient list and goes back by the breadcrumb', () => {
+    render(<App />);
+    openFromSidebar('بیماران');
+    fireEvent.click(screen.getByText('علیرضا کاظمی'));
+    expect(pageTitle('علیرضا کاظمی')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'بازگشت' }));
+    expect(pageTitle('بیماران')).toBeTruthy();
   });
 });

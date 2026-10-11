@@ -2,7 +2,7 @@
 
 A dental clinic management app. The interface is in Persian, laid out right-to-left, and every date is shown in the Jalali (Persian) calendar.
 
-It covers patients and their records, appointments, billing with instalments, lab orders, reports, an SMS panel and clinic settings.
+It covers patients and their records, treatment plans, appointments, billing with instalments, lab orders, reports, a smart assistant, an SMS panel and clinic settings.
 
 The app has no backend. It starts from sample data and saves every change in the browser's localStorage, so each browser has its own copy of the data.
 
@@ -35,6 +35,7 @@ Then open the address Vite prints (by default http://localhost:5173).
 
 - React 18, TypeScript and Vite
 - Tailwind CSS 4 for styling (configured in `src/index.css`, no config file), lucide-react for icons
+- recharts for charts
 - moment-jalaali for the Jalali calendar and date-fns for date arithmetic
 - Vitest and Testing Library for tests
 
@@ -45,7 +46,7 @@ src/
 ├── main.tsx, app.tsx     entry point and page switching
 ├── index.css             Tailwind theme and shared component classes
 ├── components/
-│   ├── layout.tsx        sidebar and top bar
+│   ├── layout.tsx        collapsible sidebar, top bar and the scrolling page area
 │   └── ui/               shared building blocks (modal, tabs, date input, charts…)
 ├── features/             one folder per page
 │   ├── dashboard/        ├── lab/
@@ -56,13 +57,15 @@ src/
 ├── constants/
 │   ├── seed/             the sample data, one file per area
 │   ├── status.ts         labels and colours for every status
+│   ├── service-categories.ts   the categories a service can have
 │   └── schedule.ts       working hours and slot length
 └── lib/
     ├── store.ts          the data layer (reads, writes, localStorage)
     ├── types.ts          row types for every table
     ├── date.ts           all date handling
     ├── format.ts         numbers, money, times, names
-    ├── schedule.ts       appointment slots
+    ├── schedule.ts       appointment slots from the clinic's working hours
+    ├── treatment-plans.ts   linking plans to appointments and invoices; plan templates
     ├── revenue.ts        monthly revenue figures
     └── toast.ts          `showToast()`
 ```

@@ -14,12 +14,16 @@ A screen never talks to localStorage or to the seed files directly.
 
 ## Navigation
 
-There is no router. `src/app.tsx` keeps the current page in state (`currentPage: PageKey`) and renders the matching page component.
+There is no router. `src/app.tsx` keeps the current page in state (`currentPage: PageKey`) and renders the matching page component inside `Layout`.
+
+`Layout` is a full-height frame: a sidebar that can be collapsed to icons, a top bar, and a `<main>` area that scrolls and adds the page padding. The window itself never scrolls.
 
 Two callbacks are passed down to the pages that need them:
 
 - `onNavigate(page)` switches page.
 - `onOpenPatient(patientId)` switches to the patients page and opens that patient's record.
+
+The patient record is a full page: the patients page shows either the list or the record, with a breadcrumb back to the list.
 
 ## Features
 
@@ -39,20 +43,21 @@ A feature may import from `components/`, `constants/` and `lib/`. Features shoul
 | Component | Use it for |
 |---|---|
 | `PageHeader` | The title, subtitle and action buttons at the top of a page |
-| `Tabs` | An underlined tab bar |
+| `Tabs` | A segmented tab bar (pills on a soft track) |
 | `Modal` | A dialog |
 | `StatusBadge` | A coloured pill for a status from `constants/status.ts` |
-| `StatCard`, `StatTile`, `MiniStat` | Summary figures (large, medium, compact) |
-| `SectionHeader`, `IconBox` | The title row of a card and its tinted icon square |
-| `BarChart`, `ProgressBar` | Simple charts |
-| `ChoiceChips` | A single-choice row of pill buttons |
+| `StatTile` | A summary figure: label, value, optional note and icon |
+| `SectionHeader`, `IconBox` | The title row of a card, and a tinted icon square |
+| `AreaTrend`, `Bars`, `Donut` | Charts (the only place `recharts` is imported) |
+| `ProgressBar` | A thin progress bar |
+| `ChoiceChips` | A single-choice row of pill buttons: list filters and form choices |
 | `JalaliDateInput` | Every date field (see Dates below) |
 | `Avatar` | Initials on a soft gradient tile |
 | `Skeleton`, `SkeletonList` | Loading placeholders |
 | `EmptyState` | The "nothing here yet" block |
 | `ToastContainer` | Renders toasts; call `showToast()` from `lib/toast.ts` to show one |
 
-Reusable classes (`card`, `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger`, `input-field`, `label-field`, `badge`, `stat-card`, `nav-item`) are defined in `src/index.css` as `@utility` rules. The colour scales are in the `@theme` block of the same file; the app uses `primary`, `secondary`, `accent`, `warning`, `error` and `surface`.
+Reusable classes (`card`, `btn-primary`, `btn-secondary`, `btn-ghost`, `btn-danger`, `btn-chip`, `input-field`, `label-field`, `badge`, `stat-card`, `nav-item`) are defined in `src/index.css` as `@utility` rules. The colour scales are in the `@theme` block of the same file; the app uses `primary` (cyan), `secondary`, `accent`, `warning`, `error` and `surface`, plus Tailwind's `violet` for the assistant.
 
 The project uses Tailwind CSS 4, which has no `tailwind.config.js`: the theme lives in CSS and Tailwind runs as a Vite plugin. Two things to remember when writing classes:
 
@@ -85,6 +90,26 @@ Things to know:
 ### Saved data
 
 Everything is saved under the localStorage key `dentaclinic:data:v1`. If you change a table in a way that makes old saved data invalid, bump the version in that key so browsers start again from the seed.
+
+## Appointment slots and working hours
+
+The clinic's opening hours per weekday are stored in `clinic_settings.working_hours` and edited in Settings → ساعات کاری. `src/lib/schedule.ts` turns them into bookable half-hour slots:
+
+| Need | Use |
+|---|---|
+| The saved hours | `clinicWorkingHours()` |
+| A day's slots (none on a closed day) | `workingSlots(date, hours)` |
+| A day's free slots | `freeSlotsOn(date, thatDaysAppointments, hours)` |
+| The next free slots | `findFreeSlots(appointments, days, limit, hours)` |
+
+## Treatment plans
+
+A plan belongs to a patient and has items. `src/lib/treatment-plans.ts` connects plans to the rest of the app:
+
+- **Booking:** the appointment form lists the patient's open plan items. Choosing one fills in the service and price, and saving calls `linkAppointment`.
+- **Status:** when an appointment's status changes, `syncPlanWithAppointment` completes the linked item (and the plan, when it was the last one) or frees the item if the appointment is cancelled.
+- **Billing:** the invoice form can load a plan's done or in-progress items as invoice lines; the invoice keeps the plan in `treatment_plan_id`.
+- **Templates:** Settings → طرح درمان holds reusable templates. `createPlanFromTemplate` creates a plan with one item per template line.
 
 ## Dates
 

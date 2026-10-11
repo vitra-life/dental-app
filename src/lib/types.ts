@@ -1,3 +1,6 @@
+/** Opening and closing time (`HH:MM`) per weekday; `null` on a day the clinic is closed. */
+export type WorkingHours = Record<string, { start: string; end: string } | null>;
+
 export interface ClinicSettings {
   id: string;
   name: string;
@@ -5,7 +8,8 @@ export interface ClinicSettings {
   phone: string | null;
   email: string | null;
   logo_url: string | null;
-  working_hours: Record<string, { start: string; end: string } | null> | null;
+  /** `null` until hours are set; the default working day then applies to every day. */
+  working_hours: WorkingHours | null;
   tax_rate: number;
   currency: string;
   created_at: string;
@@ -105,6 +109,8 @@ export interface Invoice {
   id: string;
   patient_id: string;
   appointment_id: string | null;
+  /** The treatment plan this invoice bills, if any. */
+  treatment_plan_id: string | null;
   invoice_number: string | null;
   subtotal: number;
   tax_amount: number;
@@ -254,6 +260,16 @@ export interface TreatmentPlanItem {
   service?: Service;
 }
 
+/** A reusable list of services a new treatment plan can start from. */
+export interface TreatmentPlanTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  items: { service_id: string | null; description: string; price: number }[];
+  active: boolean;
+  created_at: string;
+}
+
 export interface SmsPackage {
   id: string;
   package_name: string;
@@ -315,6 +331,7 @@ export interface Tables {
   lab_payments: LabPayment;
   treatment_plans: TreatmentPlan;
   treatment_plan_items: TreatmentPlanItem;
+  treatment_plan_templates: TreatmentPlanTemplate;
   sms_packages: SmsPackage;
   sms_campaigns: SmsCampaign;
   sms_messages: SmsMessage;

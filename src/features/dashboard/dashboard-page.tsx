@@ -1,39 +1,68 @@
 import { useState, useEffect } from 'react';
-import {
-  Users,
-  CalendarDays,
-  DollarSign,
-  Clock,
-  TrendingUp,
-  AlertTriangle,
-  ArrowLeft,
-  Activity,
-  Sparkles,
-} from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarDays, CircleDollarSign, ClipboardList, Clock, Plus, Receipt, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
-import { BarChart } from '@/components/ui/bar-chart';
-import { IconBox } from '@/components/ui/icon-box';
+import { AreaTrend, Bars, Donut } from '@/components/ui/charts';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton, SkeletonList } from '@/components/ui/skeleton';
-import { StatCard } from '@/components/ui/stat-card';
+import { StatTile } from '@/components/ui/stat-tile';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { serviceCategoryLabel } from '@/constants/service-categories';
 import { appointmentStatus, statusStyle } from '@/constants/status';
-import { getPersianDayName } from '@/lib/date';
-import { formatCurrency, formatNumber, formatTime, fullName } from '@/lib/format';
+import { formatDate, getPersianDayName, todayISO } from '@/lib/date';
+import { formatCurrency, formatNumber, formatTime, fullName, percent } from '@/lib/format';
 import type { PageKey } from '@/lib/types';
-import { loadDashboardStats, type DashboardAlert, type DashboardStats } from './dashboard-stats';
+import { loadDashboardStats, type DashboardStats } from './dashboard-stats';
 
 interface DashboardProps {
   onNavigate: (page: PageKey) => void;
+  onOpenPatient: (patientId: string) => void;
 }
 
-const alertStyles: Record<DashboardAlert['severity'], { bg: string; border: string; icon: typeof Clock; iconColor: string }> = {
-  warning: { bg: 'bg-warning-50', border: 'border-warning-200', icon: AlertTriangle, iconColor: 'text-warning-500' },
-  info: { bg: 'bg-secondary-50', border: 'border-secondary-200', icon: Clock, iconColor: 'text-secondary-500' },
-  error: { bg: 'bg-error-50', border: 'border-error-200', icon: AlertTriangle, iconColor: 'text-error-500' },
-};
+interface AssistantNote {
+  icon: LucideIcon;
+  /** Card border and icon tile colours. */
+  border: string;
+  tile: string;
+  title: string;
+  description: string;
+  cta: string;
+  page: PageKey;
+}
 
-export function Dashboard({ onNavigate }: DashboardProps) {
+function assistantNotes(stats: DashboardStats): AssistantNote[] {
+  return [
+    {
+      icon: ClipboardList,
+      border: 'border-warning-200',
+      tile: 'bg-warning-100 text-warning-600',
+      title: `${formatNumber(stats.unfinishedPlans)} طرح درمان ناتمام`,
+      description: `ارزش تقریبی: ${formatCurrency(stats.unfinishedPlanValue)}`,
+      cta: 'مشاهده بیماران',
+      page: 'patients',
+    },
+    {
+      icon: AlertTriangle,
+      border: 'border-error-200',
+      tile: 'bg-error-100 text-error-600',
+      title: `${formatNumber(stats.debtors)} بیمار بدهکار`,
+      description: `مجموع: ${formatCurrency(stats.totalDebt)}`,
+      cta: 'مشاهده صورتحساب',
+      page: 'billing',
+    },
+    {
+      icon: Clock,
+      border: 'border-primary-200',
+      tile: 'bg-primary-100 text-primary-600',
+      title: `${formatNumber(stats.freeSlotsToday)} ساعت خالی امروز`,
+      description: 'می‌توان با بیماران در انتظار پر کرد',
+      cta: 'مدیریت نوبت‌ها',
+      page: 'appointments',
+    },
+  ];
+}
+
+export function Dashboard({ onNavigate, onOpenPatient }: DashboardProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
@@ -43,138 +72,133 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   if (!stats) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <SkeletonList count={4} className="h-32" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <SkeletonList count={4} className="h-24" />
         </div>
-        <Skeleton className="h-80" />
+        <Skeleton className="h-72" />
       </div>
     );
   }
 
+  const today = todayISO();
+  const notes = assistantNotes(stats);
+
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden bg-linear-to-l/srgb from-primary-600 via-primary-500 to-secondary-500 rounded-2xl p-6 lg:p-8 shadow-elevated">
-        <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-32 -translate-y-32 blur-2xl" />
-        <div className="absolute bottom-0 right-0 w-48 h-48 bg-white/10 rounded-full translate-x-24 translate-y-24 blur-2xl" />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={18} className="text-white/80" />
-            <span className="text-white/80 text-sm font-medium">خوش آمدید</span>
-          </div>
-          <h2 className="text-white text-xl lg:text-2xl font-bold mb-1">دکتر سارا احمدی</h2>
-          <p className="text-white/70 text-sm">امروز {getPersianDayName(new Date())}، {formatNumber(stats.todayAppointments)} بیمار نوبت دارند</p>
-          <div className="flex flex-wrap gap-3 mt-4">
-            <button onClick={() => onNavigate('appointments')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
-              <CalendarDays size={16} />
-              نوبت‌دهی
-            </button>
-            <button onClick={() => onNavigate('patients')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
-              <Users size={16} />
-              بیماران
-            </button>
-            <button onClick={() => onNavigate('ai')} className="inline-flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-medium transition-all backdrop-blur-xs">
-              <Sparkles size={16} />
-              دستیار هوشمند
-            </button>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-surface-900">داشبورد</h1>
+          <p className="text-sm text-surface-500 mt-0.5">{getPersianDayName(today)}، {formatDate(today)}</p>
+        </div>
+        <button onClick={() => onNavigate('appointments')} className="btn-primary">
+          <Plus size={16} />
+          نوبت جدید
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <StatTile label="نوبت‌های امروز" value={formatNumber(stats.todayAppointments)} sub={<>{formatNumber(stats.confirmedToday)} تأیید شده</>} icon={CalendarDays} tone="primary" />
+        <StatTile label="کل بیماران" value={formatNumber(stats.totalPatients)} sub={<>{formatNumber(stats.activePatients)} فعال</>} icon={Users} tone="violet" />
+        <StatTile label="دریافتی این ماه" value={formatCurrency(stats.monthReceived)} sub={stats.monthLabel} icon={CircleDollarSign} tone="accent" />
+        <StatTile label="مانده دریافتنی" value={formatCurrency(stats.pendingPayments)} sub={<>{formatNumber(stats.openInvoices)} فاکتور</>} icon={Receipt} tone="warning" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 card p-5">
+          <SectionHeader title="درآمد ماهانه (تومان)" note="۶ ماه اخیر" />
+          <AreaTrend data={stats.monthlyRevenue.map((m) => ({ label: m.month, value: m.amount }))} height={200} format={formatCurrency} />
+        </div>
+
+        <div className="card p-5">
+          <SectionHeader title="توزیع خدمات" aside={<span className="text-xs text-surface-400">۳۰ روز اخیر</span>} />
+          {stats.serviceShare.length === 0 ? (
+            <p className="text-sm text-surface-400 text-center py-10">نوبتی در این بازه ثبت نشده است</p>
+          ) : (
+            <Donut data={stats.serviceShare.map((s) => ({ label: serviceCategoryLabel(s.category), value: s.count }))} height={160} format={(v) => `${formatNumber(v)} نوبت`} legendLimit={4} />
+          )}
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="نوبت‌های امروز" value={formatNumber(stats.todayAppointments)} icon={CalendarDays} color="primary" delay={0} trend={stats.completedToday > 0 ? { value: `${formatNumber(stats.completedToday)} تکمیل شده`, positive: true } : undefined} />
-        <StatCard title="بیماران کل" value={formatNumber(stats.totalPatients)} icon={Users} color="secondary" delay={100} />
-        <StatCard title="درآمد امروز" value={formatCurrency(stats.todayRevenue)} icon={DollarSign} color="accent" delay={200} />
-        <StatCard title="مطالبات معوق" value={formatCurrency(stats.pendingPayments)} icon={AlertTriangle} color="warning" delay={300} />
-      </div>
-
-      {/* Alerts */}
-      {stats.alerts.length > 0 && (
-        <div className="space-y-2">
-          {stats.alerts.map((alert, i) => {
-            const c = alertStyles[alert.severity];
-            const Icon = c.icon;
-            return (
-              <div key={i} className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${c.bg} ${c.border} animate-slide-up`} style={{ animationDelay: `${i * 50}ms` }}>
-                <Icon size={18} className={c.iconColor} />
-                <span className="text-sm font-medium text-surface-700">{alert.message}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-6">
-          <SectionHeader title="نوبت‌های هفته" subtitle="آمار ۷ روز اخیر" icon={Activity} tone="primary" />
-          <BarChart
-            tone="primary"
-            className="gap-2 h-48"
-            bars={stats.week.map((d) => ({ label: d.day, value: d.count, tooltip: formatNumber(d.count) }))}
-          />
-        </div>
-
-        <div className="card p-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3 card p-5">
           <SectionHeader
-            title="درآمد هفته"
-            subtitle="درآمد روزانه (تومان)"
-            icon={DollarSign}
-            tone="accent"
-            aside={
-              <div className="flex items-center gap-2">
-                {stats.revenueTrend !== 0 && (
-                  <span className={`badge ${stats.revenueTrend > 0 ? 'bg-accent-50 text-accent-600' : 'bg-error-50 text-error-600'}`}>
-                    <TrendingUp size={12} />
-                    {stats.revenueTrend > 0 ? '+' : ''}{formatNumber(stats.revenueTrend)}%
-                  </span>
-                )}
-                <IconBox icon={DollarSign} tone="accent" />
-              </div>
-            }
+            title="نوبت‌های امروز"
+            aside={<button onClick={() => onNavigate('appointments')} className="text-xs text-primary-600 hover:text-primary-700 font-medium">مشاهده همه</button>}
           />
-          <BarChart
-            tone="accent"
-            className="gap-2 h-48"
-            compactTooltip
-            bars={stats.week.map((d) => ({ label: d.day, value: d.revenue, tooltip: formatCurrency(d.revenue) }))}
-          />
+          {stats.todayList.length === 0 ? (
+            <p className="text-sm text-surface-400 text-center py-6">نوبتی برای امروز ثبت نشده</p>
+          ) : (
+            <div className="space-y-2">
+              {stats.todayList.map((apt) => (
+                <div key={apt.id} onClick={() => onOpenPatient(apt.patient_id)} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50 hover:bg-surface-100 transition-colors cursor-pointer">
+                  <Avatar className="w-9 h-9 rounded-full text-sm shrink-0">{apt.patient ? apt.patient.first_name.charAt(0) : '?'}</Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-surface-800 truncate">{fullName(apt.patient)}</p>
+                    <p className="text-xs text-surface-500 truncate">{apt.service?.name || 'نوبت عمومی'}</p>
+                  </div>
+                  <div className="text-left shrink-0">
+                    <p className="text-xs font-medium text-surface-700 mb-1">{formatTime(apt.start_time)}</p>
+                    <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} className="px-2 py-0.5 rounded-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-2 card p-5">
+          <SectionHeader title="نوبت‌های هفتگی" />
+          <Bars data={stats.week.map((d) => ({ label: d.day, value: d.count }))} height={180} format={(v) => `${formatNumber(v)} نوبت`} barSize={16} />
+          <div className="mt-3 pt-3 border-t border-surface-100">
+            <h3 className="text-xs font-semibold text-surface-600 mb-2">طرح‌های درمان فعال</h3>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-2xl font-bold text-surface-800">{formatNumber(stats.activePlans)}</span>
+              <button onClick={() => onNavigate('patients')} className="text-xs text-primary-600 hover:underline">مشاهده</button>
+            </div>
+            <ProgressBar value={percent(stats.activePlans, stats.totalPatients)} />
+          </div>
         </div>
       </div>
 
-      {/* Today's Appointments */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="font-bold text-surface-800">نوبت‌های امروز</h3>
-          <button onClick={() => onNavigate('appointments')} className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium">
-            مشاهده همه
-            <ArrowLeft size={16} />
+      {/* What the assistant has noticed */}
+      <div className="bg-linear-to-l/srgb from-violet-50 to-primary-50 border border-violet-100 rounded-2xl p-5 shadow-card">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-linear-to-br/srgb from-violet-500 to-primary-500 flex items-center justify-center shadow-sm">
+              <Sparkles size={16} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-surface-800">دستیار هوشمند</h2>
+              <div className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-accent-400 rounded-full animate-pulse" />
+                <p className="text-xs text-surface-500">{formatNumber(notes.length)} هشدار مهم</p>
+              </div>
+            </div>
+          </div>
+          <button onClick={() => onNavigate('ai')} className="text-xs bg-white border border-violet-200 text-violet-700 px-3 py-1.5 rounded-xl hover:bg-violet-50 transition-colors font-medium">
+            باز کردن دستیار
           </button>
         </div>
-        {stats.recentAppointments.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10">
-            <div className="w-14 h-14 rounded-2xl bg-surface-100 flex items-center justify-center mb-3">
-              <CalendarDays className="text-surface-400" size={24} />
-            </div>
-            <p className="text-sm text-surface-400">هیچ نوبتی برای امروز ثبت نشده است</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {stats.recentAppointments.map((apt) => (
-              <div key={apt.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 transition-colors">
-                <Avatar className="w-11 h-11 rounded-xl text-sm">{apt.patient ? apt.patient.first_name.charAt(0) : '?'}</Avatar>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {notes.map((note) => (
+            <div key={note.title} className={`bg-white rounded-xl border p-3.5 ${note.border}`}>
+              <div className="flex items-start gap-2.5">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${note.tile}`}>
+                  <note.icon size={16} />
+                </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-surface-800 text-sm truncate">{fullName(apt.patient)}</p>
-                  <p className="text-xs text-surface-400 truncate">
-                    {apt.service?.name || 'نوبت عمومی'} • {formatTime(apt.start_time)}
-                  </p>
+                  <p className="text-xs font-semibold text-surface-800 leading-tight">{note.title}</p>
+                  <p className="text-xs text-surface-500 mt-0.5">{note.description}</p>
+                  <button onClick={() => onNavigate(note.page)} className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline mt-1 font-medium">
+                    {note.cta}
+                    <ArrowLeft size={12} />
+                  </button>
                 </div>
-                <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} showIcon />
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

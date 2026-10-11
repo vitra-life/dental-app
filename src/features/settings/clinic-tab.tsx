@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RotateCcw, Save } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { ClinicSettings } from '@/lib/types';
@@ -30,9 +30,10 @@ export function ClinicTab() {
   }
 
   return (
-    <>
+    <div className="space-y-4">
       {clinic && (
-        <div className="card p-6 space-y-4 max-w-2xl">
+        <div className="card p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-surface-700">اطلاعات کلینیک</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label-field">نام کلینیک</label>
@@ -57,23 +58,22 @@ export function ClinicTab() {
               <input type="number" className="input-field" value={clinic.tax_rate} onChange={(e) => setClinic({ ...clinic, tax_rate: parseFloat(e.target.value) || 0 })} />
             </div>
           </div>
-          <button onClick={saveClinic} className="btn-primary">
-            <Save size={18} />
+          <button onClick={saveClinic} className="btn-primary px-6 py-2.5">
             ذخیره تغییرات
           </button>
         </div>
       )}
 
-      <div className="card p-6 max-w-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-surface-800">داده‌های نمونه</h3>
-          <p className="text-sm text-surface-400 mt-1">اطلاعات در همین مرورگر ذخیره می‌شود. بازنشانی، همه تغییرات را حذف و داده‌های نمونه را بازمی‌گرداند.</p>
+          <h2 className="text-sm font-semibold text-surface-700">داده‌های نمونه</h2>
+          <p className="text-xs text-surface-400 mt-1">اطلاعات در همین مرورگر ذخیره می‌شود. بازنشانی، همه تغییرات را حذف و داده‌های نمونه را بازمی‌گرداند.</p>
         </div>
         <button onClick={resetData} className="btn-danger shrink-0">
-          <RotateCcw size={18} />
+          <RotateCcw size={16} />
           بازنشانی داده‌ها
         </button>
       </div>
-    </>
+    </div>
   );
 }

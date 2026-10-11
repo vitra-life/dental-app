@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, Smile } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { toothStatus } from '@/constants/status';
-import { formatDate, todayISO } from '@/lib/date';
+import { formatDate, formatDateNumeric, todayISO } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
@@ -16,15 +17,14 @@ interface DentalChartProps {
 type ToothStatus = DentalRecord['status'];
 const toothStatuses = Object.keys(toothStatus) as ToothStatus[];
 
-// FDI tooth numbers, in the order they appear across each jaw.
-const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
-const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
+// FDI tooth numbers, one array per quadrant, in the order they appear across each jaw.
+const upperTeeth = [[18, 17, 16, 15, 14, 13, 12, 11], [21, 22, 23, 24, 25, 26, 27, 28]];
+const lowerTeeth = [[48, 47, 46, 45, 44, 43, 42, 41], [31, 32, 33, 34, 35, 36, 37, 38]];
 
 export function DentalChart({ patientId }: DentalChartProps) {
   const [records, setRecords] = useState<DentalRecord[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
-  const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<{ status: ToothStatus; treatment_type: string; notes: string }>({ status: 'decayed', treatment_type: '', notes: '' });
   const [loading, setLoading] = useState(true);
 
@@ -59,7 +59,7 @@ export function DentalChart({ patientId }: DentalChartProps) {
       db.insert('dental_records', { ...values, patient_id: patientId, tooth_number: selectedTooth });
       showToast('درمان دندان ثبت شد');
     }
-    setShowModal(false);
+    setSelectedTooth(null);
     setForm({ status: 'decayed', treatment_type: '', notes: '' });
     load();
   }
@@ -78,192 +78,125 @@ export function DentalChart({ patientId }: DentalChartProps) {
     } else {
       setForm({ status: 'decayed', treatment_type: '', notes: '' });
     }
-    setShowModal(true);
   }
 
   if (loading) {
-    return <Skeleton className="h-64" variant="inset" />;
+    return <Skeleton className="h-64" />;
   }
 
+  const renderRow = (teeth: number[][]) => (
+    <div className="flex justify-center gap-2">
+      {teeth.map((group, gi) => (
+        <div key={gi} className="flex gap-0.5">
+          {group.map((tooth) => {
+            const status = getToothStatus(tooth);
+            const hasRecord = records.some((r) => r.tooth_number === tooth);
+            return (
+              <button
+                key={tooth}
+                onClick={() => openTooth(tooth)}
+                title={`دندان ${formatNumber(tooth)} - ${toothStatus[status].label}`}
+                className={`w-7 h-8 rounded-lg border-2 flex items-end justify-center pb-0.5 text-[9px] font-medium text-surface-600 shadow-xs cursor-pointer transition-all duration-150 hover:scale-110 hover:brightness-95 ${
+                  selectedTooth === tooth ? 'ring-2 ring-primary-400 ring-offset-1' : ''
+                }`}
+                style={{ backgroundColor: toothStatus[status].color, borderColor: hasRecord ? '#0891b2' : '#e2e8f0' }}
+              >
+                {formatNumber(tooth)}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+
+  const selectedRecord = selectedTooth !== null ? records.find((r) => r.tooth_number === selectedTooth) : undefined;
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-surface-50 rounded-xl">
+    <div className="card p-5">
+      <SectionHeader title="نمودار دندانی" note="برای ثبت وضعیت روی دندان کلیک کنید" />
+
+      <div className="bg-surface-50 rounded-2xl p-4 mb-4 overflow-x-auto">
+        <div className="min-w-max">
+          <div className="text-xs text-center text-surface-400 mb-3 font-medium">فک بالا</div>
+          {renderRow(upperTeeth)}
+          <div className="border-t-2 border-dashed border-surface-300 my-3" />
+          {renderRow(lowerTeeth)}
+          <div className="text-xs text-center text-surface-400 mt-3 font-medium">فک پایین</div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-3 gap-y-2 mb-4">
         {toothStatuses.map((key) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: toothStatus[key].color }} />
-            <span className="text-xs text-surface-600">{toothStatus[key].label}</span>
+          <div key={key} className="flex items-center gap-1.5 text-xs text-surface-600">
+            <span className="w-3.5 h-3.5 rounded-sm border border-surface-200 inline-block" style={{ backgroundColor: toothStatus[key].color }} />
+            {toothStatus[key].label}
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-surface-100 p-4 lg:p-6">
-        <div className="text-center mb-2">
-          <span className="text-xs font-medium text-surface-400">فک بالا</span>
-        </div>
-        <div className="flex justify-center gap-1 lg:gap-2 mb-6">
-          {upperTeeth.map((tooth) => {
-            const status = getToothStatus(tooth);
-            const color = toothStatus[status].color;
-            return (
-              <button
-                key={tooth}
-                onClick={() => openTooth(tooth)}
-                className="group relative flex flex-col items-center"
-              >
-                <div
-                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-t-full rounded-b-xs border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
-                  style={{
-                    backgroundColor: color + '20',
-                    borderColor: color,
-                  }}
-                >
-                  <div
-                    className="w-full h-full rounded-t-full rounded-b-xs opacity-30"
-                    style={{ backgroundColor: color }}
-                  />
-                </div>
-                <span className="text-[9px] lg:text-[10px] text-surface-400 mt-0.5">{formatNumber(tooth)}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="h-px bg-surface-200 mb-6" />
-
-        <div className="flex justify-center gap-1 lg:gap-2 mb-2">
-          {lowerTeeth.map((tooth) => {
-            const status = getToothStatus(tooth);
-            const color = toothStatus[status].color;
-            return (
-              <button
-                key={tooth}
-                onClick={() => openTooth(tooth)}
-                className="group relative flex flex-col items-center"
-              >
-                <span className="text-[9px] lg:text-[10px] text-surface-400 mb-0.5">{formatNumber(tooth)}</span>
-                <div
-                  className="w-7 h-9 lg:w-9 lg:h-12 rounded-b-full rounded-t-xs border-2 transition-all duration-200 hover:scale-110 hover:shadow-md"
-                  style={{
-                    backgroundColor: color + '20',
-                    borderColor: color,
-                  }}
-                >
-                  <div
-                    className="w-full h-full rounded-b-full rounded-t-xs opacity-30"
-                    style={{ backgroundColor: color }}
-                  />
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="text-center mt-2">
-          <span className="text-xs font-medium text-surface-400">فک پایین</span>
-        </div>
-      </div>
-
-      {records.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-semibold text-surface-700 text-sm">تاریخچه درمان‌ها</h4>
-          {records.map((record) => {
-            const sc = toothStatus[record.status] ?? toothStatus.healthy;
-            return (
-              <div key={record.id} className="flex items-center gap-3 p-3 bg-surface-50 rounded-xl">
-                <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0">
-                  <Smile size={16} style={{ color: sc.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-surface-700">
-                    دندان {formatNumber(record.tooth_number)}
-                    {record.treatment_type && <span className="text-surface-400"> • {record.treatment_type}</span>}
-                  </p>
-                  {record.notes && <p className="text-xs text-surface-400 mt-0.5">{record.notes}</p>}
-                  {record.treatment_date && <p className="text-xs text-surface-400">{formatDate(record.treatment_date)}</p>}
-                </div>
-                <StatusBadge status={sc} />
-                <button onClick={() => deleteRecord(record.tooth_number)} className="p-1.5 rounded-lg hover:bg-error-50">
-                  <Trash2 size={14} className="text-surface-400 hover:text-error-500" />
-                </button>
-              </div>
-            );
-          })}
+      {selectedTooth !== null && (
+        <div className="bg-white border border-primary-200 rounded-2xl p-4 shadow-card mb-4 animate-fade-in">
+          <h3 className="text-sm font-semibold text-surface-700 mb-3">دندان {formatNumber(selectedTooth)}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="label-field">وضعیت</label>
+              <select className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as ToothStatus })}>
+                {toothStatuses.map((key) => (
+                  <option key={key} value={key}>{toothStatus[key].label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label-field">نوع درمان</label>
+              <select className="input-field" value={form.treatment_type} onChange={(e) => setForm({ ...form, treatment_type: e.target.value })}>
+                <option value="">-- انتخاب خدمت --</option>
+                {services.map((s) => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-2">
+              <label className="label-field">یادداشت</label>
+              <input className="input-field" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="یادداشت اختیاری" />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={saveRecord} className="btn-primary flex-1">ذخیره</button>
+            <button onClick={() => setSelectedTooth(null)} className="btn-secondary flex-1">انصراف</button>
+          </div>
+          {selectedRecord?.treatment_date && (
+            <p className="text-xs text-surface-400 mt-3 pt-3 border-t border-surface-100">
+              آخرین ثبت: {formatDate(selectedRecord.treatment_date)}
+              {selectedRecord.treatment_type && <> · {selectedRecord.treatment_type}</>}
+            </p>
+          )}
         </div>
       )}
 
-      {showModal && selectedTooth !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="absolute inset-0 bg-surface-900/40 backdrop-blur-xs" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-elevated w-full max-w-md p-6 animate-scale-in">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
-                  <Smile size={20} className="text-primary-500" />
+      {records.length > 0 && (
+        <div className="pt-4 border-t border-surface-100">
+          <p className="text-xs font-medium text-surface-600 mb-2">سابقه ثبت‌شده</p>
+          <div className="space-y-1">
+            {records.map((record) => {
+              const sc = toothStatus[record.status] ?? toothStatus.healthy;
+              return (
+                <div key={record.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-50 text-sm">
+                  <span className="text-surface-400 text-xs w-20 shrink-0">{record.treatment_date ? formatDateNumeric(record.treatment_date) : '—'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-surface-700 truncate">
+                      دندان {formatNumber(record.tooth_number)}
+                      {record.treatment_type && <span className="text-surface-400"> · {record.treatment_type}</span>}
+                    </p>
+                    {record.notes && <p className="text-xs text-surface-400 truncate">{record.notes}</p>}
+                  </div>
+                  <StatusBadge status={sc} />
+                  <button onClick={() => deleteRecord(record.tooth_number)} title="حذف" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-                <div>
-                  <h3 className="font-bold text-surface-800">دندان {formatNumber(selectedTooth)}</h3>
-                  <p className="text-xs text-surface-400">ثبت وضعیت درمانی</p>
-                </div>
-              </div>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-lg hover:bg-surface-100">
-                <X size={18} className="text-surface-400" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="label-field">وضعیت دندان</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {toothStatuses.map((key) => {
-                    const cfg = toothStatus[key];
-                    return (
-                      <button
-                        key={key}
-                        onClick={() => setForm({ ...form, status: key })}
-                        className={`px-3 py-2 rounded-xl text-xs font-medium border-2 transition-all ${
-                          form.status === key
-                            ? `${cfg.bg} ${cfg.border} ${cfg.text}`
-                            : 'bg-white border-surface-100 text-surface-400 hover:border-surface-200'
-                        }`}
-                      >
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="label-field">نوع درمان</label>
-                <select
-                  className="input-field"
-                  value={form.treatment_type}
-                  onChange={(e) => setForm({ ...form, treatment_type: e.target.value })}
-                >
-                  <option value="">انتخاب...</option>
-                  {services.map((s) => (
-                    <option key={s.id} value={s.name}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="label-field">یادداشت</label>
-                <textarea
-                  className="input-field min-h-[70px]"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="توضیحات درمان..."
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button onClick={saveRecord} className="btn-primary flex-1">
-                  <Plus size={16} />
-                  ثبت
-                </button>
-                <button onClick={() => setShowModal(false)} className="btn-secondary">انصراف</button>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
