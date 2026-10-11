@@ -8,7 +8,7 @@ The app has no backend. It starts from sample data and saves every change in the
 
 ## Getting started
 
-You need Node.js 20 or newer.
+You need Node.js 20.19 or newer (on Node 22: 22.12 or newer), as Vite 8 requires.
 
 ```bash
 npm install
@@ -33,7 +33,7 @@ Then open the address Vite prints (by default http://localhost:5173).
 
 ## Tech stack
 
-- React 18, TypeScript and Vite
+- React 19, TypeScript 6 and Vite 8
 - Tailwind CSS 4 for styling (configured in `src/index.css`, no config file), lucide-react for icons
 - recharts for charts
 - moment-jalaali for the Jalali calendar and date-fns for date arithmetic

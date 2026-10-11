@@ -12,6 +12,9 @@ import { syncPatientBalance } from './patient-balance';
 
 const installmentOptions = [2, 3, 4, 6, 12].map((n) => ({ value: n, label: `${formatNumber(n)} قسط` }));
 
+/** A short invoice number from the current time, e.g. `INV-482913`. */
+const newInvoiceNumber = () => `INV-${Date.now().toString().slice(-6)}`;
+
 export function InvoiceForm({ patients, services, onClose, onSaved }: {
   patients: Patient[];
   services: Service[];
@@ -73,7 +76,7 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
     if (items.length === 0) { showToast('حداقل یک خدمت اضافه کنید', 'error'); return; }
     setSaving(true);
 
-    const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+    const invoiceNumber = newInvoiceNumber();
     const invoice = db.insert('invoices', {
       patient_id: patientId,
       treatment_plan_id: planId || null,
