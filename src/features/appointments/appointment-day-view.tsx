@@ -4,7 +4,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { appointmentStatus, statusStyle } from '@/constants/status';
 import { addDaysISO, daysFromToday, formatDateShort, getPersianDayName, todayISO } from '@/lib/date';
 import { formatNumber, formatClock, fullName } from '@/lib/format';
-import { ALL_SLOTS } from '@/lib/schedule';
 import type { Appointment } from '@/lib/types';
 import type { DayStats } from './appointment-calendar-view';
 
@@ -14,6 +13,10 @@ interface AppointmentDayViewProps {
   dayStats: DayStats;
   /** The selected day's appointments, in time order. */
   appointments: Appointment[];
+  /** Ids of the appointments booked for a treatment-plan item. */
+  planned: Set<string>;
+  /** The selected day's working slots; empty when the clinic is closed. */
+  slots: readonly string[];
   /** Slots already taken on the selected day. */
   booked: Set<string>;
   loading: boolean;
@@ -25,8 +28,9 @@ interface AppointmentDayViewProps {
 const relativeDays: Record<number, string> = { [-1]: 'دیروز', 0: 'امروز', 1: 'فردا', 2: 'پس‌فردا' };
 
 /** One day at a time: a strip of nearby days, the free slots, and the day's appointments. */
-export function AppointmentDayView({ selectedDate, onSelectDate, dayStats, appointments, booked, loading, onNew, onOpenPatient }: AppointmentDayViewProps) {
+export function AppointmentDayView({ selectedDate, onSelectDate, dayStats, appointments, planned, slots, booked, loading, onNew, onOpenPatient }: AppointmentDayViewProps) {
   const today = todayISO();
+  const free = slots.filter((slot) => !booked.has(slot)).length;
   const strip = [-1, 0, 1, 2, 3, 4, 5].map((offset) => ({ date: daysFromToday(offset), offset }));
 
   return (
@@ -56,11 +60,12 @@ export function AppointmentDayView({ selectedDate, onSelectDate, dayStats, appoi
       <div className="card p-4">
         <SectionHeader
           title={`${selectedDate === today ? 'امروز، ' : ''}${getPersianDayName(selectedDate)} ${formatDateShort(selectedDate)}`}
-          note={`${formatNumber(ALL_SLOTS.length - booked.size)} از ${formatNumber(ALL_SLOTS.length)} ساعت خالی`}
+          note={slots.length > 0 ? `${formatNumber(free)} از ${formatNumber(slots.length)} ساعت خالی` : 'تعطیل'}
           className="mb-3"
         />
+        {slots.length === 0 && <p className="text-sm text-surface-400">کلینیک در این روز تعطیل است. ساعات کاری را از تنظیمات تغییر دهید.</p>}
         <div className="flex flex-wrap gap-1.5">
-          {ALL_SLOTS.map((slot) => {
+          {slots.map((slot) => {
             const isBooked = booked.has(slot);
             return (
               <button
@@ -104,6 +109,7 @@ export function AppointmentDayView({ selectedDate, onSelectDate, dayStats, appoi
                       {apt.service?.name || 'نوبت عمومی'}
                       {apt.staff && <> · {apt.staff.full_name}</>}
                     </p>
+                    {planned.has(apt.id) && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded-sm mt-1 inline-block">طرح درمان</span>}
                   </div>
                   <span className="text-xs font-medium self-center shrink-0">{status.label}</span>
                 </div>

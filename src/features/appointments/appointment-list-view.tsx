@@ -12,6 +12,8 @@ import type { Appointment } from '@/lib/types';
 interface AppointmentListViewProps {
   /** Every appointment, oldest first. */
   appointments: Appointment[];
+  /** Ids of the appointments booked for a treatment-plan item. */
+  planned: Set<string>;
   loading: boolean;
   onNew: () => void;
   onStatusChange: (id: string, status: Appointment['status']) => void;
@@ -39,7 +41,7 @@ function duration(start: string, end: string): number {
 }
 
 /** All appointments as a filterable list, with the status actions on each row. */
-export function AppointmentListView({ appointments, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
+export function AppointmentListView({ appointments, planned, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
   const [period, setPeriod] = useState<Period>('upcoming');
   const [status, setStatus] = useState<StatusFilter>('all');
   const today = todayISO();
@@ -76,9 +78,12 @@ export function AppointmentListView({ appointments, loading, onNew, onStatusChan
                 <p className="text-xs text-surface-400">{formatNumber(duration(apt.start_time, apt.end_time))} دقیقه</p>
               </div>
               <div className="flex-1 min-w-0">
-                <button onClick={() => onOpenPatient(apt.patient_id)} className="text-sm font-semibold text-surface-800 hover:text-primary-600 transition-colors">
-                  {fullName(apt.patient)}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => onOpenPatient(apt.patient_id)} className="text-sm font-semibold text-surface-800 hover:text-primary-600 transition-colors">
+                    {fullName(apt.patient)}
+                  </button>
+                  {planned.has(apt.id) && <span className="text-xs bg-primary-50 text-primary-600 border border-primary-200 px-1.5 py-0.5 rounded-lg whitespace-nowrap">طرح درمان</span>}
+                </div>
                 <p className="text-xs text-surface-500 mt-0.5 truncate">
                   {apt.service?.name || 'نوبت عمومی'} · {apt.staff?.full_name || 'بدون دکتر'}
                 </p>

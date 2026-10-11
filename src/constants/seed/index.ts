@@ -2,7 +2,7 @@ import type { Database } from '@/lib/types';
 import { appointments } from './appointments';
 import { installments, invoiceItems, invoices, payments } from './billing';
 import { clinicSettings, services, staff } from './clinic';
-import { dentalRecords, rvgImages, treatmentPlanItems, treatmentPlans, treatments } from './clinical';
+import { dentalRecords, rvgImages, treatmentPlanItems, treatmentPlanTemplates, treatmentPlans, treatments } from './clinical';
 import { labOrders, labPayments, labs, labServices } from './lab';
 import { patients } from './patients';
 import { smsCampaigns, smsMessages, smsPackages } from './sms';
@@ -27,6 +27,7 @@ export const seedData: Database = {
   lab_payments: labPayments,
   treatment_plans: treatmentPlans,
   treatment_plan_items: treatmentPlanItems,
+  treatment_plan_templates: treatmentPlanTemplates,
   sms_packages: smsPackages,
   sms_campaigns: smsCampaigns,
   sms_messages: smsMessages,

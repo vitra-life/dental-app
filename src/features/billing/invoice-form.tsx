@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link2, X } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Modal } from '@/components/ui/modal';
 import { jalaliMonthsFromToday } from '@/lib/date';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
+import { activePlans, billableItems, planItemLabel } from '@/lib/treatment-plans';
 import type { Patient, Service } from '@/lib/types';
 import { syncPatientBalance } from './patient-balance';
 
@@ -18,11 +19,28 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
   onSaved: () => void;
 }) {
   const [patientId, setPatientId] = useState('');
+  const [planId, setPlanId] = useState('');
   const [items, setItems] = useState<{ service_id: string; description: string; quantity: number; unit_price: number }[]>([]);
   const [discount, setDiscount] = useState(0);
   const [paymentType, setPaymentType] = useState<'full' | 'installment'>('full');
   const [installmentCount, setInstallmentCount] = useState(3);
   const [saving, setSaving] = useState(false);
+
+  const plans = useMemo(() => (patientId ? activePlans(patientId) : []), [patientId]);
+
+  /** Replaces the invoice lines with the plan's work that is done or under way. */
+  function loadFromPlan() {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return;
+    const lines = billableItems(plan).map((item) => ({
+      service_id: item.service_id ?? '',
+      description: `${planItemLabel(item)}${item.tooth_number ? ` (دندان ${item.tooth_number})` : ''}`,
+      quantity: 1,
+      unit_price: item.actual_cost || item.estimated_cost,
+    }));
+    if (lines.length === 0) { showToast('این طرح هنوز خدمت انجام‌شده‌ای ندارد', 'info'); return; }
+    setItems(lines);
+  }
 
   const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
   const total = Math.max(0, subtotal - discount);
@@ -58,6 +76,7 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
     const invoice = db.insert('invoices', {
       patient_id: patientId,
+      treatment_plan_id: planId || null,
       invoice_number: invoiceNumber,
       subtotal,
       discount,
@@ -102,15 +121,33 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
   }
 
   return (
-    <Modal open onClose={onClose} title="صورتحساب جدید" size="lg">
-      <div className="space-y-5">
+    <Modal open onClose={onClose} title="صدور فاکتور جدید" size="lg">
+      <div className="space-y-4">
         <div>
           <label className="label-field">بیمار *</label>
-          <select className="input-field" value={patientId} onChange={(e) => setPatientId(e.target.value)}>
+          <select className="input-field" value={patientId} onChange={(e) => { setPatientId(e.target.value); setPlanId(''); }}>
             <option value="">انتخاب بیمار</option>
             {patients.map((p) => <option key={p.id} value={p.id}>{p.first_name} {p.last_name} - {p.phone}</option>)}
           </select>
         </div>
+
+        {plans.length > 0 && (
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-3">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-primary-700 mb-1">
+              <Link2 size={13} />
+              اتصال به طرح درمان
+            </label>
+            <div className="flex gap-2">
+              <select className="input-field border-primary-200 rounded-lg flex-1 min-w-0" value={planId} onChange={(e) => setPlanId(e.target.value)}>
+                <option value="">بدون طرح درمان</option>
+                {plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.title}</option>)}
+              </select>
+              {planId && (
+                <button type="button" onClick={loadFromPlan} className="btn-primary text-xs px-3 rounded-lg whitespace-nowrap">بارگذاری خدمات</button>
+              )}
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -119,13 +156,13 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
           </div>
           <div className="space-y-2">
             {items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 p-3 bg-surface-50 rounded-xl">
+              <div key={i} className="flex items-center gap-2">
                 <select
-                  className="input-field flex-1"
+                  className="input-field flex-1 min-w-0"
                   value={item.service_id}
                   onChange={(e) => selectService(i, e.target.value)}
                 >
-                  <option value="">انتخاب خدمت</option>
+                  <option value="">{item.description || 'انتخاب خدمت'}</option>
                   {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
                 <input
@@ -142,8 +179,8 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
                   onChange={(e) => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
                   placeholder="قیمت"
                 />
-                <button onClick={() => removeItem(i)} className="p-2 rounded-lg hover:bg-error-50">
-                  <X size={16} className="text-error-400" />
+                <button onClick={() => removeItem(i)} title="حذف" className="p-2 rounded-lg text-error-400 hover:bg-error-50 hover:text-error-600 shrink-0">
+                  <X size={16} />
                 </button>
               </div>
             ))}
@@ -185,14 +222,14 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
             <span className="font-medium text-error-600">- {formatCurrency(discount)}</span>
           </div>
           <div className="flex items-center justify-between text-base font-bold pt-2 border-t border-surface-200">
-            <span className="text-surface-700">مبلغ نهایی:</span>
-            <span className="text-primary-600">{formatCurrency(total)}</span>
+            <span className="text-surface-700">مبلغ قابل پرداخت:</span>
+            <span className="text-primary-700">{formatCurrency(total)}</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button onClick={handleSave} disabled={saving} className="btn-primary flex-1">
-            {saving ? 'در حال ثبت...' : 'ثبت صورتحساب'}
+            {saving ? 'در حال ثبت...' : 'صدور فاکتور'}
           </button>
           <button onClick={onClose} className="btn-secondary">انصراف</button>
         </div>

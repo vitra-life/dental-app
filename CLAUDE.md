@@ -30,8 +30,8 @@ Tests run in jsdom with the time zone pinned to Asia/Tehran (`vite.config.ts`). 
 
 - Import project modules through the `@/` alias, which maps to `src/` (set in `vite.config.ts` and, as `paths`, in `tsconfig.app.json`). Use relative imports only between files of the same feature folder.
 - Files and folders under `src/` are kebab-case (`patient-form.tsx`). Components keep PascalCase names in code. Lint fails otherwise.
-- Use `lucide-react` for all icons and logos. Don't add UI, theme, or icon packages unless they're truly needed.
-- New UI should look like the existing screens: build it from the components in `src/components/ui/`, the component classes and the color scales in `src/index.css`, with the same white rounded cards, soft shadows, teal primary and Vazirmatn type. Don't introduce a new visual style.
+- Use `lucide-react` for all icons. Don't add UI, theme, or icon packages unless they're truly needed. Charts use `recharts`, imported only in `src/components/ui/charts.tsx`.
+- New UI should look like the existing screens: build it from the components in `src/components/ui/`, the component classes and the color scales in `src/index.css`, with the same white cards (thin border, small shadow), cyan primary, violet for the assistant, pill tabs and filter chips, and Vazirmatn type. Don't introduce a new visual style.
 - Write Tailwind class names out in full. Pick them from a lookup of complete names (see `src/components/ui/tones.ts`); a class assembled from pieces such as `bg-${tone}-50` is not generated.
 
 ## Architecture
@@ -42,7 +42,11 @@ Tests run in jsdom with the time zone pinned to Asia/Tehran (`vite.config.ts`). 
 3. Add a nav entry in `navItems` in `src/components/layout.tsx`.
 4. Add it to the page list in `src/app.test.tsx`.
 
-Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `onOpenPatient` sets `selectedPatientId` and switches to `patients`; `onNavigate` clears it.
+Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `onOpenPatient` sets `selectedPatientId` and switches to `patients`; `onNavigate` clears it. Both bump a `visit` counter that keys the patients page, so opening it always starts fresh.
+
+**Shell:** `src/components/layout.tsx` is a full-height frame: a collapsible sidebar (the assistant is the highlighted entry under the menu), a top bar, and a `<main>` that scrolls. The window itself does not scroll, and `<main>` adds the page padding, so pages don't add their own.
+
+**Patient record:** a full page, not a dialog. `patients-page.tsx` renders either the list or `patient-detail.tsx` (breadcrumb, summary card, tabs).
 
 **Layers:** `features/` (screens) → `components/` (shared UI) → `lib/` and `constants/` (plain TypeScript, no React). A feature folder owns one page: `<name>-page.tsx` loads data and holds state, dialogs and tabs sit beside it, and calculations go in `.ts` files with no JSX (`dashboard-stats.ts`, `ai-insights.ts`, `report-stats.ts`) so they can be tested alone. Features don't import from each other; shared code moves down a layer.
 
@@ -71,9 +75,17 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 - Month-based figures (calendar, monthly revenue, this month vs last) use Jalali months: `currentJalaliMonth`, `shiftJalaliMonth`, `isInJalaliMonth`, `jalaliMonthGrid`.
 - Every date field in a form is a `JalaliDateInput`, which takes and returns `YYYY-MM-DD`.
 
-**Statuses:** `src/constants/status.ts` holds the label and badge colors for every status (appointment, invoice, lab order, treatment plan and item, SMS campaign and message, tooth). Render them with `StatusBadge` and `statusStyle(map, value, fallback)`; don't redefine a status map inside a component.
+**Statuses:** `src/constants/status.ts` holds the label and badge colors (background, text and border) for every status (appointment, invoice, lab order, treatment plan and item, SMS campaign and message, tooth). Render them with `StatusBadge` and `statusStyle(map, value, fallback)`; don't redefine a status map inside a component.
 
-**Appointment slots:** working hours and slot length are in `src/constants/schedule.ts`; `src/lib/schedule.ts` derives `ALL_SLOTS`, `bookedSlots` and `findFreeSlots`. The appointments page and the assistant both use them.
+**Appointment slots:** `src/lib/schedule.ts` builds each day's bookable slots from the clinic's working hours (`clinic_settings.working_hours`, edited in Settings → ساعات کاری; a closed day has none).
+- `clinicWorkingHours()` reads them; `workingSlots(date, hours)`, `freeSlotsOn(date, dayAppointments, hours)` and `findFreeSlots(..., hours)` use them. Pass the hours in: without them every day is the default day from `src/constants/schedule.ts` (`ALL_SLOTS`).
+- Appointments, the dashboard and the assistant all go through these, so they agree on what is free.
+
+**Treatment plans:** `src/lib/treatment-plans.ts` holds the logic shared by three screens.
+- Booking: the appointment form offers a patient's open plan items (`activePlans`, `bookableItems`); `linkAppointment` ties the item to the new appointment.
+- Status: every appointment status change must call `syncPlanWithAppointment`, which completes the linked item (and the plan, once all items are done) or frees it on cancel.
+- Billing: the invoice form loads a plan's done or in-progress items (`billableItems`) and stores `invoices.treatment_plan_id`.
+- Templates: `treatment_plan_templates` rows (Settings → طرح درمان) keep their lines in an `items` array; `createPlanFromTemplate` turns one into a plan.
 
 **Business logic is client-side.** Nothing keeps derived fields up to date automatically. Examples:
 - Invoice `balance` and `status` are written by `src/features/billing/invoice-detail.tsx`, and `syncPatientBalance` (`patient-balance.ts`) recomputes `patients.balance` from the patient's invoices.
@@ -82,10 +94,11 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 A change to a derived value has to be made in every place that writes it.
 
-**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs`, `Modal`, `StatusBadge`, `StatTile` / `MiniStat`, `SectionHeader`, `BarChart`, `ProgressBar`, `ChoiceChips`, `Skeleton`, `EmptyState`, `JalaliDateInput`.
+**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs` (pill segments), `Modal`, `StatusBadge`, `StatTile`, `SectionHeader`, `ProgressBar`, `ChoiceChips` (filters and form choices), `Skeleton`, `EmptyState`, `JalaliDateInput`, and the charts `AreaTrend`, `Bars` and `Donut`.
+- Lists are stacks of `card` rows; a row's small actions use `btn-chip` plus its colors.
 - Toasts: call `showToast(message, 'success' | 'error' | 'info')` from `@/lib/toast`; `<ToastContainer />` is mounted once in `app.tsx`.
-- Reusable component classes are defined in `src/index.css` as `@utility` rules, e.g. `card`, `btn-primary`, `btn-secondary`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.
-- Color scales are defined in the `@theme` block of `src/index.css`. The app uses `primary` (teal), `secondary` (blue), `accent` (green, for success and completed states), `warning`, `error` and `surface` (grays).
+- Reusable component classes are defined in `src/index.css` as `@utility` rules, e.g. `card`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.
+- Color scales are defined in the `@theme` block of `src/index.css`. The app uses `primary` (cyan), `secondary` (blue), `accent` (emerald, for success and completed states), `warning`, `error` and `surface` (slate grays), plus Tailwind's own `violet` for the assistant.
 
 ## Tailwind CSS 4
 
@@ -99,4 +112,4 @@ A change to a derived value has to be made in every place that writes it.
 
 - `index.html` sets `lang="fa" dir="rtl"` and loads the Vazirmatn font. Layout is mirrored: the sidebar is fixed on the right (`right-0`, `border-l`). Keep that in mind when using directional utilities.
 - All user-facing strings are Persian literals written inline; there is no i18n layer.
-- Numbers shown to the user go through `formatNumber` or `formatCurrency` (`src/lib/format.ts`) so they use Persian digits; `formatCurrency` appends تومان. `formatTime` uses a صبح/بعدازظهر (AM/PM) suffix, `fullName` builds a person's name with a fallback, and `paymentMethodLabel` translates payment methods.
+- Numbers shown to the user go through `formatNumber` or `formatCurrency` (`src/lib/format.ts`) so they use Persian digits; `formatCurrency` appends تومان. `formatTime` uses a صبح/بعدازظهر (AM/PM) suffix (`formatClock` is the 24-hour form for tight spots), `fullName` builds a person's name with a fallback, and `paymentMethodLabel` translates payment methods.

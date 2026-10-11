@@ -129,12 +129,15 @@ export function Billing({ onOpenPatient }: BillingProps) {
             <div key={inv.id} className="card card-hover p-5 cursor-pointer" onClick={() => setDetailInvoice(inv)}>
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="min-w-0">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onOpenPatient(inv.patient_id); }}
-                    className="text-sm font-bold text-surface-800 hover:text-primary-600 transition-colors"
-                  >
-                    {fullName(inv.patient)}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onOpenPatient(inv.patient_id); }}
+                      className="text-sm font-bold text-surface-800 hover:text-primary-600 transition-colors"
+                    >
+                      {fullName(inv.patient)}
+                    </button>
+                    {inv.treatment_plan_id && <span className="text-xs bg-primary-50 text-primary-600 border border-primary-200 px-1.5 py-0.5 rounded-lg whitespace-nowrap">طرح درمان</span>}
+                  </div>
                   <p className="text-xs text-surface-400 mt-0.5">
                     {inv.invoice_number && <>{inv.invoice_number} · </>}
                     {formatDate(inv.created_at)} · {inv.payment_type === 'installment' ? `${formatNumber(inv.installment_count)} قسطه` : 'یکجا'}

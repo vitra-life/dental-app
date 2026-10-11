@@ -10,14 +10,16 @@ import { formatDate, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, percent } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Service, TreatmentPlan, TreatmentPlanItem } from '@/lib/types';
+import { createPlanFromTemplate } from '@/lib/treatment-plans';
+import type { Service, TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 
 export function TreatmentPlanTab({ patientId }: { patientId: string }) {
   const [plans, setPlans] = useState<TreatmentPlan[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
-  const [planForm, setPlanForm] = useState({ title: '', target_end_date: '', notes: '' });
+  const [templates, setTemplates] = useState<TreatmentPlanTemplate[]>([]);
+  const [planForm, setPlanForm] = useState({ title: '', target_end_date: '', notes: '', template_id: '' });
   const [showItemForm, setShowItemForm] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
 
@@ -33,20 +35,20 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
   useEffect(() => {
     load();
     setServices(db.list('services', (s) => s.active));
+    setTemplates(db.list('treatment_plan_templates', (t) => t.active));
   }, [load]);
 
   function createPlan() {
     if (!planForm.title) { showToast('عنوان طرح الزامی است', 'error'); return; }
-    db.insert('treatment_plans', {
-      patient_id: patientId,
-      title: planForm.title,
-      target_end_date: planForm.target_end_date || null,
-      notes: planForm.notes || null,
-      total_estimated_cost: 0,
-      status: 'active',
-    });
+    const values = { title: planForm.title, target_end_date: planForm.target_end_date || null, notes: planForm.notes || null };
+    const template = templates.find((t) => t.id === planForm.template_id);
+    if (template) {
+      createPlanFromTemplate(patientId, template, values);
+    } else {
+      db.insert('treatment_plans', { ...values, patient_id: patientId, total_estimated_cost: 0, status: 'active' });
+    }
     showToast('طرح درمان ایجاد شد');
-    setPlanForm({ title: '', target_end_date: '', notes: '' });
+    setPlanForm({ title: '', target_end_date: '', notes: '', template_id: '' });
     setShowPlanForm(false);
     load();
   }
@@ -110,6 +112,26 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
 
       {showPlanForm && (
         <div className="card p-4 space-y-3 animate-fade-in">
+          {templates.length > 0 && (
+            <div>
+              <label className="label-field">شروع از الگو</label>
+              <select
+                className="input-field"
+                value={planForm.template_id}
+                onChange={(e) => {
+                  const template = templates.find((t) => t.id === e.target.value);
+                  setPlanForm({ ...planForm, template_id: e.target.value, title: template ? template.name : planForm.title });
+                }}
+              >
+                <option value="">بدون الگو (طرح خالی)</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} - {formatCurrency(t.items.reduce((sum, i) => sum + i.price, 0))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="label-field">عنوان طرح *</label>

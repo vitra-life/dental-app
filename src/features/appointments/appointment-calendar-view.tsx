@@ -16,8 +16,8 @@ import {
   type JalaliMonth,
 } from '@/lib/date';
 import { formatNumber, formatClock, fullName } from '@/lib/format';
-import { ALL_SLOTS } from '@/lib/schedule';
-import type { Appointment } from '@/lib/types';
+import { workingSlots } from '@/lib/schedule';
+import type { Appointment, WorkingHours } from '@/lib/types';
 
 /** Per-day booking summary used for the calendar badges. */
 export type DayStats = Record<string, { count: number; emptySlots: number }>;
@@ -28,6 +28,8 @@ interface AppointmentCalendarViewProps {
   month: JalaliMonth;
   onMonthChange: (month: JalaliMonth) => void;
   dayStats: DayStats;
+  /** The clinic's working hours, for telling open days from closed ones. */
+  hours: WorkingHours | null;
   /** The selected day's appointments. */
   appointments: Appointment[];
   loading: boolean;
@@ -41,7 +43,7 @@ const legend = [
   { color: 'bg-surface-200', label: 'خالی' },
 ];
 
-export function AppointmentCalendarView({ selectedDate, onSelectDate, month, onMonthChange, dayStats, appointments, loading, onOpenPatient }: AppointmentCalendarViewProps) {
+export function AppointmentCalendarView({ selectedDate, onSelectDate, month, onMonthChange, dayStats, hours, appointments, loading, onOpenPatient }: AppointmentCalendarViewProps) {
   const today = todayISO();
 
   function selectDay(date: string) {
@@ -80,10 +82,11 @@ export function AppointmentCalendarView({ selectedDate, onSelectDate, month, onM
             if (!date) return <div key={i} />;
             const dayInfo = dayStats[date];
             const count = dayInfo?.count || 0;
-            const emptyInDay = dayInfo?.emptySlots ?? ALL_SLOTS.length;
+            const slotCount = workingSlots(date, hours).length;
+            const closed = slotCount === 0;
             const isSelected = date === selectedDate;
             const isPast = date < today;
-            const density = count / ALL_SLOTS.length;
+            const density = closed ? 1 : (slotCount - (dayInfo?.emptySlots ?? slotCount)) / slotCount;
             const densityColor = density >= 0.7 ? 'bg-error-400' : density >= 0.4 ? 'bg-warning-400' : density > 0 ? 'bg-accent-400' : '';
             return (
               <button
@@ -94,7 +97,7 @@ export function AppointmentCalendarView({ selectedDate, onSelectDate, month, onM
                     ? 'bg-primary-600 text-white'
                     : date === today
                     ? 'bg-primary-50 text-primary-700 border border-primary-200'
-                    : isPast
+                    : isPast || closed
                     ? 'hover:bg-surface-50 text-surface-300'
                     : 'hover:bg-surface-50 text-surface-600'
                 }`}
@@ -108,7 +111,7 @@ export function AppointmentCalendarView({ selectedDate, onSelectDate, month, onM
                 {count > 0 && !isSelected && (
                   <div className={`absolute bottom-1 w-1.5 h-1.5 rounded-full ${densityColor}`} />
                 )}
-                {count === 0 && !isPast && !isSelected && emptyInDay === ALL_SLOTS.length && (
+                {count === 0 && !isPast && !isSelected && !closed && (
                   <div className="absolute bottom-1 w-1.5 h-1.5 rounded-full bg-surface-200" />
                 )}
               </button>

@@ -1,7 +1,7 @@
 import * as db from '@/lib/store';
 import { currentJalaliMonth, formatJalaliMonth, isInJalaliMonth, lastDays, todayISO } from '@/lib/date';
 import { revenueByMonth } from '@/lib/revenue';
-import { ALL_SLOTS, bookedSlots } from '@/lib/schedule';
+import { clinicWorkingHours, freeSlotsOn } from '@/lib/schedule';
 import type { Appointment } from '@/lib/types';
 
 export interface DashboardStats {
@@ -80,6 +80,6 @@ export function loadDashboardStats(): DashboardStats {
     unfinishedPlanValue: unfinished.reduce((sum, planned) => sum + planned.reduce((s, i) => s + i.estimated_cost, 0), 0),
     debtors: debtors.length,
     totalDebt: debtors.reduce((sum, p) => sum + p.balance, 0),
-    freeSlotsToday: ALL_SLOTS.length - bookedSlots(todayAppts).size,
+    freeSlotsToday: freeSlotsOn(today, todayAppts, clinicWorkingHours()).length,
   };
 }

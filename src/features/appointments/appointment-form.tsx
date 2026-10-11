@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { Link2 } from 'lucide-react';
 import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { Modal } from '@/components/ui/modal';
 import { formatCurrency } from '@/lib/format';
 import { addMinutes } from '@/lib/schedule';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
+import { activePlans, bookableItems, linkAppointment, planItemLabel } from '@/lib/treatment-plans';
 import type { Patient, Service, Staff } from '@/lib/types';
 
 interface AppointmentFormProps {
@@ -22,6 +24,7 @@ interface AppointmentFormProps {
 export function AppointmentForm({ date, startTime, patients, services, staffList, onClose, onSaved }: AppointmentFormProps) {
   const [form, setForm] = useState({
     patient_id: '',
+    plan_item_id: '',
     appointment_date: date,
     service_id: '',
     staff_id: '',
@@ -31,11 +34,33 @@ export function AppointmentForm({ date, startTime, patients, services, staffList
     price: 0,
   });
 
+  /** The patient's active plans that still have something to book. */
+  const plans = useMemo(
+    () => (form.patient_id ? activePlans(form.patient_id).map((plan) => ({ plan, items: bookableItems(plan) })).filter((p) => p.items.length > 0) : []),
+    [form.patient_id],
+  );
+
+  /** Fills the service, price and length from the chosen plan item. */
+  function selectPlanItem(itemId: string) {
+    const item = plans.flatMap((p) => p.items).find((i) => i.id === itemId);
+    if (!item) {
+      setForm({ ...form, plan_item_id: '' });
+      return;
+    }
+    setForm({
+      ...form,
+      plan_item_id: itemId,
+      service_id: item.service_id ?? form.service_id,
+      price: item.estimated_cost,
+      end_time: addMinutes(form.start_time, item.service?.duration_minutes || 30),
+    });
+  }
+
   const durationOf = (serviceId: string) => services.find((s) => s.id === serviceId)?.duration_minutes || 30;
 
   function save() {
     if (!form.patient_id || !form.service_id || !form.appointment_date) { showToast('بیمار، خدمت و تاریخ را انتخاب کنید', 'error'); return; }
-    db.insert('appointments', {
+    const appointment = db.insert('appointments', {
       patient_id: form.patient_id,
       service_id: form.service_id,
       staff_id: form.staff_id || null,
@@ -46,6 +71,7 @@ export function AppointmentForm({ date, startTime, patients, services, staffList
       price: form.price,
       status: 'pending',
     });
+    if (form.plan_item_id) linkAppointment(form.plan_item_id, appointment.id);
     showToast('نوبت ثبت شد');
     onSaved();
   }
@@ -55,11 +81,31 @@ export function AppointmentForm({ date, startTime, patients, services, staffList
       <div className="space-y-3">
         <div>
           <label className="label-field">بیمار *</label>
-          <select className="input-field" value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value })}>
+          <select className="input-field" value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value, plan_item_id: '' })}>
             <option value="">انتخاب بیمار</option>
             {patients.map((p) => <option key={p.id} value={p.id}>{p.first_name} {p.last_name} - {p.phone}</option>)}
           </select>
         </div>
+        {plans.length > 0 && (
+          <div className="bg-primary-50 border border-primary-200 rounded-xl p-3">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-primary-700 mb-1">
+              <Link2 size={13} />
+              اتصال به طرح درمان
+            </label>
+            <select className="input-field border-primary-200 rounded-lg" value={form.plan_item_id} onChange={(e) => selectPlanItem(e.target.value)}>
+              <option value="">بدون طرح درمان</option>
+              {plans.map(({ plan, items }) => (
+                <optgroup key={plan.id} label={plan.title}>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {planItemLabel(item)}{item.tooth_number ? ` (دندان ${item.tooth_number})` : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="label-field">خدمت *</label>
           <select
@@ -86,7 +132,7 @@ export function AppointmentForm({ date, startTime, patients, services, staffList
             {staffList.filter((s) => s.role === 'dentist').map((s) => <option key={s.id} value={s.id}>{s.full_name}</option>)}
           </select>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <label className="label-field">تاریخ *</label>
             <JalaliDateInput value={form.appointment_date} onChange={(appointment_date) => setForm({ ...form, appointment_date })} clearable={false} />

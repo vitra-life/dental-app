@@ -2,7 +2,7 @@ import { AlertTriangle, CalendarDays, Clock, TrendingUp, Users, type LucideIcon 
 import { daysFromToday, formatDateShort, monthsBeforeToday, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, formatTime } from '@/lib/format';
 import { monthOverMonth } from '@/lib/revenue';
-import { findFreeSlots, type FreeSlot } from '@/lib/schedule';
+import { clinicWorkingHours, findFreeSlots, type FreeSlot } from '@/lib/schedule';
 import * as db from '@/lib/store';
 import type { PageKey, Patient } from '@/lib/types';
 
@@ -154,13 +154,13 @@ export function loadAssistantData(): AssistantData {
     openLabOrders: db.list('lab_orders', (o) => o.status !== 'delivered').length,
   };
 
-  return { insights, segments, freeSlots: findFreeSlots(appointments, 7, 8), summary };
+  return { insights, segments, freeSlots: findFreeSlots(appointments, 7, 8, clinicWorkingHours()), summary };
 }
 
 const HELP = `من می‌توانم در مورد موارد زیر کمک کنم:\n\n• اولین نوبت خالی کی است؟\n• وضعیت درآمد و مالی\n• بیماران غیرفعال و فرصت‌های بازگشت\n• نوبت‌های فردا\n• بدهی‌ها و مطالبات\n• درمان‌های ناتمام\n• تعداد بیماران\n• بهترین پیشنهادها\n\nسوال خود را دقیق‌تر بپرسید.`;
 
 function firstFreeSlotAnswer(): string {
-  const [slot] = findFreeSlots(db.list('appointments'), 14, 1);
+  const [slot] = findFreeSlots(db.list('appointments'), 14, 1, clinicWorkingHours());
   if (!slot) return 'در ۱۴ روز آینده هیچ نوبت خالی یافت نشد.';
   return `نزدیک‌ترین نوبت خالی:\n\n${slot.dayName}، ${formatDateShort(slot.date)}\nساعت ${formatTime(slot.time)}\n\nبرای رزرو این نوبت به بخش نوبت‌دهی مراجعه کنید.`;
 }

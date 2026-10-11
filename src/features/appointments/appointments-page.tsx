@@ -5,10 +5,11 @@ import { StatTile } from '@/components/ui/stat-tile';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { currentJalaliMonth, todayISO, type JalaliMonth } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
-import { ALL_SLOTS, bookedSlots } from '@/lib/schedule';
+import { bookedSlots, clinicWorkingHours, freeSlotsOn, workingSlots } from '@/lib/schedule';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Appointment, Patient, Service, Staff } from '@/lib/types';
+import { plannedAppointmentIds, syncPlanWithAppointment } from '@/lib/treatment-plans';
+import type { Appointment, Patient, Service, Staff, WorkingHours } from '@/lib/types';
 import { AppointmentCalendarView, type DayStats } from './appointment-calendar-view';
 import { AppointmentDayView } from './appointment-day-view';
 import { AppointmentForm } from './appointment-form';
@@ -27,14 +28,14 @@ const views: TabItem<ViewMode>[] = [
 ];
 
 /** Appointment count and free slots for every day that has at least one appointment. */
-function summarizeDays(appointments: Appointment[]): DayStats {
+function summarizeDays(appointments: Appointment[], hours: WorkingHours | null): DayStats {
   const byDate = new Map<string, Appointment[]>();
   for (const apt of appointments) {
     byDate.set(apt.appointment_date, [...(byDate.get(apt.appointment_date) ?? []), apt]);
   }
   const stats: DayStats = {};
   for (const [date, appts] of byDate) {
-    stats[date] = { count: appts.length, emptySlots: ALL_SLOTS.length - bookedSlots(appts).size };
+    stats[date] = { count: appts.length, emptySlots: freeSlotsOn(date, appts, hours).length };
   }
   return stats;
 }
@@ -45,6 +46,9 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [hours, setHours] = useState<WorkingHours | null>(null);
+  /** Appointments that were booked for a treatment-plan item. */
+  const [planned, setPlanned] = useState<Set<string>>(() => new Set());
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -61,23 +65,28 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
     setPatients(db.orderBy(db.list('patients'), 'first_name'));
     setServices(db.list('services', (s) => s.active));
     setStaffList(db.list('staff', (s) => s.active));
+    setHours(clinicWorkingHours());
+    setPlanned(plannedAppointmentIds());
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   function updateStatus(id: string, status: Appointment['status']) {
-    db.update('appointments', id, { status });
+    const updated = db.update('appointments', id, { status });
+    if (updated) syncPlanWithAppointment(updated, status);
     showToast('وضعیت نوبت بروزرسانی شد');
     load();
   }
 
   const today = todayISO();
-  const dayStats = useMemo(() => summarizeDays(appointments), [appointments]);
+  const dayStats = useMemo(() => summarizeDays(appointments, hours), [appointments, hours]);
   const todayAppointments = useMemo(() => appointments.filter((a) => a.appointment_date === today), [appointments, today]);
   const dayAppointments = useMemo(() => appointments.filter((a) => a.appointment_date === selectedDate), [appointments, selectedDate]);
   const booked = useMemo(() => bookedSlots(dayAppointments), [dayAppointments]);
-  const todayFree = ALL_SLOTS.length - bookedSlots(todayAppointments).size;
+  const daySlots = useMemo(() => workingSlots(selectedDate, hours), [selectedDate, hours]);
+  const todaySlots = workingSlots(today, hours);
+  const todayFree = freeSlotsOn(today, todayAppointments, hours).length;
 
   const openBooking = (startTime = '09:00', date = viewMode === 'list' ? today : selectedDate) => setBooking({ date, startTime });
 
@@ -94,13 +103,13 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
         <StatTile label="نوبت‌های امروز" value={formatNumber(todayAppointments.length)} icon={CalendarDays} tone="primary" />
         <StatTile label="انجام‌شده" value={formatNumber(todayAppointments.filter((a) => a.status === 'completed').length)} icon={CheckCircle2} tone="accent" />
         <StatTile label="در انتظار" value={formatNumber(todayAppointments.filter((a) => a.status === 'pending' || a.status === 'confirmed').length)} icon={Hourglass} tone="warning" />
-        <StatTile label="ساعت‌های خالی امروز" value={formatNumber(todayFree)} sub={<>از {formatNumber(ALL_SLOTS.length)} ساعت</>} icon={Clock} tone="secondary" />
+        <StatTile label="ساعت‌های خالی امروز" value={formatNumber(todayFree)} sub={todaySlots.length > 0 ? <>از {formatNumber(todaySlots.length)} ساعت</> : 'امروز تعطیل است'} icon={Clock} tone="secondary" />
       </div>
 
       <Tabs tabs={views} active={viewMode} onChange={setViewMode} fit />
 
       {viewMode === 'list' && (
-        <AppointmentListView appointments={appointments} loading={loading} onNew={() => openBooking()} onStatusChange={updateStatus} onOpenPatient={onOpenPatient} />
+        <AppointmentListView appointments={appointments} planned={planned} loading={loading} onNew={() => openBooking()} onStatusChange={updateStatus} onOpenPatient={onOpenPatient} />
       )}
       {viewMode === 'day' && (
         <AppointmentDayView
@@ -108,6 +117,8 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
           onSelectDate={setSelectedDate}
           dayStats={dayStats}
           appointments={dayAppointments}
+          planned={planned}
+          slots={daySlots}
           booked={booked}
           loading={loading}
           onNew={openBooking}
@@ -121,6 +132,7 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
           month={calendarMonth}
           onMonthChange={setCalendarMonth}
           dayStats={dayStats}
+          hours={hours}
           appointments={dayAppointments}
           loading={loading}
           onOpenPatient={onOpenPatient}

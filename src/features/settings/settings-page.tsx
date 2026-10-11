@@ -2,15 +2,17 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { ClinicTab } from './clinic-tab';
+import { HoursTab } from './hours-tab';
 import { NotificationsTab } from './notifications-tab';
 import { PlansTab } from './plans-tab';
 import { ServicesTab } from './services-tab';
 import { StaffTab } from './staff-tab';
 
-type SettingsTab = 'clinic' | 'staff' | 'services' | 'plans' | 'notifications';
+type SettingsTab = 'clinic' | 'hours' | 'staff' | 'services' | 'plans' | 'notifications';
 
 const tabs: TabItem<SettingsTab>[] = [
   { key: 'clinic', label: 'اطلاعات کلینیک' },
+  { key: 'hours', label: 'ساعات کاری' },
   { key: 'staff', label: 'پرسنل' },
   { key: 'services', label: 'کاتالوگ خدمات' },
   { key: 'plans', label: 'طرح درمان' },
@@ -27,6 +29,7 @@ export function Settings() {
       <Tabs tabs={tabs} active={tab} onChange={setTab} />
 
       {tab === 'clinic' && <ClinicTab />}
+      {tab === 'hours' && <HoursTab />}
       {tab === 'staff' && <StaffTab />}
       {tab === 'services' && <ServicesTab />}
       {tab === 'plans' && <PlansTab />}
