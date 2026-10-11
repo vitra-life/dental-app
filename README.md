@@ -1,4 +1,4 @@
-# دنتاکلینیک (Dental Clinic)
+# ویترا لایف (Vitra Life)
 
 A dental clinic management app. The interface is in Persian, laid out right-to-left, and every date is shown in the Jalali (Persian) calendar.
 
