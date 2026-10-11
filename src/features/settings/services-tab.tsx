@@ -1,80 +1,105 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { formatNumber } from '@/lib/format';
+import { ChoiceChips } from '@/components/ui/choice-chips';
+import { formatCurrency, formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Service } from '@/lib/types';
+import { serviceCategories, serviceCategoryLabel } from '@/constants/service-categories';
+import { ServiceForm } from './service-form';
 
-const categories = [
-  { value: 'general', label: 'عمومی' },
-  { value: 'endodontics', label: 'اندودنتیکس' },
-  { value: 'surgery', label: 'جراحی' },
-  { value: 'prosthodontics', label: 'پروتز' },
-  { value: 'cosmetic', label: 'زیبایی' },
-  { value: 'orthodontics', label: 'ارتودنسی' },
-];
+const categoryFilters = [{ value: 'all', label: 'همه' }, ...serviceCategories];
 
+const headers = ['نام خدمت', 'دسته‌بندی', 'قیمت پیش‌فرض', 'مدت زمان', 'وضعیت', ''];
+
+/** The service catalogue: every service with its default price and length. */
 export function ServicesTab() {
   const [services, setServices] = useState<Service[]>([]);
+  const [category, setCategory] = useState('all');
+  /** The service being edited, `null` while adding one, `undefined` when the dialog is closed. */
+  const [editing, setEditing] = useState<Service | null | undefined>(undefined);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setServices(db.orderBy(db.list('services'), 'name'));
   }, []);
 
-  /** Edits a row locally; nothing is stored until its save button is pressed. */
-  function edit(id: string, patch: Partial<Service>) {
-    setServices(services.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  }
+  useEffect(() => { load(); }, [load]);
 
-  function addService() {
-    const created = db.insert('services', { name: 'خدمت جدید', category: 'general', default_price: 0, duration_minutes: 30 });
-    setServices([...services, created]);
-    showToast('خدمت جدید اضافه شد');
-  }
-
-  function saveService(s: Service) {
-    db.update('services', s.id, {
-      name: s.name,
-      category: s.category,
-      default_price: s.default_price,
-      duration_minutes: s.duration_minutes,
-      active: s.active,
-    });
-    showToast('بروزرسانی شد');
+  function toggleActive(service: Service) {
+    db.update('services', service.id, { active: !service.active });
+    load();
   }
 
   function deleteService(id: string) {
     db.remove('services', id);
-    setServices(services.filter((s) => s.id !== id));
     showToast('حذف شد');
+    load();
   }
+
+  const filtered = category === 'all' ? services : services.filter((s) => s.category === category);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(services.length)} خدمت</p>
-        <button onClick={addService} className="btn-primary"><Plus size={18} />افزودن خدمت</button>
+        <h2 className="text-sm font-semibold text-surface-700">کاتالوگ خدمات ({formatNumber(services.length)})</h2>
+        <button onClick={() => setEditing(null)} className="btn-primary">
+          <Plus size={16} />
+          خدمت جدید
+        </button>
       </div>
-      <div className="space-y-3">
-        {services.map((s) => (
-          <div key={s.id} className="card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input className="input-field" value={s.name} onChange={(e) => edit(s.id, { name: e.target.value })} placeholder="نام خدمت" />
-                <select className="input-field" value={s.category} onChange={(e) => edit(s.id, { category: e.target.value })}>
-                  {categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
-                <input type="number" className="input-field" value={s.default_price} onChange={(e) => edit(s.id, { default_price: parseFloat(e.target.value) || 0 })} placeholder="قیمت" />
-                <div className="flex items-center gap-2">
-                  <input type="number" className="input-field w-20" value={s.duration_minutes} onChange={(e) => edit(s.id, { duration_minutes: parseInt(e.target.value) || 30 })} placeholder="دقیقه" />
-                  <button onClick={() => saveService(s)} className="btn-secondary text-xs">ذخیره</button>
-                  <button onClick={() => deleteService(s.id)} className="p-2 rounded-lg hover:bg-error-50"><Trash2 size={16} className="text-error-400" /></button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+
+      <ChoiceChips options={categoryFilters} value={category} onChange={setCategory} />
+
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-50">
+              <tr>
+                {headers.map((h) => (
+                  <th key={h} className="text-xs font-medium text-surface-500 py-3 px-4 text-right whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((service) => (
+                <tr key={service.id} className="border-t border-surface-100 hover:bg-surface-50 transition-colors">
+                  <td className="py-3 px-4 font-medium text-surface-800 whitespace-nowrap">{service.name}</td>
+                  <td className="py-3 px-4">
+                    <span className="text-xs bg-surface-100 text-surface-600 px-2 py-0.5 rounded-full whitespace-nowrap">{serviceCategoryLabel(service.category)}</span>
+                  </td>
+                  <td className="py-3 px-4 font-medium text-surface-700 whitespace-nowrap">{formatCurrency(service.default_price)}</td>
+                  <td className="py-3 px-4 text-surface-500 whitespace-nowrap">{formatNumber(service.duration_minutes)} دقیقه</td>
+                  <td className="py-3 px-4">
+                    <button
+                      onClick={() => toggleActive(service)}
+                      className={`text-xs px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${
+                        service.active ? 'bg-accent-100 text-accent-700 hover:bg-accent-200' : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
+                      }`}
+                    >
+                      {service.active ? 'فعال' : 'غیرفعال'}
+                    </button>
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="flex items-center gap-3 justify-end">
+                      <button onClick={() => setEditing(service)} className="text-xs text-primary-600 hover:text-primary-700 hover:underline">ویرایش</button>
+                      <button onClick={() => deleteService(service.id)} title="حذف" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={headers.length} className="py-8 text-center text-sm text-surface-400">خدمتی در این دسته ثبت نشده است</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
+
+      {editing !== undefined && <ServiceForm service={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); load(); }} />}
     </div>
   );
 }

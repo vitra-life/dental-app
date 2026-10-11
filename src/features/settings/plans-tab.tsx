@@ -19,9 +19,7 @@ export function PlansTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(plans.length)} طرح درمان</p>
-      </div>
+      <h2 className="text-sm font-semibold text-surface-700">طرح‌های درمان بیماران ({formatNumber(plans.length)})</h2>
       {plans.length === 0 ? (
         <div className="card p-8 text-center">
           <ClipboardList size={32} className="text-surface-300 mx-auto mb-3" />
@@ -35,23 +33,24 @@ export function PlansTab() {
             const completed = plan.items?.filter((i) => i.status === 'completed').length || 0;
             const progress = percent(completed, total);
             return (
-              <div key={plan.id} className="card p-4">
+              <div key={plan.id} className="card p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <p className="font-medium text-surface-800 text-sm">{plan.title}</p>
+                    <h3 className="text-sm font-bold text-surface-800">{plan.title}</h3>
                     <p className="text-xs text-surface-400 mt-0.5">
-                      {fullName(plan.patient)} • {formatDate(plan.created_at)}
+                      {fullName(plan.patient)} · {formatDate(plan.created_at)}
                     </p>
                   </div>
                   <StatusBadge status={statusStyle(treatmentPlanStatus, plan.status, 'cancelled')} />
                 </div>
-                <div className="flex items-center justify-between text-xs text-surface-500 mb-2">
-                  <span>{formatNumber(completed)} از {formatNumber(total)} آیتم تکمیل شده</span>
-                  <span className="font-medium text-primary-600">{formatNumber(progress)}%</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <ProgressBar value={progress} />
+                  </div>
+                  <span className="text-xs text-surface-500">{formatNumber(completed)}/{formatNumber(total)}</span>
                 </div>
-                <ProgressBar value={progress} />
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-xs text-surface-400">هزینه تخمینی: {formatCurrency(plan.total_estimated_cost)}</span>
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-surface-100">
+                  <span className="text-xs text-surface-500">جمع کل: <span className="text-sm font-bold text-primary-700">{formatCurrency(plan.total_estimated_cost)}</span></span>
                   {plan.target_end_date && <span className="text-xs text-surface-400">موعد: {formatDate(plan.target_end_date)}</span>}
                 </div>
               </div>

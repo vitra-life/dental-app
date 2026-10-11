@@ -21,32 +21,32 @@ export function SmsCampaignsTab({ campaigns, onNew, onOpen }: SmsCampaignsTabPro
           icon={Send}
           title="هیچ کمپینی وجود ندارد"
           description="اولین کمپین پیامک خود را ایجاد کنید"
-          action={<button onClick={onNew} className="btn-primary"><Plus size={18} />کمپین جدید</button>}
+          action={<button onClick={onNew} className="btn-primary"><Plus size={16} />کمپین جدید</button>}
         />
       ) : (
         <div className="space-y-3">
-          {campaigns.map((c, i) => {
+          {campaigns.map((c) => {
             const progress = percent(c.sent_count, c.total_recipients);
             return (
               <div
                 key={c.id}
-                className="card card-hover p-5 cursor-pointer animate-slide-up"
-                style={{ animationDelay: `${i * 50}ms` }}
+                className="card card-hover p-5 cursor-pointer"
                 onClick={() => onOpen(c)}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h4 className="font-bold text-surface-800 text-sm">{c.title}</h4>
+                    <h3 className="text-sm font-bold text-surface-800">{c.title}</h3>
                     <p className="text-xs text-surface-400 mt-0.5">{formatDate(c.created_at)}</p>
                   </div>
                   <StatusBadge status={statusStyle(campaignStatus, c.status, 'draft')} />
                 </div>
                 <p className="text-xs text-surface-600 bg-surface-50 rounded-lg p-3 mb-3 line-clamp-2">{c.message_body}</p>
-                <div className="flex items-center justify-between text-xs text-surface-500 mb-2">
-                  <span>{formatNumber(c.sent_count)} از {formatNumber(c.total_recipients)} ارسال شد</span>
-                  <span className="font-medium text-primary-600">{formatNumber(progress)}%</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <ProgressBar value={progress} />
+                  </div>
+                  <span className="text-xs text-surface-500">{formatNumber(c.sent_count)}/{formatNumber(c.total_recipients)}</span>
                 </div>
-                <ProgressBar value={progress} />
                 <div className="flex items-center gap-4 mt-3">
                   <span className="flex items-center gap-1 text-xs text-accent-600">
                     <CheckCircle2 size={12} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Layout } from '@/components/layout';
 import { ToastContainer } from '@/components/ui/toast';
 import { AIAssistant } from '@/features/ai-assistant/ai-assistant-page';
@@ -17,28 +17,29 @@ function App() {
   /** A patient record to open when the patients page is shown. */
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
 
+  /** Counts navigations, so a page starts fresh each time it is opened, even from itself. */
+  const [visit, setVisit] = useState(0);
+
   const navigate = useCallback((page: PageKey) => {
     setSelectedPatientId(null);
     setCurrentPage(page);
+    setVisit((v) => v + 1);
   }, []);
 
   const openPatient = useCallback((patientId: string) => {
     setSelectedPatientId(patientId);
     setCurrentPage('patients');
+    setVisit((v) => v + 1);
   }, []);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [currentPage]);
 
   const renderPage = () => {
     switch (currentPage) {
       case 'patients':
-        return <Patients selectedPatientId={selectedPatientId} />;
+        return <Patients key={visit} selectedPatientId={selectedPatientId} onNavigate={navigate} />;
       case 'appointments':
         return <Appointments onOpenPatient={openPatient} />;
       case 'billing':
-        return <Billing />;
+        return <Billing onOpenPatient={openPatient} />;
       case 'lab':
         return <Lab onOpenPatient={openPatient} />;
       case 'reports':
@@ -51,7 +52,7 @@ function App() {
         return <Settings />;
       case 'dashboard':
       default:
-        return <Dashboard onNavigate={navigate} />;
+        return <Dashboard onNavigate={navigate} onOpenPatient={openPatient} />;
     }
   };
 

@@ -1,29 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, Clock, CreditCard, DollarSign, Plus, Receipt } from 'lucide-react';
-import { Avatar } from '@/components/ui/avatar';
+import { Check, Plus, Receipt } from 'lucide-react';
+import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { ProgressBar } from '@/components/ui/progress-bar';
+import { SectionHeader } from '@/components/ui/section-header';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { StatTile } from '@/components/ui/stat-tile';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { invoiceStatus, statusStyle } from '@/constants/status';
-import { daysUntil, formatDate } from '@/lib/date';
-import { formatCurrency, formatNumber, fullName, getInitials } from '@/lib/format';
+import { daysUntil, formatDate, formatDateNumeric, isPast } from '@/lib/date';
+import { formatCurrency, formatNumber, fullName, percent } from '@/lib/format';
 import * as db from '@/lib/store';
 import type { Installment, Invoice, Patient, Service } from '@/lib/types';
 import { InvoiceDetail } from './invoice-detail';
 import { InvoiceForm } from './invoice-form';
 
-type InvoiceFilter = 'all' | 'unpaid' | 'partial' | 'paid';
+type InvoiceFilter = 'all' | Invoice['status'];
 
-const filters: { key: InvoiceFilter; label: string }[] = [
-  { key: 'all', label: 'همه' },
-  { key: 'unpaid', label: 'پرداخت نشده' },
-  { key: 'partial', label: 'پرداخت جزئی' },
-  { key: 'paid', label: 'پرداخت شده' },
+const filters: { value: InvoiceFilter; label: string }[] = [
+  { value: 'all', label: 'همه' },
+  ...(['paid', 'partial', 'unpaid', 'overdue'] as const).map((value) => ({ value, label: invoiceStatus[value].label })),
 ];
 
-export function Billing() {
+interface BillingProps {
+  onOpenPatient: (patientId: string) => void;
+}
+
+export function Billing({ onOpenPatient }: BillingProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -36,7 +40,11 @@ export function Billing() {
   const load = useCallback(() => {
     setLoading(true);
     const invoiceRows = db.orderBy(db.list('invoices'), 'created_at', { ascending: false });
-    setInvoices(db.withOne(invoiceRows, 'patient', 'patients', 'patient_id'));
+    const withInstallments = db.withMany(invoiceRows, 'installments', 'installments', 'invoice_id').map((inv) => ({
+      ...inv,
+      installments: db.orderBy(inv.installments, 'installment_number'),
+    }));
+    setInvoices(db.withOne(withInstallments, 'patient', 'patients', 'patient_id'));
     // Installments have no patient_id; the patient is reached through the invoice.
     const unpaid = db.withOne(db.orderBy(db.list('installments', (i) => !i.paid), 'due_date'), 'invoice', 'invoices', 'invoice_id');
     setInstallmentReminders(unpaid.map((inst) => ({
@@ -54,68 +62,49 @@ export function Billing() {
 
   const filtered = invoices.filter((inv) => filter === 'all' || inv.status === filter);
   const unpaidInvoices = invoices.filter((i) => i.status !== 'paid');
-  const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.total, 0);
+  const totalReceived = invoices.reduce((s, i) => s + i.paid_amount, 0);
   const totalPending = unpaidInvoices.reduce((s, i) => s + i.balance, 0);
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="صورتحساب" subtitle="مدیریت مالی و پرداخت‌ها">
+    <div className="space-y-5">
+      <PageHeader title="صورتحساب" subtitle={<>{formatNumber(invoices.length)} فاکتور</>}>
         <button onClick={() => setShowForm(true)} className="btn-primary">
-          <Plus size={18} />
-          صورتحساب جدید
+          <Plus size={16} />
+          فاکتور جدید
         </button>
       </PageHeader>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile label="کل صورتحساب‌ها" value={formatNumber(invoices.length)} icon={Receipt} tone="secondary" />
-        <StatTile label="درآمد کل" value={formatCurrency(totalRevenue)} icon={DollarSign} tone="accent" size="lg" valueClassName="text-accent-600" delay={100} />
-        <StatTile label="مطالبات معوق" value={formatCurrency(totalPending)} icon={Clock} tone="error" size="lg" valueClassName="text-error-600" delay={200} />
-        <StatTile label="پرداخت نشده" value={formatNumber(unpaidInvoices.length)} icon={Clock} tone="warning" valueClassName="text-warning-600" delay={300} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatTile label="کل فاکتورها" value={formatNumber(invoices.length)} valueClassName="text-surface-700" />
+        <StatTile label="دریافت شده" value={formatCurrency(totalReceived)} valueClassName="text-accent-600" />
+        <StatTile label="در انتظار" value={formatCurrency(totalPending)} valueClassName="text-warning-600" />
+        <StatTile label="اقساطی" value={formatNumber(invoices.filter((i) => i.payment_type === 'installment').length)} valueClassName="text-primary-600" />
       </div>
 
-      {/* Installment Reminders */}
       {installmentReminders.length > 0 && (
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-warning-50 flex items-center justify-center">
-                <Bell size={18} className="text-warning-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-surface-800 text-sm">یادآوری اقساط</h3>
-                <p className="text-xs text-surface-400 mt-0.5">{formatNumber(installmentReminders.length)} قسط در انتظار پرداخت</p>
-              </div>
-            </div>
-          </div>
+          <SectionHeader title="یادآوری اقساط" note={`${formatNumber(installmentReminders.length)} قسط در انتظار پرداخت`} className="mb-3" />
           <div className="space-y-2">
             {installmentReminders.slice(0, 5).map((inst) => {
               const daysLeft = daysUntil(inst.due_date);
               const isOverdue = daysLeft < 0;
+              const tone = isOverdue ? 'bg-error-50 border-error-200' : daysLeft <= 3 ? 'bg-warning-50 border-warning-200' : 'bg-surface-50 border-surface-100';
               return (
-                <div
-                  key={inst.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl ${isOverdue ? 'bg-error-50' : daysLeft <= 3 ? 'bg-warning-50' : 'bg-surface-50'}`}
-                >
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isOverdue ? 'bg-error-100' : 'bg-warning-100'}`}>
-                    <Clock size={16} className={isOverdue ? 'text-error-500' : 'text-warning-500'} />
-                  </div>
+                <div key={inst.id} className={`flex items-center gap-3 p-3 rounded-xl border ${tone}`}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-surface-700 truncate">{fullName(inst.patient)}</p>
-                    <p className="text-xs text-surface-400">
-                      قسط {formatNumber(inst.installment_number)} • سررسید: {formatDate(inst.due_date)}
+                    <p className="text-sm font-medium text-surface-800 truncate">{fullName(inst.patient)}</p>
+                    <p className="text-xs text-surface-500">
+                      قسط {formatNumber(inst.installment_number)} · سررسید {formatDate(inst.due_date)}
                     </p>
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-bold text-surface-700">{formatCurrency(inst.amount)}</p>
+                  <div className="text-left shrink-0">
+                    <p className="text-sm font-bold text-surface-800">{formatCurrency(inst.amount)}</p>
                     <span className={`text-xs ${isOverdue ? 'text-error-600' : daysLeft <= 3 ? 'text-warning-600' : 'text-surface-400'}`}>
                       {isOverdue ? `${formatNumber(-daysLeft)} روز گذشته` : daysLeft === 0 ? 'امروز' : `${formatNumber(daysLeft)} روز دیگر`}
                     </span>
                   </div>
                   {inst.invoice && (
-                    <button
-                      onClick={() => setDetailInvoice(inst.invoice || null)}
-                      className="px-3 py-1.5 rounded-lg bg-white text-xs font-medium text-primary-600 hover:bg-primary-50 transition-colors"
-                    >
+                    <button onClick={() => setDetailInvoice(inst.invoice || null)} className="btn-chip bg-white text-primary-700 border-primary-200 hover:bg-primary-50 shrink-0">
                       مشاهده
                     </button>
                   )}
@@ -126,54 +115,78 @@ export function Billing() {
         </div>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              filter === f.key ? 'bg-primary-50 text-primary-600' : 'bg-white text-surface-400 hover:bg-surface-50 border border-surface-100'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <ChoiceChips options={filters} value={filter} onChange={setFilter} />
 
       {loading ? (
         <div className="space-y-3">
-          <SkeletonList count={4} className="h-20" />
+          <SkeletonList count={4} className="h-36" />
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Receipt} title="هیچ صورتحسابی" description="صورتحساب جدید ایجاد کنید" />
+        <EmptyState icon={Receipt} title="فاکتوری یافت نشد" description="فیلتر را تغییر دهید یا فاکتور جدیدی صادر کنید" />
       ) : (
         <div className="space-y-3">
-          {filtered.map((inv, i) => (
-            <div
-              key={inv.id}
-              className="card card-hover p-4 cursor-pointer animate-slide-up"
-              style={{ animationDelay: `${i * 50}ms` }}
-              onClick={() => setDetailInvoice(inv)}
-            >
-              <div className="flex items-start gap-3">
-                <Avatar className="w-11 h-11 rounded-xl text-sm shrink-0">
-                  {inv.patient ? getInitials(inv.patient.first_name, inv.patient.last_name) : '?'}
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-surface-800 text-sm">{fullName(inv.patient)}</p>
-                  <p className="text-xs text-surface-400 mt-0.5">{formatDate(inv.created_at)}</p>
-                  {inv.payment_type === 'installment' && (
-                    <span className="badge bg-secondary-50 text-secondary-600 mt-1">
-                      <CreditCard size={10} />
-                      اقساطی ({formatNumber(inv.installment_count)} قسط)
-                    </span>
+          {filtered.map((inv) => (
+            <div key={inv.id} className="card card-hover p-5 cursor-pointer" onClick={() => setDetailInvoice(inv)}>
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="min-w-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenPatient(inv.patient_id); }}
+                    className="text-sm font-bold text-surface-800 hover:text-primary-600 transition-colors"
+                  >
+                    {fullName(inv.patient)}
+                  </button>
+                  <p className="text-xs text-surface-400 mt-0.5">
+                    {inv.invoice_number && <>{inv.invoice_number} · </>}
+                    {formatDate(inv.created_at)} · {inv.payment_type === 'installment' ? `${formatNumber(inv.installment_count)} قسطه` : 'یکجا'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={statusStyle(invoiceStatus, inv.status, 'unpaid')} />
+                  {inv.status !== 'paid' && (
+                    <span className="btn-chip px-2 py-1 bg-accent-600 border-accent-600 text-white hover:bg-accent-700">ثبت پرداخت</span>
                   )}
                 </div>
-                <div className="text-left">
-                  <p className="font-bold text-surface-800 text-sm">{formatCurrency(inv.total)}</p>
-                  <StatusBadge status={statusStyle(invoiceStatus, inv.status, 'unpaid')} className="mt-1" />
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-3 text-sm">
+                <div>
+                  <p className="text-xs text-surface-400">مبلغ کل</p>
+                  <p className="font-bold text-surface-800">{formatCurrency(inv.total)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-surface-400">پرداخت شده</p>
+                  <p className="font-semibold text-accent-600">{formatCurrency(inv.paid_amount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-surface-400">مانده</p>
+                  <p className="font-semibold text-warning-600">{formatCurrency(inv.balance)}</p>
                 </div>
               </div>
+              {inv.total > 0 && <ProgressBar value={percent(inv.paid_amount, inv.total)} barClassName="bg-accent-500" />}
+              {inv.installments && inv.installments.length > 0 && (
+                <div className="border-t border-surface-100 pt-3 mt-3">
+                  <p className="text-xs font-medium text-surface-600 mb-2">جدول اقساط:</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {inv.installments.map((inst) => (
+                      <div
+                        key={inst.id}
+                        className={`shrink-0 text-center p-2 rounded-xl border text-xs min-w-max ${
+                          inst.paid ? 'bg-accent-50 border-accent-200 text-accent-700' : isPast(inst.due_date) ? 'bg-error-50 border-error-200 text-error-700' : 'bg-surface-50 border-surface-200 text-surface-600'
+                        }`}
+                      >
+                        <p className="font-medium">قسط {formatNumber(inst.installment_number)}</p>
+                        <p className="font-bold">{formatCurrency(inst.amount)}</p>
+                        <p className="opacity-70">{formatDateNumeric(inst.due_date)}</p>
+                        {inst.paid && (
+                          <p className="font-medium inline-flex items-center gap-0.5">
+                            <Check size={11} />
+                            پرداخت شد
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

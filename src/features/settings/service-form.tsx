@@ -1,0 +1,71 @@
+import { useState } from 'react';
+import { Modal } from '@/components/ui/modal';
+import * as db from '@/lib/store';
+import { showToast } from '@/lib/toast';
+import type { Service } from '@/lib/types';
+import { serviceCategories } from '@/constants/service-categories';
+
+interface ServiceFormProps {
+  /** The service to edit, or `null` to add one. */
+  service: Service | null;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
+  const [form, setForm] = useState({
+    name: service?.name ?? '',
+    category: service?.category ?? 'general',
+    default_price: service?.default_price ?? 0,
+    duration_minutes: service?.duration_minutes ?? 30,
+    description: service?.description ?? '',
+  });
+
+  function save() {
+    if (!form.name.trim()) { showToast('نام خدمت الزامی است', 'error'); return; }
+    const values = { ...form, name: form.name.trim(), description: form.description || null };
+    if (service) {
+      db.update('services', service.id, values);
+      showToast('خدمت بروزرسانی شد');
+    } else {
+      db.insert('services', values);
+      showToast('خدمت جدید اضافه شد');
+    }
+    onSaved();
+  }
+
+  return (
+    <Modal open onClose={onClose} title={service ? 'ویرایش خدمت' : 'افزودن خدمت جدید'} size="sm">
+      <div className="space-y-3">
+        <div>
+          <label className="label-field">نام خدمت *</label>
+          <input className="input-field py-2.5" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label-field">دسته‌بندی</label>
+            <select className="input-field py-2.5" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {serviceCategories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label-field">مدت (دقیقه)</label>
+            <input type="number" className="input-field py-2.5" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 30 })} />
+          </div>
+        </div>
+        <div>
+          <label className="label-field">قیمت پیش‌فرض (تومان)</label>
+          <input type="number" className="input-field py-2.5" value={form.default_price || ''} onChange={(e) => setForm({ ...form, default_price: parseFloat(e.target.value) || 0 })} placeholder="0" />
+        </div>
+        <div>
+          <label className="label-field">توضیحات</label>
+          <input className="input-field py-2.5" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <button onClick={save} className="btn-primary flex-1 py-2.5">ذخیره</button>
+          <button onClick={onClose} className="btn-secondary flex-1 py-2.5">انصراف</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

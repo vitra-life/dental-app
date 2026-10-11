@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, FileText, Plus, Smile } from 'lucide-react';
-import { EmptyState } from '@/components/ui/empty-state';
+import { Plus } from 'lucide-react';
+import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDate, todayISO } from '@/lib/date';
+import { formatDateNumeric, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
@@ -44,20 +44,23 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
     load();
   }
 
-  if (loading) return <Skeleton className="h-32" variant="inset" />;
+  if (loading) return <Skeleton className="h-32" />;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(treatments.length)} درمان ثبت شده</p>
-        <button onClick={() => setShowAdd(!showAdd)} className="btn-primary">
-          <Plus size={16} />
-          افزودن درمان
-        </button>
-      </div>
+    <div className="card p-5">
+      <SectionHeader
+        title={`درمان‌های انجام‌شده (${formatNumber(treatments.length)})`}
+        className="mb-3"
+        aside={
+          <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
+            <Plus size={14} />
+            افزودن درمان
+          </button>
+        }
+      />
 
       {showAdd && (
-        <div className="p-4 bg-surface-50 rounded-xl space-y-3 animate-slide-down">
+        <div className="p-4 mb-3 bg-surface-50 rounded-xl space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="label-field">خدمت</label>
@@ -84,7 +87,7 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
           </div>
           <div>
             <label className="label-field">یادداشت</label>
-            <textarea className="input-field min-h-[60px]" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <textarea className="input-field min-h-[60px] resize-none" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
           <div className="flex items-center gap-2">
             <button onClick={addTreatment} className="btn-primary">ثبت درمان</button>
@@ -94,25 +97,20 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
       )}
 
       {treatments.length === 0 ? (
-        <EmptyState icon={Calendar} title="هیچ درمانی ثبت نشده" />
+        <p className="text-xs text-surface-400">درمانی ثبت نشده است</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {treatments.map((t) => (
-            <div key={t.id} className="flex items-start gap-3 p-4 bg-surface-50 rounded-xl">
-              <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0">
-                {t.tooth_number ? <Smile size={18} className="text-primary-500" /> : <FileText size={18} className="text-surface-400" />}
-              </div>
+            <div key={t.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-50 text-sm">
+              <span className="text-surface-400 text-xs w-20 shrink-0">{formatDateNumeric(t.treatment_date)}</span>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-surface-800 text-sm">
+                <p className="text-surface-700 truncate">
                   {t.service?.name || t.description || 'درمان'}
-                  {t.tooth_number && <span className="text-surface-400"> • دندان {formatNumber(t.tooth_number)}</span>}
+                  {t.tooth_number && <span className="text-surface-400"> (دندان {formatNumber(t.tooth_number)})</span>}
                 </p>
-                <p className="text-xs text-surface-400 mt-0.5">
-                  {formatDate(t.treatment_date)} • {formatCurrency(t.cost)}
-                </p>
-                {t.notes && <p className="text-xs text-surface-500 mt-1">{t.notes}</p>}
+                {t.notes && <p className="text-xs text-surface-400 truncate">{t.notes}</p>}
               </div>
-              <span className="badge bg-accent-50 text-accent-600">تکمیل شده</span>
+              <span className="font-semibold text-surface-800 text-xs sm:text-sm">{formatCurrency(t.cost)}</span>
             </div>
           ))}
         </div>

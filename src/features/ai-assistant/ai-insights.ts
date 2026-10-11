@@ -1,5 +1,5 @@
 import { AlertTriangle, CalendarDays, Clock, TrendingUp, Users, type LucideIcon } from 'lucide-react';
-import { daysFromToday, formatDateShort, monthsBeforeToday } from '@/lib/date';
+import { daysFromToday, formatDateShort, monthsBeforeToday, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, formatTime } from '@/lib/format';
 import { monthOverMonth } from '@/lib/revenue';
 import { findFreeSlots, type FreeSlot } from '@/lib/schedule';
@@ -35,6 +35,8 @@ export interface AssistantData {
   segments: Segment[];
   /** The next free appointment slots. */
   freeSlots: FreeSlot[];
+  /** The figures shown above the conversation. */
+  summary: { todayAppointments: number; activePlans: number; pendingAmount: number; openLabOrders: number };
 }
 
 export function loadAssistantData(): AssistantData {
@@ -144,7 +146,15 @@ export function loadAssistantData(): AssistantData {
     { label: ACTIVE_SEGMENT, count: patients.length - inactive.length, color: '#22c55e' },
   ];
 
-  return { insights, segments, freeSlots: findFreeSlots(appointments, 7, 10) };
+  const today = todayISO();
+  const summary = {
+    todayAppointments: appointments.filter((a) => a.appointment_date === today).length,
+    activePlans: db.list('treatment_plans', (p) => p.status === 'active').length,
+    pendingAmount: invoices.filter((i) => i.status !== 'paid').reduce((s, i) => s + (i.balance || 0), 0),
+    openLabOrders: db.list('lab_orders', (o) => o.status !== 'delivered').length,
+  };
+
+  return { insights, segments, freeSlots: findFreeSlots(appointments, 7, 8), summary };
 }
 
 const HELP = `من می‌توانم در مورد موارد زیر کمک کنم:\n\n• اولین نوبت خالی کی است؟\n• وضعیت درآمد و مالی\n• بیماران غیرفعال و فرصت‌های بازگشت\n• نوبت‌های فردا\n• بدهی‌ها و مطالبات\n• درمان‌های ناتمام\n• تعداد بیماران\n• بهترین پیشنهادها\n\nسوال خود را دقیق‌تر بپرسید.`;
