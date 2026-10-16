@@ -34,6 +34,18 @@ export function todayISO(): string {
   return toISODate(new Date());
 }
 
+/** Splits an ISO timestamp into the local date (`YYYY-MM-DD`) and time (`HH:MM:SS`). */
+export function splitTimestamp(iso: string): { date: string; time: string } {
+  const date = parseISO(iso);
+  return { date: toISODate(date), time: format(date, 'HH:mm:ss') };
+}
+
+/** The ISO timestamp for a local date (`YYYY-MM-DD`) and time (`HH:MM` or `HH:MM:SS`). */
+export function joinTimestamp(date: string, time: string): string {
+  const seconds = time.length === 5 ? `${time}:00` : time;
+  return parseISO(`${date}T${seconds}`).toISOString();
+}
+
 /** `YYYY-MM-DD` for today plus `days` (negative for the past). */
 export function daysFromToday(days: number): string {
   return toISODate(addDays(new Date(), days));

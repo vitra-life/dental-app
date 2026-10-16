@@ -8,7 +8,6 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import { activePlans, billableItems, planItemLabel } from '@/lib/treatment-plans';
 import type { Patient, Service } from '@/lib/types';
-import { syncPatientBalance } from './patient-balance';
 
 const installmentOptions = [2, 3, 4, 6, 12].map((n) => ({ value: n, label: `${formatNumber(n)} قسط` }));
 
@@ -29,7 +28,7 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
   const [installmentCount, setInstallmentCount] = useState(3);
   const [saving, setSaving] = useState(false);
 
-  const plans = useMemo(() => (patientId ? activePlans(patientId) : []), [patientId]);
+  const plans = useMemo(() => (patientId ? activePlans(patientId, services) : []), [patientId, services]);
 
   /** Replaces the invoice lines with the plan's work that is done or under way. */
   function loadFromPlan() {
@@ -115,8 +114,6 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
       }
       db.insertMany('installments', installments);
     }
-
-    syncPatientBalance(patientId);
 
     showToast('صورتحساب ایجاد شد');
     setSaving(false);

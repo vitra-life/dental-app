@@ -5,7 +5,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateShort } from '@/lib/date';
 import { formatCurrency, formatNumber, formatTime } from '@/lib/format';
 import type { PageKey } from '@/lib/types';
-import { answerQuestion, loadAssistantData, type AssistantData, type Insight } from './ai-insights';
+import { LoadError } from '@/components/ui/load-error';
+import { useClinicData } from '@/data/clinic-data';
+import { answerQuestion, loadAssistantData, type Insight } from './ai-insights';
 
 interface AIAssistantProps {
   onNavigate: (page: PageKey) => void;
@@ -52,7 +54,8 @@ function AssistantAvatar() {
 }
 
 export function AIAssistant({ onNavigate }: AIAssistantProps) {
-  const [data, setData] = useState<AssistantData | null>(null);
+  const clinic = useClinicData();
+  const data = clinic.data ? loadAssistantData(clinic.data) : null;
   const [messages, setMessages] = useState<Message[]>([{ id: 0, role: 'assistant', text: GREETING, suggestions: suggestions.slice(0, 4) }]);
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
@@ -60,12 +63,10 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
   const nextId = useRef(1);
 
   useEffect(() => {
-    setData(loadAssistantData());
-  }, []);
-
-  useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
   }, [messages, asking]);
+
+  if (!data && clinic.error) return <LoadError error={clinic.error} onRetry={clinic.refetch} />;
 
   if (!data) {
     return (

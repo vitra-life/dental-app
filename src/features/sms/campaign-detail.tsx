@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { campaignStatus, messageStatus, statusStyle } from '@/constants/status';
 import { formatNumber, fullName } from '@/lib/format';
+import { usePatients } from '@/data/patients';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { SmsCampaign, SmsMessage } from '@/lib/types';
@@ -14,12 +15,14 @@ export function CampaignDetail({ campaign, onClose, onUpdated }: {
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const [messages, setMessages] = useState<SmsMessage[]>([]);
+  const [messageRows, setMessageRows] = useState<SmsMessage[]>([]);
+  const { data: patients = [] } = usePatients();
+  const messages = db.joinOne(messageRows, 'patient', patients, 'patient_id');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const rows = db.orderBy(db.list('sms_messages', (m) => m.campaign_id === campaign.id), 'created_at', { ascending: false });
-    setMessages(db.withOne(rows, 'patient', 'patients', 'patient_id'));
+    setMessageRows(rows);
     setLoading(false);
   }, [campaign.id]);
 

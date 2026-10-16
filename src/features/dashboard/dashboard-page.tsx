@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { AlertTriangle, ArrowLeft, CalendarDays, CircleDollarSign, ClipboardList, Clock, Plus, Receipt, Sparkles, Users, type LucideIcon } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { AreaTrend, Bars, Donut } from '@/components/ui/charts';
@@ -12,6 +11,8 @@ import { appointmentStatus, statusStyle } from '@/constants/status';
 import { formatDate, getPersianDayName, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, formatTime, fullName, percent } from '@/lib/format';
 import type { PageKey } from '@/lib/types';
+import { LoadError } from '@/components/ui/load-error';
+import { useClinicData } from '@/data/clinic-data';
 import { loadDashboardStats, type DashboardStats } from './dashboard-stats';
 
 interface DashboardProps {
@@ -63,11 +64,10 @@ function assistantNotes(stats: DashboardStats): AssistantNote[] {
 }
 
 export function Dashboard({ onNavigate, onOpenPatient }: DashboardProps) {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const { data, error, refetch } = useClinicData();
+  const stats = data ? loadDashboardStats(data) : null;
 
-  useEffect(() => {
-    setStats(loadDashboardStats());
-  }, []);
+  if (!stats && error) return <LoadError error={error} onRetry={refetch} />;
 
   if (!stats) {
     return (

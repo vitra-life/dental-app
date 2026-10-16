@@ -6,9 +6,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { toothStatus } from '@/constants/status';
 import { formatDate, formatDateNumeric, todayISO } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { DentalRecord, Service } from '@/lib/types';
+import type { DentalRecord } from '@/lib/types';
 
 interface DentalChartProps {
   patientId: string;
@@ -23,7 +24,8 @@ const lowerTeeth = [[48, 47, 46, 45, 44, 43, 42, 41], [31, 32, 33, 34, 35, 36, 3
 
 export function DentalChart({ patientId }: DentalChartProps) {
   const [records, setRecords] = useState<DentalRecord[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const { data: allServices = [] } = useServices();
+  const services = allServices.filter((s) => s.active);
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
   const [form, setForm] = useState<{ status: ToothStatus; treatment_type: string; notes: string }>({ status: 'decayed', treatment_type: '', notes: '' });
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,6 @@ export function DentalChart({ patientId }: DentalChartProps) {
 
   useEffect(() => {
     load();
-    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
   function getToothStatus(toothNum: number): ToothStatus {

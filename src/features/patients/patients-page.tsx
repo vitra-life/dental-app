@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { AlertTriangle, Plus, Search, Users, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { formatDate, todayISO } from '@/lib/date';
+import { usePatients } from '@/data/patients';
+import { errorMessage } from '@/lib/api/errors';
+import { formatDate } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName } from '@/lib/format';
-import * as db from '@/lib/store';
+import { patientBalances } from '@/lib/patient-balance';
 import type { PageKey, Patient } from '@/lib/types';
 import { PatientDetail, type PatientTab } from './patient-detail';
 import { PatientForm } from './patient-form';
@@ -26,25 +28,10 @@ const balanceFilters: { value: BalanceFilter; label: string }[] = [
   { value: 'credit', label: 'بستانکار' },
 ];
 
-/** Per patient: how many appointments they have and the date of their last completed visit. */
-function loadVisits(): Map<string, { count: number; lastVisit: string | null }> {
-  const today = todayISO();
-  const visits = new Map<string, { count: number; lastVisit: string | null }>();
-  for (const apt of db.list('appointments')) {
-    const entry = visits.get(apt.patient_id) ?? { count: 0, lastVisit: null };
-    entry.count += 1;
-    if (apt.status === 'completed' && apt.appointment_date <= today && (!entry.lastVisit || apt.appointment_date > entry.lastVisit)) {
-      entry.lastVisit = apt.appointment_date;
-    }
-    visits.set(apt.patient_id, entry);
-  }
-  return visits;
-}
-
 export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [visits, setVisits] = useState(() => new Map<string, { count: number; lastVisit: string | null }>());
-  const [loading, setLoading] = useState(true);
+  const { data: patients = [], isPending: loading, error, refetch } = usePatients();
+  /** What each patient owes, from the invoices in the browser store (a cheap read, done every render). */
+  const balances = patientBalances();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<BalanceFilter>('all');
   const [showForm, setShowForm] = useState(false);
@@ -52,22 +39,12 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
   const [detailId, setDetailId] = useState<string | null>(selectedPatientId);
   const [activeTab, setActiveTab] = useState<PatientTab>('info');
 
-  const loadPatients = useCallback(() => {
-    setLoading(true);
-    setPatients(db.orderBy(db.list('patients'), 'created_at', { ascending: false }));
-    setVisits(loadVisits());
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    loadPatients();
-  }, [loadPatients]);
-
   const detailPatient = detailId ? patients.find((p) => p.id === detailId) : null;
 
+  const balanceOf = (p: Patient) => balances.get(p.id) ?? 0;
   const filtered = patients.filter((p) => {
-    if (filter === 'debt' && p.balance <= 0) return false;
-    if (filter === 'credit' && p.balance >= 0) return false;
+    if (filter === 'debt' && balanceOf(p) <= 0) return false;
+    if (filter === 'credit' && balanceOf(p) >= 0) return false;
     const q = search.trim();
     if (!q) return true;
     return (
@@ -88,7 +65,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
     <PatientForm
       patient={editingPatient}
       onClose={() => setShowForm(false)}
-      onSaved={() => { loadPatients(); setShowForm(false); }}
+      onSaved={() => setShowForm(false)}
     />
   );
 
@@ -99,7 +76,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
           patient={detailPatient}
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onBack={() => { setDetailId(null); setActiveTab('info'); loadPatients(); }}
+          onBack={() => { setDetailId(null); setActiveTab('info'); }}
           onEdit={() => { setEditingPatient(detailPatient); setShowForm(true); }}
           onNavigate={onNavigate}
         />
@@ -140,6 +117,13 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <SkeletonList count={6} className="h-32" />
         </div>
+      ) : error ? (
+        <EmptyState
+          icon={Users}
+          title="بیماران بارگذاری نشدند"
+          description={errorMessage(error)}
+          action={<button onClick={() => refetch()} className="btn-secondary">تلاش دوباره</button>}
+        />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Users}
@@ -155,7 +139,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((patient) => {
-            const visit = visits.get(patient.id);
+            const balance = balanceOf(patient);
             return (
               <div key={patient.id} className="card card-hover p-4 cursor-pointer" onClick={() => setDetailId(patient.id)}>
                 <div className="flex items-start gap-3">
@@ -167,7 +151,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
                     </div>
                     <p className="text-xs text-surface-500 mt-0.5">{patient.phone}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-                      <span className="text-xs text-surface-500">{formatNumber(visit?.count ?? 0)} نوبت</span>
+                      <span className="text-xs text-surface-500">{formatNumber(patient.appointment_count)} نوبت</span>
                       {patient.insurance_company && <span className="text-xs bg-secondary-50 text-secondary-600 px-1.5 py-0.5 rounded-sm">{patient.insurance_company}</span>}
                       {patient.allergies && (
                         <span className="inline-flex items-center gap-1 text-xs bg-error-50 text-error-500 px-1.5 py-0.5 rounded-sm">
@@ -178,16 +162,16 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
                     </div>
                   </div>
                 </div>
-                {patient.balance !== 0 && (
+                {balance !== 0 && (
                   <div className="mt-3 pt-3 border-t border-surface-100 flex items-center justify-between">
-                    <span className="text-xs text-surface-500">{patient.balance > 0 ? 'بدهی' : 'اعتبار'}</span>
-                    <span className={`text-xs font-semibold ${patient.balance > 0 ? 'text-error-500' : 'text-accent-600'}`}>{formatCurrency(Math.abs(patient.balance))}</span>
+                    <span className="text-xs text-surface-500">{balance > 0 ? 'بدهی' : 'اعتبار'}</span>
+                    <span className={`text-xs font-semibold ${balance > 0 ? 'text-error-500' : 'text-accent-600'}`}>{formatCurrency(Math.abs(balance))}</span>
                   </div>
                 )}
-                {visit?.lastVisit && (
+                {patient.last_visit && (
                   <div className="mt-2 flex items-center justify-between text-xs text-surface-400">
                     <span>آخرین مراجعه</span>
-                    <span>{formatDate(visit.lastVisit)}</span>
+                    <span>{formatDate(patient.last_visit)}</span>
                   </div>
                 )}
               </div>

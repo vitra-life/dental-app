@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
-import * as db from '@/lib/store';
+import { useCreateService, useUpdateService } from '@/data/services';
+import { ApiError, errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
 import type { Service } from '@/lib/types';
 import { serviceCategories } from '@/constants/service-categories';
@@ -21,17 +22,30 @@ export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
     description: service?.description ?? '',
   });
 
-  function save() {
+  const createService = useCreateService();
+  const updateService = useUpdateService();
+  const saving = createService.isPending || updateService.isPending;
+
+  async function save() {
     if (!form.name.trim()) { showToast('نام خدمت الزامی است', 'error'); return; }
     const values = { ...form, name: form.name.trim(), description: form.description || null };
-    if (service) {
-      db.update('services', service.id, values);
-      showToast('خدمت بروزرسانی شد');
-    } else {
-      db.insert('services', values);
-      showToast('خدمت جدید اضافه شد');
+    try {
+      if (service) {
+        await updateService.mutateAsync({ id: service.id, input: values });
+        showToast('خدمت بروزرسانی شد');
+      } else {
+        await createService.mutateAsync({ ...values, active: true });
+        showToast('خدمت جدید اضافه شد');
+      }
+      onSaved();
+    } catch (error) {
+      const duplicate = error instanceof ApiError && error.status === 409;
+      const badDuration = error instanceof ApiError && error.fieldErrors.some((e) => e.field === 'duration_minutes');
+      showToast(
+        duplicate ? 'خدمتی با این نام قبلا ثبت شده است' : badDuration ? 'مدت باید بین ۵ تا ۴۸۰ دقیقه باشد' : errorMessage(error),
+        'error',
+      );
     }
-    onSaved();
   }
 
   return (
@@ -62,7 +76,7 @@ export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
           <input className="input-field py-2.5" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         </div>
         <div className="flex gap-2 pt-1">
-          <button onClick={save} className="btn-primary flex-1 py-2.5">ذخیره</button>
+          <button onClick={save} disabled={saving} className="btn-primary flex-1 py-2.5">{saving ? 'در حال ذخیره...' : 'ذخیره'}</button>
           <button onClick={onClose} className="btn-secondary flex-1 py-2.5">انصراف</button>
         </div>
       </div>

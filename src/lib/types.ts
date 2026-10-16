@@ -55,10 +55,15 @@ export interface Patient {
   insurance_company: string | null;
   insurance_number: string | null;
   notes: string | null;
-  balance: number;
-  status: string;
   created_at: string;
+  /** How many appointments the patient has, in any status. Computed by the API. */
+  appointment_count: number;
+  /** Local date (`YYYY-MM-DD`) of the latest completed appointment. Computed by the API. */
+  last_visit: string | null;
 }
+
+/** The patient fields that come with an appointment. */
+export type AppointmentPatient = Pick<Patient, 'id' | 'first_name' | 'last_name' | 'phone'>;
 
 export interface Appointment {
   id: string;
@@ -72,9 +77,9 @@ export interface Appointment {
   notes: string | null;
   price: number;
   created_at: string;
-  patient?: Patient;
+  patient?: AppointmentPatient;
   staff?: Staff;
-  service?: Service;
+  service?: Pick<Service, 'id' | 'name'>;
 }
 
 export interface Treatment {
@@ -311,13 +316,13 @@ export interface SmsMessage {
   patient?: Patient;
 }
 
-/** Every persisted table, keyed by name, mapped to its row type. */
+/**
+ * Every table kept in the browser store, keyed by name, mapped to its row type.
+ * Patients, appointments and services come from Dental-Api instead (`src/data/`).
+ */
 export interface Tables {
   clinic_settings: ClinicSettings;
   staff: Staff;
-  services: Service;
-  patients: Patient;
-  appointments: Appointment;
   treatments: Treatment;
   dental_records: DentalRecord;
   invoices: Invoice;

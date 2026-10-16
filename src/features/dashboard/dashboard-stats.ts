@@ -1,8 +1,9 @@
 import * as db from '@/lib/store';
+import { patientBalances } from '@/lib/patient-balance';
 import { currentJalaliMonth, formatJalaliMonth, isInJalaliMonth, lastDays, todayISO } from '@/lib/date';
 import { revenueByMonth } from '@/lib/revenue';
 import { clinicWorkingHours, freeSlotsOn } from '@/lib/schedule';
-import type { Appointment } from '@/lib/types';
+import type { Appointment, Patient, Service } from '@/lib/types';
 
 export interface DashboardStats {
   todayAppointments: number;
@@ -22,7 +23,7 @@ export interface DashboardStats {
   serviceShare: { category: string; count: number }[];
   /** Appointments per day for the last 7 days, oldest first. */
   week: { day: string; count: number }[];
-  /** Today's first appointments, with patient, staff and service attached. */
+  /** Today's first appointments, with patient and service attached. */
   todayList: Appointment[];
   activePlans: number;
   /** Active plans with work still planned, and the estimated cost of that work. */
@@ -33,24 +34,28 @@ export interface DashboardStats {
   freeSlotsToday: number;
 }
 
-export function loadDashboardStats(): DashboardStats {
+/** The data that comes from the API; the rest is read from the browser store. */
+export interface DashboardInput {
+  patients: Patient[];
+  /** Appointments with their patient and service attached, as `useAppointments` returns them. */
+  appointments: Appointment[];
+  services: Service[];
+}
+
+export function loadDashboardStats({ patients, appointments, services }: DashboardInput): DashboardStats {
   const today = todayISO();
-  const appointments = db.list('appointments');
-  const patients = db.list('patients');
   const invoices = db.list('invoices');
   const plans = db.withMany(db.list('treatment_plans', (p) => p.status === 'active'), 'items', 'treatment_plan_items', 'plan_id');
 
-  let todayAppts = db.orderBy(appointments.filter((a) => a.appointment_date === today), 'start_time');
-  todayAppts = db.withOne(todayAppts, 'patient', 'patients', 'patient_id');
-  todayAppts = db.withOne(todayAppts, 'staff', 'staff', 'staff_id');
-  todayAppts = db.withOne(todayAppts, 'service', 'services', 'service_id');
+  const todayAppts = db.orderBy(appointments.filter((a) => a.appointment_date === today), 'start_time');
 
   const month = currentJalaliMonth();
   const openInvoices = invoices.filter((i) => i.status !== 'paid');
-  const debtors = patients.filter((p) => p.balance > 0);
+  const balances = patientBalances();
+  const debtors = patients.filter((p) => (balances.get(p.id) ?? 0) > 0);
 
   const since = lastDays(30)[0].iso;
-  const categories = new Map(db.list('services').map((s) => [s.id, s.category]));
+  const categories = new Map(services.map((s) => [s.id, s.category]));
   const byCategory = new Map<string, number>();
   for (const apt of appointments) {
     if (apt.appointment_date < since || apt.appointment_date > today || !apt.service_id) continue;
@@ -79,7 +84,7 @@ export function loadDashboardStats(): DashboardStats {
     unfinishedPlans: unfinished.length,
     unfinishedPlanValue: unfinished.reduce((sum, planned) => sum + planned.reduce((s, i) => s + i.estimated_cost, 0), 0),
     debtors: debtors.length,
-    totalDebt: debtors.reduce((sum, p) => sum + p.balance, 0),
+    totalDebt: debtors.reduce((sum, p) => sum + (balances.get(p.id) ?? 0), 0),
     freeSlotsToday: freeSlotsOn(today, todayAppts, clinicWorkingHours()).length,
   };
 }

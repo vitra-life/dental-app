@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CalendarDays, CheckCircle2, Clock, Hourglass, Plus } from 'lucide-react';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatTile } from '@/components/ui/stat-tile';
@@ -6,10 +6,13 @@ import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { currentJalaliMonth, todayISO, type JalaliMonth } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
 import { bookedSlots, clinicWorkingHours, freeSlotsOn, workingSlots } from '@/lib/schedule';
-import * as db from '@/lib/store';
+import { useAppointments, useSetAppointmentStatus } from '@/data/appointments';
+import { usePatients } from '@/data/patients';
+import { useServices } from '@/data/services';
+import { errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
 import { plannedAppointmentIds, syncPlanWithAppointment } from '@/lib/treatment-plans';
-import type { Appointment, Patient, Service, Staff, WorkingHours } from '@/lib/types';
+import type { Appointment, WorkingHours } from '@/lib/types';
 import { AppointmentCalendarView, type DayStats } from './appointment-calendar-view';
 import { AppointmentDayView } from './appointment-day-view';
 import { AppointmentForm } from './appointment-form';
@@ -41,42 +44,39 @@ function summarizeDays(appointments: Appointment[], hours: WorkingHours | null):
 }
 
 export function Appointments({ onOpenPatient }: AppointmentsProps) {
-  /** Every appointment, by date then start time, with patient, staff and service attached. */
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [staffList, setStaffList] = useState<Staff[]>([]);
+  /** Appointments in the shared window, by date then start time, with patient and service attached. */
+  const { data: appointments = [], isPending: loading } = useAppointments();
+  const { data: allPatients = [] } = usePatients();
+  const { data: allServices = [] } = useServices();
+  const setStatus = useSetAppointmentStatus();
+  const patients = useMemo(() => [...allPatients].sort((a, b) => a.first_name.localeCompare(b.first_name, 'fa')), [allPatients]);
+  const services = useMemo(() => allServices.filter((s) => s.active), [allServices]);
   const [hours, setHours] = useState<WorkingHours | null>(null);
   /** Appointments that were booked for a treatment-plan item. */
   const [planned, setPlanned] = useState<Set<string>>(() => new Set());
-  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(todayISO);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [calendarMonth, setCalendarMonth] = useState<JalaliMonth>(currentJalaliMonth);
   /** Date and start time of the booking form while it is open. */
   const [booking, setBooking] = useState<{ date: string; startTime: string } | null>(null);
 
-  const load = useCallback(() => {
-    let appts = db.orderBy(db.orderBy(db.list('appointments'), 'start_time'), 'appointment_date');
-    appts = db.withOne(appts, 'patient', 'patients', 'patient_id');
-    appts = db.withOne(appts, 'staff', 'staff', 'staff_id');
-    appts = db.withOne(appts, 'service', 'services', 'service_id');
-    setAppointments(appts);
-    setPatients(db.orderBy(db.list('patients'), 'first_name'));
-    setServices(db.list('services', (s) => s.active));
-    setStaffList(db.list('staff', (s) => s.active));
+  /** Working hours and plan links live in the browser store. */
+  function loadLocal() {
     setHours(clinicWorkingHours());
     setPlanned(plannedAppointmentIds());
-    setLoading(false);
-  }, []);
+  }
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(loadLocal, []);
 
-  function updateStatus(id: string, status: Appointment['status']) {
-    const updated = db.update('appointments', id, { status });
-    if (updated) syncPlanWithAppointment(updated, status);
-    showToast('وضعیت نوبت بروزرسانی شد');
-    load();
+  async function updateStatus(id: string, status: Appointment['status']) {
+    try {
+      const updated = await setStatus.mutateAsync({ id, status });
+      syncPlanWithAppointment(updated, status);
+      loadLocal();
+      showToast('وضعیت نوبت بروزرسانی شد');
+    } catch (error) {
+      showToast(errorMessage(error), 'error');
+    }
   }
 
   const today = todayISO();
@@ -145,9 +145,8 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
           startTime={booking.startTime}
           patients={patients}
           services={services}
-          staffList={staffList}
           onClose={() => setBooking(null)}
-          onSaved={() => { setBooking(null); load(); }}
+          onSaved={() => { setBooking(null); loadLocal(); }}
         />
       )}
     </div>

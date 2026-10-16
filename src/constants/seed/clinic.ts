@@ -1,4 +1,4 @@
-import type { ClinicSettings, Service, Staff } from '@/lib/types';
+import type { ClinicSettings, Staff } from '@/lib/types';
 import { timestampFromNow } from '@/lib/date';
 
 export const clinicSettings: ClinicSettings[] = [
@@ -32,16 +32,3 @@ export const staff: Staff[] = [
   { id: 'stf-05', full_name: 'رضا موسوی', role: 'accountant', phone: '09121234505', email: null, color: '#22c55e', active: true, created_at: timestampFromNow(-300) },
 ];
 
-export const services: Service[] = [
-  { id: 'svc-01', name: 'ویزیت و معاینه', category: 'general', default_price: 300_000, duration_minutes: 30, description: 'معاینه کامل دهان و دندان و تشکیل پرونده', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-02', name: 'جرمگیری و بروساژ', category: 'general', default_price: 1_200_000, duration_minutes: 45, description: null, active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-03', name: 'ترمیم کامپوزیت', category: 'general', default_price: 2_500_000, duration_minutes: 45, description: 'پر کردن دندان با کامپوزیت همرنگ', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-04', name: 'عصب‌کشی', category: 'endodontics', default_price: 6_000_000, duration_minutes: 60, description: 'درمان ریشه دندان‌های خلفی', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-05', name: 'کشیدن دندان', category: 'surgery', default_price: 1_500_000, duration_minutes: 30, description: null, active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-06', name: 'جراحی دندان عقل', category: 'surgery', default_price: 4_500_000, duration_minutes: 60, description: 'جراحی دندان عقل نهفته', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-07', name: 'روکش زیرکونیا', category: 'prosthodontics', default_price: 12_000_000, duration_minutes: 60, description: null, active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-08', name: 'ایمپلنت', category: 'surgery', default_price: 35_000_000, duration_minutes: 90, description: 'ایمپلنت با فیکسچر کره‌ای', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-09', name: 'بلیچینگ', category: 'cosmetic', default_price: 5_000_000, duration_minutes: 60, description: 'سفید کردن دندان در مطب', active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-10', name: 'ارتودنسی ثابت', category: 'orthodontics', default_price: 60_000_000, duration_minutes: 45, description: null, active: true, created_at: timestampFromNow(-400) },
-  { id: 'svc-11', name: 'لمینت سرامیکی', category: 'cosmetic', default_price: 9_000_000, duration_minutes: 60, description: 'هزینه به ازای هر واحد', active: false, created_at: timestampFromNow(-250) },
-];

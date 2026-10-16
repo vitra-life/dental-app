@@ -4,6 +4,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { getAge } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName } from '@/lib/format';
+import { patientBalance } from '@/lib/patient-balance';
 import * as db from '@/lib/store';
 import type { PageKey, Patient } from '@/lib/types';
 import { DentalChart } from './dental-chart';
@@ -28,6 +29,7 @@ interface PatientDetailProps {
 export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit, onNavigate }: PatientDetailProps) {
   // Counted once per visit to the record; the plan tab reloads its own list.
   const [planCount] = useState(() => db.list('treatment_plans', (p) => p.patient_id === patient.id).length);
+  const [balance] = useState(() => patientBalance(patient.id));
 
   const tabs: TabItem<PatientTab>[] = [
     { key: 'info', label: 'اطلاعات' },
@@ -72,8 +74,8 @@ export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit,
             <div className="flex flex-wrap items-center gap-2 mt-3">
               {patient.national_id && <span className="text-xs text-surface-500">کد ملی: {patient.national_id}</span>}
               {patient.insurance_company && <span className="text-xs bg-secondary-50 text-secondary-600 px-2 py-0.5 rounded-lg">{patient.insurance_company}</span>}
-              {patient.balance > 0 && <span className="text-xs bg-error-50 text-error-500 px-2 py-0.5 rounded-lg">بدهی: {formatCurrency(patient.balance)}</span>}
-              {patient.balance < 0 && <span className="text-xs bg-accent-50 text-accent-600 px-2 py-0.5 rounded-lg">اعتبار: {formatCurrency(-patient.balance)}</span>}
+              {balance > 0 && <span className="text-xs bg-error-50 text-error-500 px-2 py-0.5 rounded-lg">بدهی: {formatCurrency(balance)}</span>}
+              {balance < 0 && <span className="text-xs bg-accent-50 text-accent-600 px-2 py-0.5 rounded-lg">اعتبار: {formatCurrency(-balance)}</span>}
             </div>
           </div>
         </div>

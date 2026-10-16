@@ -4,19 +4,18 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { appointmentStatus, invoiceStatus, statusStyle } from '@/constants/status';
 import { formatDateNumeric } from '@/lib/date';
 import { formatCurrency, formatTime } from '@/lib/format';
+import { usePatientAppointments } from '@/data/appointments';
 import * as db from '@/lib/store';
-import type { Appointment, Invoice } from '@/lib/types';
+import type { Invoice } from '@/lib/types';
 import { PatientLabOrders } from './patient-lab-orders';
 import { TreatmentHistory } from './treatment-history';
 
 /** Everything that has happened for a patient: treatments, appointments, invoices and lab orders. */
 export function PatientHistoryTab({ patientId }: { patientId: string }) {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const { data: appointments = [] } = usePatientAppointments(patientId);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
-    const apts = db.orderBy(db.list('appointments', (a) => a.patient_id === patientId), 'appointment_date', { ascending: false });
-    setAppointments(db.withOne(apts, 'service', 'services', 'service_id'));
     const invs = db.orderBy(db.list('invoices', (i) => i.patient_id === patientId), 'created_at', { ascending: false });
     setInvoices(db.withMany(invs, 'items', 'invoice_items', 'invoice_id'));
   }, [patientId]);

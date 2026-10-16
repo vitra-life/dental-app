@@ -8,14 +8,17 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { planItemStatus, statusStyle, treatmentPlanStatus } from '@/constants/status';
 import { formatDate, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, percent } from '@/lib/format';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import { createPlanFromTemplate } from '@/lib/treatment-plans';
-import type { Service, TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
+import type { TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 
 export function TreatmentPlanTab({ patientId }: { patientId: string }) {
-  const [plans, setPlans] = useState<TreatmentPlan[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [planRows, setPlanRows] = useState<TreatmentPlan[]>([]);
+  const { data: allServices = [] } = useServices();
+  const services = allServices.filter((s) => s.active);
+  const plans = planRows.map((plan) => ({ ...plan, items: db.joinOne(plan.items ?? [], 'service', allServices, 'service_id') }));
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [templates, setTemplates] = useState<TreatmentPlanTemplate[]>([]);
@@ -25,16 +28,12 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
 
   const load = useCallback(() => {
     const rows = db.orderBy(db.list('treatment_plans', (p) => p.patient_id === patientId), 'created_at', { ascending: false });
-    setPlans(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id').map((plan) => ({
-      ...plan,
-      items: db.withOne(plan.items, 'service', 'services', 'service_id'),
-    })));
+    setPlanRows(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id'));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    setServices(db.list('services', (s) => s.active));
     setTemplates(db.list('treatment_plan_templates', (t) => t.active));
   }, [load]);
 
