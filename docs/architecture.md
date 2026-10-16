@@ -4,13 +4,15 @@ This document explains how the app is put together and gives step-by-step recipe
 
 ## The big picture
 
-The app is a single page with no server. Three layers sit on top of each other:
+The app is a single page. Patients, appointments and services come from the backend, Dental-Api; every other table still lives in the browser. Three layers sit on top of each other:
 
-1. **Data** (`src/lib/store.ts` + `src/constants/seed/`): an in-memory copy of every table, seeded from sample data and saved to localStorage.
+1. **Data**
+   - `src/data/`: TanStack Query hooks for the tables served by Dental-Api, over the typed client in `src/lib/api/`.
+   - `src/lib/store.ts` + `src/constants/seed/`: an in-memory copy of every other table, seeded from sample data and saved to localStorage.
 2. **Domain helpers** (`src/lib/`, `src/constants/`): dates, formatting, appointment slots, revenue figures and status definitions. They are plain TypeScript with no React.
-3. **Screens** (`src/features/`, `src/components/`): React components that read through the store, show the data and write changes back.
+3. **Screens** (`src/features/`, `src/components/`): React components that read through the hooks and the store, show the data and write changes back.
 
-A screen never talks to localStorage or to the seed files directly.
+A screen never calls `fetch`, localStorage or the seed files directly.
 
 ## Navigation
 
@@ -68,28 +70,51 @@ Tailwind only sees class names that are written out in full. Build a class from 
 
 ## Data
 
+### Data from the API
+
+Patients, appointments and services are read and written only through the hooks in `src/data/`:
+
+| Hook | What it gives |
+|---|---|
+| `usePatients()` | Every patient, newest first (the API pages the list; the hook reads all pages) |
+| `usePatient(id)` | One patient |
+| `useAppointments(range?)` | Appointments in the shared window (7 Jalali months back to 90 days ahead), by date and time, with `patient` and `service` attached |
+| `usePatientAppointments(id)` | One patient's whole history, newest first |
+| `useServices()` | The service catalogue; filter on `active` for booking lists |
+| `useClinicData()` | The three together, for the dashboard, reports and assistant |
+
+Writes are mutations (`useCreatePatient`, `useUpdatePatient`, `useCreateAppointment`, `useUpdateAppointment`, `useSetAppointmentStatus`, `useCreateService`, `useUpdateService`, `useDeleteService`). Call `mutateAsync` in a `try`, toast the result, and let the mutation's invalidation refresh the screens.
+
+Things to know:
+
+- **Types** come from the backend's Swagger. After an API change, run `npm run api:types` with the backend running, then fix what TypeScript reports.
+- **Mapping** happens only in `src/lib/api/mappers.ts`. The API says `client`, `description` and Rial; the app says `patient`, `notes` and Toman. Appointment times arrive as UTC timestamps and become `appointment_date` + `start_time` / `end_time` in local time.
+- **Errors** are `ApiError`s. `errorMessage(error)` gives a Persian message; a 400's `fieldErrors` names the invalid fields; `<LoadError>` replaces a screen whose data failed to load.
+- **The clinic** is sent as the `x-clinic-id` header from `VITE_CLINIC_ID` until login exists. The generated types leave that header out, because the client's middleware adds it.
+- **A patient's balance** is computed from the invoices in the browser store (`src/lib/patient-balance.ts`), not stored.
+
 ### The store
 
 `src/lib/store.ts` is imported as `import * as db from '@/lib/store'`.
 
 - **Reads:** `db.list(table, where?)`, `db.get(table, id)`, `db.first(table, where?)`.
 - **Writes:** `db.insert`, `db.insertMany`, `db.update`, `db.updateWhere`, `db.remove`, `db.removeWhere`.
-- **Query helpers:** `db.orderBy(rows, key, { ascending })`, `db.withOne(rows, 'patient', 'patients', 'patient_id')` to attach a parent row, `db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id')` to attach child rows.
+- **Query helpers:** `db.orderBy(rows, key, { ascending })`, `db.withOne(rows, 'lab', 'labs', 'lab_id')` to attach a parent row from the store, `db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id')` to attach child rows, and `db.joinOne(rows, 'patient', patients, 'patient_id')` to attach rows that come from the API.
 
 Things to know:
 
 - The store is synchronous and returns copies. After a write, a page calls its own `load()` again to refresh what it shows.
 - `insert` fills in the `id`, `created_at` and the column defaults listed in `defaults`.
 - `remove` follows the rules in `foreignKeys`: child rows are either deleted with their parent (cascade) or have the reference cleared (set null).
-- Nothing recalculates derived values for you. If you change an invoice's `balance`, call `syncPatientBalance` (in `features/billing/patient-balance.ts`).
+- Nothing recalculates derived values for you, except that patient balances are computed from the invoices whenever they are shown.
 
 ### The sample data
 
-`src/constants/seed/` holds one file per area. `seed.test.ts` checks that the numbers agree: patient balances match their open invoices, payments match `paid_amount`, and every reference points at a row that exists. Run `npm test` after editing the seed.
+`src/constants/seed/` holds one file per area. Rows that point at patients, services or appointments use `pat(n)`, `svc(n)` and `apt(n)` from `ids.ts`, the fixed ids of the backend's dev seed (`npm run db:seed` in Dental-Api), so the links hold. `seed.test.ts` checks that the numbers agree: payments match `paid_amount`, items and instalments match the totals, and every reference points at a row that exists. Run `npm test` after editing the seed.
 
 ### Saved data
 
-Everything is saved under the localStorage key `dentaclinic:data:v1`. If you change a table in a way that makes old saved data invalid, bump the version in that key so browsers start again from the seed.
+Everything in the store is saved under the localStorage key `dentaclinic:data:v2`. If you change a table in a way that makes old saved data invalid, bump the version in that key so browsers start again from the seed.
 
 ## Appointment slots and working hours
 
@@ -140,6 +165,10 @@ Do not use `new Date().toISOString().split('T')[0]` for "today". It returns the 
 5. Add it to the list in `src/app.test.tsx`.
 
 ### Add a table
+
+If the table is served by Dental-Api: run `npm run api:types`, add a mapper in `src/lib/api/mappers.ts` if the shapes differ, and a hooks file in `src/data/` with its query keys in `keys.ts`.
+
+For a table kept in the browser:
 
 1. Add its row interface to `src/lib/types.ts` and an entry to the `Tables` map there.
 2. In `src/lib/store.ts`, add its column defaults to `defaults` and its references to `foreignKeys`.

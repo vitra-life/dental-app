@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A dental clinic management app, **ویترا لایف**. The UI is entirely in Persian (Farsi), right-to-left, and shows every date in the Jalali calendar. It runs as a single-page React 19 + TypeScript + Vite + Tailwind CSS 4 app with no backend: all data lives in the browser (see Data below).
+A dental clinic management app, **ویترا لایف**. The UI is entirely in Persian (Farsi), right-to-left, and shows every date in the Jalali calendar. It runs as a single-page React 19 + TypeScript + Vite + Tailwind CSS 4 app. Patients, appointments and services come from the backend, Dental-Api (`../Dental-Api`); the other tables still live in the browser (see Data below).
 
 `README.md` is the overview for people, `docs/architecture.md` has the full component list and step-by-step recipes, and `docs/project-structure.md` maps every file. Update that map when you add, move or remove a file.
 
@@ -20,7 +20,10 @@ npm test            # vitest run
 npx vitest run src/lib/date.test.ts          # one test file
 npx vitest run -t "knows leap years"         # one test by name
 npm run preview
+npm run api:types   # regenerate src/lib/api/schema.d.ts from the running backend's Swagger
 ```
+
+`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed`, `npm run start:dev` there). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
 
 `npm run build` does not type-check, so run `typecheck`, `lint` and `test` to verify changes.
 
@@ -48,19 +51,28 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 **Patient record:** a full page, not a dialog. `patients-page.tsx` renders either the list or `patient-detail.tsx` (breadcrumb, summary card, tabs).
 
-**Layers:** `features/` (screens) → `components/` (shared UI) → `lib/` and `constants/` (plain TypeScript, no React). A feature folder owns one page: `<name>-page.tsx` loads data and holds state, dialogs and tabs sit beside it, and calculations go in `.ts` files with no JSX (`dashboard-stats.ts`, `ai-insights.ts`, `report-stats.ts`) so they can be tested alone. Features don't import from each other; shared code moves down a layer.
+**Layers:** `features/` (screens) → `components/` (shared UI) and `data/` (API hooks) → `lib/` and `constants/` (plain TypeScript, no React). A feature folder owns one page: `<name>-page.tsx` loads data and holds state, dialogs and tabs sit beside it, and calculations go in `.ts` files with no JSX (`dashboard-stats.ts`, `ai-insights.ts`, `report-stats.ts`) so they can be tested alone. Features don't import from each other; shared code moves down a layer.
 
-**Data:** there is no database or server. The data flows like this:
+**Data from the API (patients, appointments, services):** read and written only through the TanStack Query hooks in `src/data/` (`usePatients`, `useAppointments`, `useServices`, their mutations, and `useClinicData` for summaries).
+- `src/lib/api/client.ts` is a typed openapi-fetch client over `schema.d.ts`, which `npm run api:types` generates; never edit it by hand. A middleware adds `x-clinic-id`.
+- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments have no `staff_id` yet (always null).
+- Mutations invalidate their query keys (`src/data/keys.ts`), so screens refresh by themselves; don't refetch by hand.
+- Errors are `ApiError` (`src/lib/api/errors.ts`): show `errorMessage(error)` in a toast, or `<LoadError>` for a screen that failed to load. A 400 carries `fieldErrors`.
+- Appointments load as one shared window (`appointmentWindow()`: 7 Jalali months back to 90 days ahead); `usePatientAppointments` loads one patient's full history.
+- A patient's balance is not stored: `patientBalance(id)` / `patientBalances()` in `src/lib/patient-balance.ts` sum the open invoices in the browser store.
+- Calculations that summarise data (`dashboard-stats.ts`, `report-stats.ts`, `ai-insights.ts`) take the API rows as arguments; the page fetches them.
+
+**Data in the browser (every other table):** there is no server for these yet. The data flows like this:
 - `src/constants/seed/` holds the sample data, one typed array per table, assembled into `seedData` in `index.ts`.
   - Dates are relative to load time (`daysFromToday` / `timestampFromNow`), so "today" views always have content.
-  - IDs are readable strings (`pat-01`, `inv-04`) and cross-reference each other.
+  - IDs are readable strings (`inv-04`) and cross-reference each other. References to patients, services and appointments use `pat(n)`, `svc(n)`, `apt(n)` from `ids.ts`: the fixed ids of the backend's dev seed.
   - Derived numbers must stay consistent when you edit the seed; `seed.test.ts` checks them.
-- `src/lib/store.ts` (imported as `import * as db from '@/lib/store'`) is the only data API.
+- `src/lib/store.ts` (imported as `import * as db from '@/lib/store'`) is the only API for these tables.
   - Reads: `list(table, where?)`, `get`, `first`.
   - Writes: `insert` / `insertMany` (fills column defaults, `id` and `created_at`), `update` / `updateWhere`, `remove` / `removeWhere`.
-  - Query helpers: `orderBy`, plus `withOne` / `withMany` to attach related rows (e.g. `withOne(appts, 'patient', 'patients', 'patient_id')`).
+  - Query helpers: `orderBy`, plus `withOne` / `withMany` to attach related rows from the store (e.g. `withMany(plans, 'items', 'treatment_plan_items', 'plan_id')`), and `joinOne(rows, 'patient', patients, 'patient_id')` to attach rows from the API.
   - It's synchronous and returns copies. Pages call `load()` again after writing.
-- Every write is saved to localStorage under `dentaclinic:data:v1`. Settings → "بازنشانی داده‌ها" (reset data) calls `resetStore()` and reloads.
+- Every write is saved to localStorage under `dentaclinic:data:v2`. Settings → "بازنشانی داده‌ها" (reset data) calls `resetStore()` and reloads.
 - Deletes follow the foreign-key rules in `store.ts` (`foreignKeys`: cascade or set null).
 - Row shapes are the interfaces in `src/lib/types.ts`. The `Tables` map there ties table names to types.
 - To add a table:
@@ -88,7 +100,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 - Templates: `treatment_plan_templates` rows (Settings → طرح درمان) keep their lines in an `items` array; `createPlanFromTemplate` turns one into a plan.
 
 **Business logic is client-side.** Nothing keeps derived fields up to date automatically. Examples:
-- Invoice `balance` and `status` are written by `src/features/billing/invoice-detail.tsx`, and `syncPatientBalance` (`patient-balance.ts`) recomputes `patients.balance` from the patient's invoices.
+- Invoice `balance` and `status` are written by `src/features/billing/invoice-detail.tsx`; a patient's balance is computed from them when shown (`src/lib/patient-balance.ts`).
 - SMS sending in `src/features/sms/campaign-form.tsx` has no real provider. It inserts `sms_campaigns` and `sms_messages` rows marked `sent`, then decrements credits in `sms_packages`.
 - The "AI assistant" (`src/features/ai-assistant/ai-insights.ts`) calls no LLM. It computes insights from the store's data and answers questions by matching Persian keywords.
 
