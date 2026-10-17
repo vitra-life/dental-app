@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
+import { NumberInput } from '@/components/ui/number-input';
 import { formatDateNumeric, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useServices } from '@/data/services';
@@ -16,7 +17,8 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
   const services = allServices.filter((s) => s.active);
   const treatments = db.joinOne(treatmentRows, 'service', allServices, 'service_id');
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' });
+  const emptyForm = { service_id: '', tooth_number: null as number | null, description: '', cost: null as number | null, notes: '' };
+  const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(() => {
     const rows = db.orderBy(db.list('treatments', (t) => t.patient_id === patientId), 'created_at', { ascending: false });
@@ -33,15 +35,15 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
     db.insert('treatments', {
       patient_id: patientId,
       service_id: form.service_id || null,
-      tooth_number: form.tooth_number ? parseInt(form.tooth_number) : null,
+      tooth_number: form.tooth_number,
       description: form.description || null,
-      cost: form.cost ? parseFloat(form.cost) : svc?.default_price || 0,
+      cost: form.cost ?? svc?.default_price ?? 0,
       notes: form.notes || null,
       treatment_date: todayISO(),
       status: 'completed',
     });
     showToast('درمان ثبت شد');
-    setForm({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' });
+    setForm(emptyForm);
     setShowAdd(false);
     load();
   }
@@ -68,7 +70,7 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
               <label className="label-field">خدمت</label>
               <select className="input-field" value={form.service_id} onChange={(e) => {
                 const svc = services.find((s) => s.id === e.target.value);
-                setForm({ ...form, service_id: e.target.value, cost: svc ? String(svc.default_price) : form.cost });
+                setForm({ ...form, service_id: e.target.value, cost: svc ? svc.default_price : form.cost });
               }}>
                 <option value="">انتخاب خدمت</option>
                 {services.map((s) => <option key={s.id} value={s.id}>{s.name} - {formatCurrency(s.default_price)}</option>)}
@@ -76,11 +78,11 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
             </div>
             <div>
               <label className="label-field">شماره دندان</label>
-              <input type="number" className="input-field" value={form.tooth_number} onChange={(e) => setForm({ ...form, tooth_number: e.target.value })} />
+              <NumberInput value={form.tooth_number} onChange={(tooth_number) => setForm({ ...form, tooth_number })} />
             </div>
             <div>
               <label className="label-field">هزینه (تومان)</label>
-              <input type="number" className="input-field" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+              <NumberInput value={form.cost} onChange={(cost) => setForm({ ...form, cost })} />
             </div>
             <div>
               <label className="label-field">توضیحات</label>

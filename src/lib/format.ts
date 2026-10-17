@@ -4,6 +4,27 @@ export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('fa-IR').format(Math.round(amount)) + ' تومان';
 }
 
+/** Turns Persian (۰-۹) and Arabic (٠-٩) digits into 0-9, for numbers people type. */
+export function toLatinDigits(text: string): string {
+  return text
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+}
+
+/** Keeps only digits (Persian and Arabic ones converted) and, if allowed, one decimal point. */
+export function cleanNumberText(text: string, decimal: boolean): string {
+  const latin = toLatinDigits(text).replace(/[٫,]/g, decimal ? '.' : '');
+  if (!decimal) return latin.replace(/\D/g, '');
+  const [whole, ...rest] = latin.replace(/[^\d.]/g, '').split('.');
+  return rest.length > 0 ? `${whole}.${rest.join('')}` : whole;
+}
+
+/** The number a cleaned text stands for, or `null` for an empty field. */
+export function parseNumberText(text: string): number | null {
+  if (text === '' || text === '.') return null;
+  return Number(text);
+}
+
 export function formatNumber(n: number): string {
   return new Intl.NumberFormat('fa-IR').format(n);
 }

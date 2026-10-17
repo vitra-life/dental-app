@@ -85,6 +85,7 @@ components/
     ├── jalali-date-input.tsx   Jalali date field with a calendar popover
     ├── skeleton.tsx            loading placeholders
     ├── empty-state.tsx         "nothing here yet" block
+    ├── number-input.tsx        number field: can be emptied, no arrows, no scroll stepping, Persian digits
     ├── load-error.tsx          shown when a screen's data could not be loaded, with a retry button
     └── toast.tsx               renders toast messages
 ```

@@ -1,5 +1,6 @@
 import { addDays, differenceInCalendarDays, differenceInYears, format, parseISO, subMonths } from 'date-fns';
 import moment from 'moment-jalaali';
+import { toLatinDigits } from '@/lib/format';
 
 /**
  * All date handling goes through this file.
@@ -176,10 +177,7 @@ export function jalaliMonthGrid(month: JalaliMonth): (string | null)[] {
  * `YYYY-MM-DD`, or `null` when it is not a real date.
  */
 export function parseJalaliDate(text: string): string | null {
-  const latin = text
-    .trim()
-    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  const latin = toLatinDigits(text.trim());
   const match = /^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/.exec(latin);
   if (!match) return null;
   const [jy, month, jd] = match.slice(1).map(Number);

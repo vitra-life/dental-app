@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { todayISO } from '@/lib/date';
 import { formatCurrency } from '@/lib/format';
 import * as db from '@/lib/store';
@@ -19,7 +20,7 @@ export function LabOrderForm({ labs, patients, preselectedLab, onClose, onSaved 
     patient_id: '',
     service_name: '',
     tooth_numbers: '',
-    price: 0,
+    price: null as number | null,
     due_date: '',
     notes: '',
   });
@@ -41,7 +42,7 @@ export function LabOrderForm({ labs, patients, preselectedLab, onClose, onSaved 
       service_name: form.service_name,
       tooth_numbers: form.tooth_numbers || null,
       description: form.notes || null,
-      price: form.price,
+      price: form.price ?? 0,
       status: 'pending',
       order_date: todayISO(),
       due_date: form.due_date || null,
@@ -99,7 +100,7 @@ export function LabOrderForm({ labs, patients, preselectedLab, onClose, onSaved 
         </div>
         <div>
           <label className="label-field">هزینه (تومان)</label>
-          <input type="number" className="input-field" value={form.price} onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} />
+          <NumberInput value={form.price} onChange={(price) => setForm({ ...form, price })} placeholder="0" />
         </div>
         <div>
           <label className="label-field">یادداشت</label>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { formatCurrency } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
@@ -19,13 +20,13 @@ export function TemplateForm({ template, services, onClose, onSaved }: TemplateF
   const [description, setDescription] = useState(template?.description ?? '');
   const [active, setActive] = useState(template?.active ?? true);
   const [items, setItems] = useState(template?.items ?? []);
-  const [draft, setDraft] = useState({ service_id: '', price: '' });
+  const [draft, setDraft] = useState<{ service_id: string; price: number | null }>({ service_id: '', price: null });
 
   function addItem() {
     const service = services.find((s) => s.id === draft.service_id);
     if (!service) return;
-    setItems([...items, { service_id: service.id, description: service.name, price: parseFloat(draft.price) || service.default_price }]);
-    setDraft({ service_id: '', price: '' });
+    setItems([...items, { service_id: service.id, description: service.name, price: draft.price ?? service.default_price }]);
+    setDraft({ service_id: '', price: null });
   }
 
   function save() {
@@ -61,13 +62,13 @@ export function TemplateForm({ template, services, onClose, onSaved }: TemplateF
               value={draft.service_id}
               onChange={(e) => {
                 const service = services.find((s) => s.id === e.target.value);
-                setDraft({ service_id: e.target.value, price: service ? String(service.default_price) : '' });
+                setDraft({ service_id: e.target.value, price: service ? service.default_price : null });
               }}
             >
               <option value="">-- خدمت --</option>
               {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <input type="number" className="input-field w-28" value={draft.price} onChange={(e) => setDraft({ ...draft, price: e.target.value })} placeholder="قیمت" />
+            <NumberInput className="input-field w-28" value={draft.price} onChange={(price) => setDraft({ ...draft, price })} placeholder="قیمت" />
             <button type="button" onClick={addItem} disabled={!draft.service_id} title="افزودن" className="btn-primary px-3">
               <Plus size={16} />
             </button>

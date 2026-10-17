@@ -5,6 +5,7 @@ import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { NumberInput } from '@/components/ui/number-input';
 import { planItemStatus, statusStyle, treatmentPlanStatus } from '@/constants/status';
 import { formatDate, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, percent } from '@/lib/format';
@@ -24,7 +25,8 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
   const [templates, setTemplates] = useState<TreatmentPlanTemplate[]>([]);
   const [planForm, setPlanForm] = useState({ title: '', target_end_date: '', notes: '', template_id: '' });
   const [showItemForm, setShowItemForm] = useState<string | null>(null);
-  const [itemForm, setItemForm] = useState({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
+  const emptyItem = { service_id: '', tooth_number: null as number | null, description: '', estimated_cost: null as number | null, due_date: '', notes: '' };
+  const [itemForm, setItemForm] = useState(emptyItem);
 
   const load = useCallback(() => {
     const rows = db.orderBy(db.list('treatment_plans', (p) => p.patient_id === patientId), 'created_at', { ascending: false });
@@ -54,12 +56,12 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
 
   function addItem(planId: string) {
     const svc = services.find((s) => s.id === itemForm.service_id);
-    const cost = itemForm.estimated_cost ? parseFloat(itemForm.estimated_cost) : svc?.default_price || 0;
+    const cost = itemForm.estimated_cost ?? svc?.default_price ?? 0;
     db.insert('treatment_plan_items', {
       plan_id: planId,
       patient_id: patientId,
       service_id: itemForm.service_id || null,
-      tooth_number: itemForm.tooth_number ? parseInt(itemForm.tooth_number) : null,
+      tooth_number: itemForm.tooth_number,
       description: itemForm.description || svc?.name || null,
       estimated_cost: cost,
       due_date: itemForm.due_date || null,
@@ -72,7 +74,7 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
     db.update('treatment_plans', planId, { total_estimated_cost: newTotal });
 
     showToast('آیتم اضافه شد');
-    setItemForm({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
+    setItemForm(emptyItem);
     setShowItemForm(null);
     load();
   }
@@ -223,7 +225,7 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
                       <label className="label-field">خدمت</label>
                       <select className="input-field" value={itemForm.service_id} onChange={(e) => {
                         const svc = services.find((s) => s.id === e.target.value);
-                        setItemForm({ ...itemForm, service_id: e.target.value, estimated_cost: svc ? String(svc.default_price) : itemForm.estimated_cost, description: svc?.name || itemForm.description });
+                        setItemForm({ ...itemForm, service_id: e.target.value, estimated_cost: svc ? svc.default_price : itemForm.estimated_cost, description: svc?.name || itemForm.description });
                       }}>
                         <option value="">-- انتخاب خدمت --</option>
                         {services.map((s) => <option key={s.id} value={s.id}>{s.name} - {formatCurrency(s.default_price)}</option>)}
@@ -231,11 +233,11 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
                     </div>
                     <div>
                       <label className="label-field">شماره دندان</label>
-                      <input type="number" className="input-field" value={itemForm.tooth_number} onChange={(e) => setItemForm({ ...itemForm, tooth_number: e.target.value })} />
+                      <NumberInput value={itemForm.tooth_number} onChange={(tooth_number) => setItemForm({ ...itemForm, tooth_number })} />
                     </div>
                     <div>
                       <label className="label-field">هزینه (تومان)</label>
-                      <input type="number" className="input-field" value={itemForm.estimated_cost} onChange={(e) => setItemForm({ ...itemForm, estimated_cost: e.target.value })} />
+                      <NumberInput value={itemForm.estimated_cost} onChange={(estimated_cost) => setItemForm({ ...itemForm, estimated_cost })} />
                     </div>
                     <div>
                       <label className="label-field">موعد انجام</label>
