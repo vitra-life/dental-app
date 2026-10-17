@@ -5,9 +5,11 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { statusStyle, treatmentPlanStatus } from '@/constants/status';
 import { formatDate } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName, percent } from '@/lib/format';
+import { usePatients } from '@/data/patients';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Service, TreatmentPlan, TreatmentPlanTemplate } from '@/lib/types';
+import type { TreatmentPlan, TreatmentPlanTemplate } from '@/lib/types';
 import { TemplateForm } from './template-form';
 
 /**
@@ -15,9 +17,12 @@ import { TemplateForm } from './template-form';
  * plans are edited from the patient record).
  */
 export function PlansTab() {
-  const [plans, setPlans] = useState<TreatmentPlan[]>([]);
+  const [planRows, setPlanRows] = useState<TreatmentPlan[]>([]);
+  const { data: patients = [] } = usePatients();
+  const plans = db.joinOne(planRows, 'patient', patients, 'patient_id');
   const [templates, setTemplates] = useState<TreatmentPlanTemplate[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const { data: allServices = [] } = useServices();
+  const services = allServices.filter((svc) => svc.active);
   /** The template being edited, `null` while adding one, `undefined` when the dialog is closed. */
   const [editing, setEditing] = useState<TreatmentPlanTemplate | null | undefined>(undefined);
 
@@ -33,9 +38,8 @@ export function PlansTab() {
 
   useEffect(() => {
     loadTemplates();
-    setServices(db.list('services', (svc) => svc.active));
     const rows = db.orderBy(db.list('treatment_plans'), 'created_at', { ascending: false });
-    setPlans(db.withMany(db.withOne(rows, 'patient', 'patients', 'patient_id'), 'items', 'treatment_plan_items', 'plan_id'));
+    setPlanRows(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id'));
   }, [loadTemplates]);
 
   return (

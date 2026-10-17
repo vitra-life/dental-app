@@ -12,7 +12,6 @@ import { formatCurrency, formatNumber, paymentMethodLabel, percent } from '@/lib
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Installment, Invoice, InvoiceItem, Payment } from '@/lib/types';
-import { syncPatientBalance } from './patient-balance';
 
 const paymentMethods = (['cash', 'card', 'online', 'transfer'] as const).map((m) => ({ value: m, label: paymentMethodLabel(m) }));
 
@@ -57,8 +56,6 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
       balance: newBalance,
       status: newStatus,
     });
-
-    syncPatientBalance(invoice.patient_id);
 
     if (invoice.payment_type === 'installment' && installments.length > 0) {
       const unpaid = installments.find((inst) => !inst.paid);

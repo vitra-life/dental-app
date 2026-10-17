@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { AreaTrend, Bars, Donut } from '@/components/ui/charts';
 import { PageHeader } from '@/components/ui/page-header';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -8,16 +7,17 @@ import { StatTile } from '@/components/ui/stat-tile';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { statusStyle, treatmentPlanStatus } from '@/constants/status';
 import { formatCurrency, formatNumber, fullName, percent } from '@/lib/format';
-import { loadReportStats, type ReportStats } from './report-stats';
+import { LoadError } from '@/components/ui/load-error';
+import { useClinicData } from '@/data/clinic-data';
+import { loadReportStats } from './report-stats';
 
 const planHeaders = ['بیمار', 'عنوان طرح', 'مرحله', 'جمع کل', 'انجام‌شده', 'مانده', 'وضعیت'];
 
 export function Reports() {
-  const [data, setData] = useState<ReportStats | null>(null);
+  const clinic = useClinicData();
+  const data = clinic.data ? loadReportStats(clinic.data) : null;
 
-  useEffect(() => {
-    setData(loadReportStats());
-  }, []);
+  if (!data && clinic.error) return <LoadError error={clinic.error} onRetry={clinic.refetch} />;
 
   if (!data) {
     return (

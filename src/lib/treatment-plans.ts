@@ -1,18 +1,18 @@
 import { todayISO } from '@/lib/date';
 import * as db from '@/lib/store';
-import type { Appointment, TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
+import type { Appointment, Service, TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 
 /** What a plan item is called on screen: its service, else its description. */
 export function planItemLabel(item: TreatmentPlanItem): string {
   return item.service?.name || item.description || 'خدمت';
 }
 
-/** A patient's active plans, each with its items (and their services) in order. */
-export function activePlans(patientId: string): TreatmentPlan[] {
+/** A patient's active plans, each with its items (and their services, from `services`) in order. */
+export function activePlans(patientId: string, services: readonly Service[]): TreatmentPlan[] {
   const plans = db.list('treatment_plans', (p) => p.patient_id === patientId && p.status === 'active');
   return db.withMany(plans, 'items', 'treatment_plan_items', 'plan_id').map((plan) => ({
     ...plan,
-    items: db.orderBy(db.withOne(plan.items, 'service', 'services', 'service_id'), 'sort_order'),
+    items: db.orderBy(db.joinOne(plan.items, 'service', services, 'service_id'), 'sort_order'),
   }));
 }
 

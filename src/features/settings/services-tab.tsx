@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { formatCurrency, formatNumber } from '@/lib/format';
-import * as db from '@/lib/store';
+import { useDeleteService, useServices, useUpdateService } from '@/data/services';
+import { ApiError, errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
 import type { Service } from '@/lib/types';
 import { serviceCategories, serviceCategoryLabel } from '@/constants/service-categories';
@@ -14,26 +15,29 @@ const headers = ['نام خدمت', 'دسته‌بندی', 'قیمت پیش‌ف
 
 /** The service catalogue: every service with its default price and length. */
 export function ServicesTab() {
-  const [services, setServices] = useState<Service[]>([]);
+  const { data: services = [] } = useServices();
+  const updateService = useUpdateService();
+  const deleteServiceMutation = useDeleteService();
   const [category, setCategory] = useState('all');
   /** The service being edited, `null` while adding one, `undefined` when the dialog is closed. */
   const [editing, setEditing] = useState<Service | null | undefined>(undefined);
 
-  const load = useCallback(() => {
-    setServices(db.orderBy(db.list('services'), 'name'));
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  function toggleActive(service: Service) {
-    db.update('services', service.id, { active: !service.active });
-    load();
+  async function toggleActive(service: Service) {
+    try {
+      await updateService.mutateAsync({ id: service.id, input: { active: !service.active } });
+    } catch (error) {
+      showToast(errorMessage(error), 'error');
+    }
   }
 
-  function deleteService(id: string) {
-    db.remove('services', id);
-    showToast('حذف شد');
-    load();
+  async function deleteService(id: string) {
+    try {
+      await deleteServiceMutation.mutateAsync(id);
+      showToast('حذف شد');
+    } catch (error) {
+      const inUse = error instanceof ApiError && error.status === 409;
+      showToast(inUse ? 'این خدمت نوبت دارد؛ آن را غیرفعال کنید' : errorMessage(error), 'error');
+    }
   }
 
   const filtered = category === 'all' ? services : services.filter((s) => s.category === category);
@@ -99,7 +103,7 @@ export function ServicesTab() {
         </div>
       </div>
 
-      {editing !== undefined && <ServiceForm service={editing} onClose={() => setEditing(undefined)} onSaved={() => { setEditing(undefined); load(); }} />}
+      {editing !== undefined && <ServiceForm service={editing} onClose={() => setEditing(undefined)} onSaved={() => setEditing(undefined)} />}
     </div>
   );
 }

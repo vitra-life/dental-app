@@ -1,6 +1,6 @@
 import type { SmsCampaign, SmsMessage, SmsPackage } from '@/lib/types';
-import { patients } from './patients';
 import { daysFromToday, timestampFromNow } from '@/lib/date';
+import { pat } from './ids';
 
 export const smsPackages: SmsPackage[] = [
   { id: 'smp-01', package_name: 'بسته آزمایشی', total_credits: 1000, used_credits: 1000, remaining_credits: 0, purchase_date: daysFromToday(-200), expiry_date: null, price: 0, status: 'expired', created_at: timestampFromNow(-200) },
@@ -17,11 +17,12 @@ export const smsCampaigns: SmsCampaign[] = [
 ];
 
 export const smsMessages: SmsMessage[] = [
-  ...patients.map((p, i): SmsMessage => ({
+  // The Nowruz greeting went to all 12 sample patients (phones 09121110001–12).
+  ...Array.from({ length: 12 }, (_, i): SmsMessage => ({
     id: `sms-${String(i + 1).padStart(2, '0')}`,
     campaign_id: 'smc-01',
-    patient_id: p.id,
-    phone_number: p.phone,
+    patient_id: pat(i + 1),
+    phone_number: `091211100${String(i + 1).padStart(2, '0')}`,
     message_body: nowruzBody,
     status: 'sent',
     sent_at: timestampFromNow(-25),
@@ -31,7 +32,7 @@ export const smsMessages: SmsMessage[] = [
   {
     id: 'sms-13',
     campaign_id: 'smc-02',
-    patient_id: 'pat-11',
+    patient_id: pat(11),
     phone_number: '09121110011',
     message_body: checkupBody,
     status: 'sent',

@@ -1,9 +1,30 @@
 import { useState } from 'react';
 import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { Modal } from '@/components/ui/modal';
-import * as db from '@/lib/store';
+import { useCreatePatient, useUpdatePatient } from '@/data/patients';
+import { ApiError, errorMessage } from '@/lib/api/errors';
+import type { PatientInput } from '@/lib/api/mappers';
 import { showToast } from '@/lib/toast';
 import type { Patient } from '@/lib/types';
+
+/** Persian names of the fields the API can reject, for the error toast. */
+const fieldLabels: Record<string, string> = {
+  first_name: 'نام',
+  last_name: 'نام خانوادگی',
+  phone: 'تلفن',
+  national_id: 'کد ملی',
+  birth_date: 'تاریخ تولد',
+  email: 'ایمیل',
+  blood_type: 'گروه خونی',
+  emergency_phone: 'تلفن اضطراری',
+};
+
+/** The toast for a failed save: the invalid fields of a 400, a duplicate phone for a 409. */
+function saveErrorMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 409) return 'بیماری با این شماره تلفن قبلا ثبت شده است';
+  const fields = error instanceof ApiError ? error.fieldErrors.map((e) => fieldLabels[e.field] ?? e.field) : [];
+  return fields.length > 0 ? `این موارد معتبر نیست: ${fields.join('، ')}` : errorMessage(error);
+}
 
 export function PatientForm({ patient, onClose, onSaved }: {
   patient: Patient | null;
@@ -28,27 +49,31 @@ export function PatientForm({ patient, onClose, onSaved }: {
     insurance_number: patient?.insurance_number || '',
     notes: patient?.notes || '',
   });
-  const [saving, setSaving] = useState(false);
+  const createPatient = useCreatePatient();
+  const updatePatient = useUpdatePatient();
+  const saving = createPatient.isPending || updatePatient.isPending;
 
-  function handleSave() {
+  async function handleSave() {
     if (!form.first_name || !form.last_name || !form.phone) {
       showToast('نام، نام خانوادگی و تلفن الزامی است', 'error');
       return;
     }
-    setSaving(true);
-    // Optional fields left blank are stored as null, not ''.
+    // Optional fields left blank are sent as null, not ''.
     const values = Object.fromEntries(
       Object.entries(form).map(([key, value]) => [key, value === '' ? null : value]),
-    ) as unknown as db.Patch<'patients'>;
-    if (patient) {
-      db.update('patients', patient.id, values);
-      showToast('بیمار بروزرسانی شد');
-    } else {
-      db.insert('patients', values);
-      showToast('بیمار جدید ثبت شد');
+    ) as unknown as PatientInput;
+    try {
+      if (patient) {
+        await updatePatient.mutateAsync({ id: patient.id, input: values });
+        showToast('بیمار بروزرسانی شد');
+      } else {
+        await createPatient.mutateAsync(values);
+        showToast('بیمار جدید ثبت شد');
+      }
+      onSaved();
+    } catch (error) {
+      showToast(saveErrorMessage(error), 'error');
     }
-    onSaved();
-    setSaving(false);
   }
 
   return (

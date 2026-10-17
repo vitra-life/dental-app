@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { AlertTriangle, Send } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Modal } from '@/components/ui/modal';
+import { monthsBeforeToday } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
+import { patientBalances } from '@/lib/patient-balance';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Patient } from '@/lib/types';
@@ -11,8 +13,8 @@ type Target = 'all' | 'active' | 'inactive' | 'debtors' | 'custom';
 
 const targetOptions: { value: Target; label: string }[] = [
   { value: 'all', label: 'همه بیماران' },
-  { value: 'active', label: 'بیماران فعال' },
-  { value: 'inactive', label: 'غیرفعال' },
+  { value: 'active', label: 'مراجعه در ۶ ماه اخیر' },
+  { value: 'inactive', label: 'بدون مراجعه در ۶ ماه اخیر' },
   { value: 'debtors', label: 'بدهکار' },
 ];
 
@@ -31,11 +33,15 @@ export function CampaignForm({ patients, remainingCredits, onClose, onSaved }: {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
 
+  const sixMonthsAgo = monthsBeforeToday(6);
+  /** Seen in the last six months, or registered since then. */
+  const isActive = (p: Patient) => (p.last_visit ?? p.created_at.slice(0, 10)) >= sixMonthsAgo;
+  const balances = patientBalances();
   const targetPatients = patients.filter((p) => {
     if (target === 'all') return true;
-    if (target === 'active') return p.status === 'active';
-    if (target === 'inactive') return p.status !== 'active';
-    if (target === 'debtors') return p.balance > 0;
+    if (target === 'active') return isActive(p);
+    if (target === 'inactive') return !isActive(p);
+    if (target === 'debtors') return (balances.get(p.id) ?? 0) > 0;
     return true;
   });
 

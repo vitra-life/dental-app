@@ -1,7 +1,7 @@
 import { currentJalaliMonth, isInJalaliMonth, jalaliMonthName, lastDays, shiftJalaliMonth } from '@/lib/date';
 import { revenueByMonth } from '@/lib/revenue';
 import * as db from '@/lib/store';
-import type { TreatmentPlan } from '@/lib/types';
+import type { Appointment, Patient, Service, TreatmentPlan } from '@/lib/types';
 
 export interface ReportStats {
   totalRevenue: number;
@@ -24,13 +24,18 @@ export interface ReportStats {
   plans: TreatmentPlan[];
 }
 
-export function loadReportStats(): ReportStats {
+/** The data that comes from the API; invoices, staff and plans are read from the browser store. */
+export interface ReportInput {
+  patients: Patient[];
+  /** The appointments the reports cover (the shared window: about the last 7 months and the next 90 days). */
+  appointments: Appointment[];
+  services: Service[];
+}
+
+export function loadReportStats({ patients, appointments, services }: ReportInput): ReportStats {
   const invoices = db.list('invoices');
-  const appointments = db.list('appointments');
-  const services = db.list('services');
-  const patients = db.list('patients');
   const planRows = db.orderBy(db.list('treatment_plans'), 'created_at', { ascending: false });
-  const plans = db.withMany(db.withOne(planRows, 'patient', 'patients', 'patient_id'), 'items', 'treatment_plan_items', 'plan_id');
+  const plans = db.withMany(db.joinOne(planRows, 'patient', patients, 'patient_id'), 'items', 'treatment_plan_items', 'plan_id');
   const months = Array.from({ length: 6 }, (_, i) => shiftJalaliMonth(currentJalaliMonth(), i - 5));
   const completed = appointments.filter((a) => a.status === 'completed').length;
 

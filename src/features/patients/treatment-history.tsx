@@ -4,26 +4,28 @@ import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDateNumeric, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber } from '@/lib/format';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Service, Treatment } from '@/lib/types';
+import type { Treatment } from '@/lib/types';
 
 export function TreatmentHistory({ patientId }: { patientId: string }) {
-  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [treatmentRows, setTreatmentRows] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [services, setServices] = useState<Service[]>([]);
+  const { data: allServices = [] } = useServices();
+  const services = allServices.filter((s) => s.active);
+  const treatments = db.joinOne(treatmentRows, 'service', allServices, 'service_id');
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ service_id: '', tooth_number: '', description: '', cost: '', notes: '' });
 
   const load = useCallback(() => {
     const rows = db.orderBy(db.list('treatments', (t) => t.patient_id === patientId), 'created_at', { ascending: false });
-    setTreatments(db.withOne(db.withOne(rows, 'service', 'services', 'service_id'), 'staff', 'staff', 'staff_id'));
+    setTreatmentRows(db.withOne(rows, 'staff', 'staff', 'staff_id'));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
   function addTreatment() {

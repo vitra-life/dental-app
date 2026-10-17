@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Check, Plus, Receipt } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,8 +11,10 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { invoiceStatus, statusStyle } from '@/constants/status';
 import { daysUntil, formatDate, formatDateNumeric, isPast } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName, percent } from '@/lib/format';
+import { usePatients } from '@/data/patients';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
-import type { Installment, Invoice, Patient, Service } from '@/lib/types';
+import type { Installment, Invoice, Patient } from '@/lib/types';
 import { InvoiceDetail } from './invoice-detail';
 import { InvoiceForm } from './invoice-form';
 
@@ -28,14 +30,22 @@ interface BillingProps {
 }
 
 export function Billing({ onOpenPatient }: BillingProps) {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [invoiceRows, setInvoiceRows] = useState<Invoice[]>([]);
+  const { data: allPatients = [] } = usePatients();
+  const { data: allServices = [] } = useServices();
+  const patients = useMemo(() => [...allPatients].sort((a, b) => a.first_name.localeCompare(b.first_name, 'fa')), [allPatients]);
+  const services = useMemo(() => allServices.filter((s) => s.active), [allServices]);
+  const invoices = useMemo(() => db.joinOne(invoiceRows, 'patient', allPatients, 'patient_id'), [invoiceRows, allPatients]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
   const [filter, setFilter] = useState<InvoiceFilter>('all');
-  const [installmentReminders, setInstallmentReminders] = useState<(Installment & { patient?: Patient; invoice?: Invoice })[]>([]);
+  const [unpaidInstallments, setUnpaidInstallments] = useState<(Installment & { invoice?: Invoice })[]>([]);
+  // Installments have no patient_id; the patient is reached through the invoice.
+  const installmentReminders: (Installment & { patient?: Patient; invoice?: Invoice })[] = useMemo(() => {
+    const byId = new Map(allPatients.map((p) => [p.id, p]));
+    return unpaidInstallments.map((inst) => ({ ...inst, patient: inst.invoice ? byId.get(inst.invoice.patient_id) : undefined }));
+  }, [unpaidInstallments, allPatients]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -44,20 +54,14 @@ export function Billing({ onOpenPatient }: BillingProps) {
       ...inv,
       installments: db.orderBy(inv.installments, 'installment_number'),
     }));
-    setInvoices(db.withOne(withInstallments, 'patient', 'patients', 'patient_id'));
-    // Installments have no patient_id; the patient is reached through the invoice.
+    setInvoiceRows(withInstallments);
     const unpaid = db.withOne(db.orderBy(db.list('installments', (i) => !i.paid), 'due_date'), 'invoice', 'invoices', 'invoice_id');
-    setInstallmentReminders(unpaid.map((inst) => ({
-      ...inst,
-      patient: inst.invoice ? db.get('patients', inst.invoice.patient_id) ?? undefined : undefined,
-    })));
+    setUnpaidInstallments(unpaid);
     setLoading(false);
   }, []);
 
   useEffect(() => {
     load();
-    setPatients(db.orderBy(db.list('patients'), 'first_name'));
-    setServices(db.list('services', (s) => s.active));
   }, [load]);
 
   const filtered = invoices.filter((inv) => filter === 'all' || inv.status === filter);

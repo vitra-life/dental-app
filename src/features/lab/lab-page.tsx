@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { FlaskConical, Package, Plus, Wallet } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,9 +11,10 @@ import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { labOrderStatus, statusStyle } from '@/constants/status';
 import { formatDateNumeric, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName, paymentMethodLabel } from '@/lib/format';
+import { usePatients } from '@/data/patients';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Lab as LabRow, LabOrder, LabPayment, LabService, Patient } from '@/lib/types';
+import type { Lab as LabRow, LabOrder, LabPayment, LabService } from '@/lib/types';
 import { LabForm } from './lab-form';
 import { LabOrderForm } from './lab-order-form';
 import { LabPaymentForm } from './lab-payment-form';
@@ -49,9 +50,11 @@ export function Lab({ onOpenPatient }: LabProps) {
   const [statusFilter, setStatusFilter] = useState<OrderFilter>('all');
   const [labs, setLabs] = useState<LabRow[]>([]);
   const [labServices, setLabServices] = useState<LabService[]>([]);
-  const [orders, setOrders] = useState<LabOrder[]>([]);
+  const [orderRows, setOrderRows] = useState<LabOrder[]>([]);
   const [labPayments, setLabPayments] = useState<(LabPayment & { lab?: LabRow })[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const { data: allPatients = [] } = usePatients();
+  const patients = useMemo(() => [...allPatients].sort((a, b) => a.first_name.localeCompare(b.first_name, 'fa')), [allPatients]);
+  const orders = useMemo(() => db.joinOne(orderRows, 'patient', allPatients, 'patient_id'), [orderRows, allPatients]);
   const [loading, setLoading] = useState(true);
   const [showLabForm, setShowLabForm] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -64,9 +67,8 @@ export function Lab({ onOpenPatient }: LabProps) {
     const paymentRows = db.orderBy(db.list('lab_payments'), 'payment_date', { ascending: false });
     setLabs(db.orderBy(db.list('labs'), 'name'));
     setLabServices(db.list('lab_services'));
-    setOrders(db.withOne(db.withOne(orderRows, 'lab', 'labs', 'lab_id'), 'patient', 'patients', 'patient_id'));
+    setOrderRows(db.withOne(orderRows, 'lab', 'labs', 'lab_id'));
     setLabPayments(db.withOne(paymentRows, 'lab', 'labs', 'lab_id'));
-    setPatients(db.orderBy(db.list('patients'), 'first_name'));
     setLoading(false);
   }, []);
 
