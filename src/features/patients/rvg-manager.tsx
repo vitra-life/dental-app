@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Image, Plus } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { SkeletonList } from '@/components/ui/skeleton';
+import { NumberInput } from '@/components/ui/number-input';
 import { formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
@@ -13,7 +14,7 @@ export function RvgManager({ patientId }: { patientId: string }) {
   const [showAdd, setShowAdd] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [imageDesc, setImageDesc] = useState('');
-  const [toothNum, setToothNum] = useState('');
+  const [toothNum, setToothNum] = useState<number | null>(null);
 
   const load = useCallback(() => {
     setImages(db.orderBy(db.list('rvg_images', (r) => r.patient_id === patientId), 'created_at', { ascending: false }));
@@ -28,13 +29,13 @@ export function RvgManager({ patientId }: { patientId: string }) {
       patient_id: patientId,
       image_url: imageUrl,
       description: imageDesc || null,
-      tooth_number: toothNum ? parseInt(toothNum) : null,
+      tooth_number: toothNum,
       image_type: 'rvg',
     });
     showToast('تصویر ثبت شد');
     setImageUrl('');
     setImageDesc('');
-    setToothNum('');
+    setToothNum(null);
     setShowAdd(false);
     load();
   }
@@ -69,7 +70,7 @@ export function RvgManager({ patientId }: { patientId: string }) {
             </div>
             <div>
               <label className="label-field">شماره دندان</label>
-              <input type="number" className="input-field" value={toothNum} onChange={(e) => setToothNum(e.target.value)} placeholder="مثلا: ۱۸" />
+              <NumberInput value={toothNum} onChange={setToothNum} placeholder="مثلا: ۱۸" />
             </div>
             <div>
               <label className="label-field">توضیحات</label>

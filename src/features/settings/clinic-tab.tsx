@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { NumberInput } from '@/components/ui/number-input';
 import { RotateCcw } from 'lucide-react';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
@@ -6,9 +7,13 @@ import type { ClinicSettings } from '@/lib/types';
 
 export function ClinicTab() {
   const [clinic, setClinic] = useState<ClinicSettings | null>(null);
+  /** Kept apart from `clinic` so the field can be emptied while typing; empty saves as 0. */
+  const [taxRate, setTaxRate] = useState<number | null>(null);
 
   useEffect(() => {
-    setClinic(db.first('clinic_settings'));
+    const row = db.first('clinic_settings');
+    setClinic(row);
+    setTaxRate(row?.tax_rate ?? null);
   }, []);
 
   function saveClinic() {
@@ -18,7 +23,7 @@ export function ClinicTab() {
       address: clinic.address,
       phone: clinic.phone,
       email: clinic.email,
-      tax_rate: clinic.tax_rate,
+      tax_rate: taxRate ?? 0,
     });
     showToast('تنظیمات ذخیره شد');
   }
@@ -55,7 +60,7 @@ export function ClinicTab() {
             </div>
             <div>
               <label className="label-field">نرخ مالیات (٪)</label>
-              <input type="number" className="input-field" value={clinic.tax_rate} onChange={(e) => setClinic({ ...clinic, tax_rate: parseFloat(e.target.value) || 0 })} />
+              <NumberInput decimal value={taxRate} onChange={setTaxRate} placeholder="0" />
             </div>
           </div>
           <button onClick={saveClinic} className="btn-primary px-6 py-2.5">

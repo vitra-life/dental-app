@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link2, X } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { jalaliMonthsFromToday } from '@/lib/date';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
@@ -22,8 +23,10 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
 }) {
   const [patientId, setPatientId] = useState('');
   const [planId, setPlanId] = useState('');
-  const [items, setItems] = useState<{ service_id: string; description: string; quantity: number; unit_price: number }[]>([]);
-  const [discount, setDiscount] = useState(0);
+  /** Quantity and price are `null` while their field is empty; they then count as 1 and 0. */
+  const [items, setItems] = useState<{ service_id: string; description: string; quantity: number | null; unit_price: number | null }[]>([]);
+  const [discountInput, setDiscount] = useState<number | null>(null);
+  const discount = discountInput ?? 0;
   const [paymentType, setPaymentType] = useState<'full' | 'installment'>('full');
   const [installmentCount, setInstallmentCount] = useState(3);
   const [saving, setSaving] = useState(false);
@@ -44,16 +47,17 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
     setItems(lines);
   }
 
-  const subtotal = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
+  const lineTotal = (item: (typeof items)[number]) => (item.unit_price ?? 0) * (item.quantity ?? 1);
+  const subtotal = items.reduce((sum, item) => sum + lineTotal(item), 0);
   const total = Math.max(0, subtotal - discount);
 
   function addItem() {
     setItems([...items, { service_id: '', description: '', quantity: 1, unit_price: 0 }]);
   }
 
-  function updateItem(index: number, field: string, value: string | number) {
+  function updateItem(index: number, field: 'quantity' | 'unit_price', value: number | null) {
     const newItems = [...items];
-    (newItems[index] as Record<string, string | number>)[field] = value;
+    newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
   }
 
@@ -94,9 +98,9 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
       invoice_id: invoice.id,
       service_id: item.service_id || null,
       description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total: item.unit_price * item.quantity,
+      quantity: item.quantity ?? 1,
+      unit_price: item.unit_price ?? 0,
+      total: lineTotal(item),
     }));
     db.insertMany('invoice_items', itemInserts);
 
@@ -165,20 +169,8 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
                   <option value="">{item.description || 'انتخاب خدمت'}</option>
                   {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <input
-                  type="number"
-                  className="input-field w-16"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(i, 'quantity', parseInt(e.target.value) || 1)}
-                  placeholder="تعداد"
-                />
-                <input
-                  type="number"
-                  className="input-field w-28"
-                  value={item.unit_price}
-                  onChange={(e) => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)}
-                  placeholder="قیمت"
-                />
+                <NumberInput className="input-field w-16" value={item.quantity} onChange={(v) => updateItem(i, 'quantity', v)} placeholder="تعداد" />
+                <NumberInput className="input-field w-28" value={item.unit_price} onChange={(v) => updateItem(i, 'unit_price', v)} placeholder="قیمت" />
                 <button onClick={() => removeItem(i)} title="حذف" className="p-2 rounded-lg text-error-400 hover:bg-error-50 hover:text-error-600 shrink-0">
                   <X size={16} />
                 </button>
@@ -193,7 +185,7 @@ export function InvoiceForm({ patients, services, onClose, onSaved }: {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label-field">تخفیف (تومان)</label>
-            <input type="number" className="input-field" value={discount} onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)} />
+            <NumberInput value={discountInput} onChange={setDiscount} placeholder="0" />
           </div>
           <div>
             <label className="label-field">نوع پرداخت</label>

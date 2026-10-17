@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { todayISO } from '@/lib/date';
 import { formatCurrency, paymentMethodLabel } from '@/lib/format';
 import * as db from '@/lib/store';
@@ -10,11 +11,12 @@ import type { Lab } from '@/lib/types';
 const paymentMethods = (['cash', 'card', 'transfer'] as const).map((m) => ({ value: m, label: paymentMethodLabel(m) }));
 
 export function LabPaymentForm({ lab, onClose, onSaved }: { lab: Lab; onClose: () => void; onSaved: () => void }) {
-  const [amount, setAmount] = useState(0);
+  const [amountInput, setAmountInput] = useState<number | null>(null);
   const [method, setMethod] = useState<(typeof paymentMethods)[number]['value']>('cash');
   const [saving, setSaving] = useState(false);
 
   function save() {
+    const amount = amountInput ?? 0;
     if (amount <= 0) { showToast('مبلغ را وارد کنید', 'error'); return; }
     setSaving(true);
     db.insert('lab_payments', {
@@ -38,7 +40,7 @@ export function LabPaymentForm({ lab, onClose, onSaved }: { lab: Lab; onClose: (
         </div>
         <div>
           <label className="label-field">مبلغ پرداخت (تومان)</label>
-          <input type="number" className="input-field" value={amount} onChange={(e) => setAmount(parseFloat(e.target.value) || 0)} />
+          <NumberInput value={amountInput} onChange={setAmountInput} placeholder="0" />
         </div>
         <div>
           <label className="label-field">روش پرداخت</label>

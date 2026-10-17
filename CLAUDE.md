@@ -86,6 +86,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 - Display: `formatDate`, `formatDateShort`, `formatDateNumeric`, `getPersianDayName`. Weeks start on Saturday.
 - Month-based figures (calendar, monthly revenue, this month vs last) use Jalali months: `currentJalaliMonth`, `shiftJalaliMonth`, `isInJalaliMonth`, `jalaliMonthGrid`.
 - Every date field in a form is a `JalaliDateInput`, which takes and returns `YYYY-MM-DD`.
+- Every number field is a `NumberInput` (`value: number | null`, `null` while empty), never `<input type="number">`: it can be emptied while typing, has no up/down arrows, ignores the scroll wheel and accepts Persian digits. Decide what an empty field means when saving.
 
 **Statuses:** `src/constants/status.ts` holds the label and badge colors (background, text and border) for every status (appointment, invoice, lab order, treatment plan and item, SMS campaign and message, tooth). Render them with `StatusBadge` and `statusStyle(map, value, fallback)`; don't redefine a status map inside a component.
 
@@ -106,7 +107,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 A change to a derived value has to be made in every place that writes it.
 
-**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs` (pill segments), `Modal`, `StatusBadge`, `StatTile`, `SectionHeader`, `ProgressBar`, `ChoiceChips` (filters and form choices), `Skeleton`, `EmptyState`, `JalaliDateInput`, and the charts `AreaTrend`, `Bars` and `Donut`.
+**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs` (pill segments), `Modal`, `StatusBadge`, `StatTile`, `SectionHeader`, `ProgressBar`, `ChoiceChips` (filters and form choices), `Skeleton`, `EmptyState`, `JalaliDateInput`, `NumberInput`, and the charts `AreaTrend`, `Bars` and `Donut`.
 - Lists are stacks of `card` rows; a row's small actions use `btn-chip` plus its colors.
 - Toasts: call `showToast(message, 'success' | 'error' | 'info')` from `@/lib/toast`; `<ToastContainer />` is mounted once in `app.tsx`.
 - Reusable component classes are defined in `src/index.css` as `@utility` rules, e.g. `card`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.
