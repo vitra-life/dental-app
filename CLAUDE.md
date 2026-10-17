@@ -55,7 +55,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 **Data from the API (patients, appointments, services):** read and written only through the TanStack Query hooks in `src/data/` (`usePatients`, `useAppointments`, `useServices`, their mutations, and `useClinicData` for summaries).
 - `src/lib/api/client.ts` is a typed openapi-fetch client over `schema.d.ts`, which `npm run api:types` generates; never edit it by hand. A middleware adds `x-clinic-id`.
-- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments have no `staff_id` yet (always null).
+- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments are booked by date, time and `duration_minutes` (one of `APPOINTMENT_DURATIONS`, `src/constants/schedule.ts`); `end_time` is worked out from the duration. They have no price and no `staff_id` yet (always null).
 - Mutations invalidate their query keys (`src/data/keys.ts`), so screens refresh by themselves; don't refetch by hand.
 - Errors are `ApiError` (`src/lib/api/errors.ts`): show `errorMessage(error)` in a toast, or `<LoadError>` for a screen that failed to load. A 400 carries `fieldErrors`.
 - Appointments load as one shared window (`appointmentWindow()`: 7 Jalali months back to 90 days ahead); `usePatientAppointments` loads one patient's full history.

@@ -53,19 +53,21 @@ export function toClientBody(input: PatientInput): Schemas['CreateClientDto'] {
 
 // ── Appointments ────────────────────────────────────────────────────────
 
-/** The fields the booking form sends. Times are local `HH:MM`. */
+/** The fields the booking form sends: the chosen date, the time on that date (`HH:MM`) and a duration. */
 export interface AppointmentInput {
   patient_id: string;
   service_id: string;
   appointment_date: string;
   start_time: string;
-  end_time: string;
-  price: number;
+  duration_minutes: number;
   notes: string | null;
 }
 
+const MINUTE = 60_000;
+
 export function toAppointment(dto: Schemas['AppointmentDto']): Appointment {
   const start = splitTimestamp(dto.start_time);
+  const end = new Date(new Date(dto.start_time).getTime() + dto.duration_minutes * MINUTE).toISOString();
   return {
     id: dto.id,
     patient_id: dto.client_id,
@@ -73,10 +75,10 @@ export function toAppointment(dto: Schemas['AppointmentDto']): Appointment {
     service_id: dto.service_id,
     appointment_date: start.date,
     start_time: start.time,
-    end_time: splitTimestamp(dto.end_time).time,
+    end_time: splitTimestamp(end).time,
+    duration_minutes: dto.duration_minutes,
     status: dto.status,
     notes: dto.description,
-    price: toToman(dto.price),
     created_at: dto.created_at,
     patient: dto.client,
     service: dto.service,
@@ -88,8 +90,8 @@ export function toAppointmentBody(input: AppointmentInput): Schemas['CreateAppoi
     client_id: input.patient_id,
     service_id: input.service_id,
     start_time: joinTimestamp(input.appointment_date, input.start_time),
-    end_time: joinTimestamp(input.appointment_date, input.end_time),
-    price: toRial(input.price),
+    // The API accepts only APPOINTMENT_DURATIONS; the form offers nothing else.
+    duration_minutes: input.duration_minutes as Schemas['CreateAppointmentDto']['duration_minutes'],
     description: input.notes,
   };
 }

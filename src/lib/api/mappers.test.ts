@@ -27,35 +27,34 @@ describe('toPatient', () => {
 describe('appointments', () => {
   const dto = {
     id: 'a1', clinic_id: 'k', client_id: 'c1', service_id: 's1',
-    start_time: '2026-10-14T05:30:00.000Z', end_time: '2026-10-14T06:15:00.000Z',
-    status: 'pending' as const, price: 25_000_000, description: 'کنترل',
+    start_time: '2026-10-14T05:30:00.000Z', duration_minutes: 45,
+    status: 'pending' as const, description: 'کنترل',
     created_at: '2026-10-01T08:00:00.000Z', updated_at: '2026-10-01T08:00:00.000Z',
     client: { id: 'c1', first_name: 'لیلا', last_name: 'بهرامی', phone: '09121110012' },
     service: { id: 's1', name: 'ترمیم' },
   };
 
-  it('splits start and end into the local date and times', () => {
+  it('gives the local date and start, and the end from the duration', () => {
     expect(toAppointment(dto)).toMatchObject({
       patient_id: 'c1',
       appointment_date: '2026-10-14',
       start_time: '09:00:00',
       end_time: '09:45:00',
+      duration_minutes: 45,
       notes: 'کنترل',
-      price: 2_500_000,
       staff_id: null,
       patient: { first_name: 'لیلا' },
     });
   });
 
-  it('builds UTC timestamps and Rial for the API', () => {
+  it('sends the date and time as one UTC start, with the duration', () => {
     expect(
-      toAppointmentBody({ patient_id: 'c1', service_id: 's1', appointment_date: '2026-10-14', start_time: '09:00', end_time: '09:45', price: 2_500_000, notes: null }),
+      toAppointmentBody({ patient_id: 'c1', service_id: 's1', appointment_date: '2026-10-14', start_time: '09:00', duration_minutes: 45, notes: null }),
     ).toEqual({
       client_id: 'c1',
       service_id: 's1',
       start_time: '2026-10-14T05:30:00.000Z',
-      end_time: '2026-10-14T06:15:00.000Z',
-      price: 25_000_000,
+      duration_minutes: 45,
       description: null,
     });
   });

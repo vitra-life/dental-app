@@ -43,7 +43,8 @@ export function loadReportStats({ patients, appointments, services }: ReportInpu
   const serviceStats = services
     .map((svc) => {
       const visits = appointments.filter((a) => a.status === 'completed' && a.service_id === svc.id);
-      return { name: svc.name, count: visits.length, revenue: visits.reduce((sum, a) => sum + (a.price || 0), 0) };
+      // Appointments carry no price; a visit is valued at the service's default price.
+      return { name: svc.name, count: visits.length, revenue: visits.length * svc.default_price };
     })
     .filter((s) => s.count > 0)
     .sort((x, y) => y.count - x.count)

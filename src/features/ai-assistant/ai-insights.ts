@@ -5,7 +5,7 @@ import { monthOverMonth } from '@/lib/revenue';
 import { clinicWorkingHours, findFreeSlots, type FreeSlot } from '@/lib/schedule';
 import { patientBalances } from '@/lib/patient-balance';
 import * as db from '@/lib/store';
-import type { Appointment, PageKey, Patient } from '@/lib/types';
+import type { Appointment, PageKey, Patient, Service } from '@/lib/types';
 
 /**
  * The "AI assistant" calls no language model. It derives insights from the
@@ -46,9 +46,11 @@ export interface AssistantData {
 export interface AssistantInput {
   patients: Patient[];
   appointments: Appointment[];
+  /** For valuing appointments, which carry no price: each counts at its service's default price. */
+  services: Service[];
 }
 
-export function loadAssistantData({ patients, appointments }: AssistantInput): AssistantData {
+export function loadAssistantData({ patients, appointments, services }: AssistantInput): AssistantData {
   const invoices = db.list('invoices');
 
   // `last_visit` is the patient's latest completed appointment, computed by the API.
@@ -111,11 +113,12 @@ export function loadAssistantData({ patients, appointments }: AssistantInput): A
     });
   }
 
+  const servicePrice = new Map(services.map((s) => [s.id, s.default_price]));
   const tomorrow = daysFromToday(1);
   const tomorrowAppts = appointments.filter((a) => a.appointment_date === tomorrow);
   const tomorrowRevenue = tomorrowAppts
     .filter((a) => a.status === 'completed' || a.status === 'confirmed')
-    .reduce((s, a) => s + (a.price || 0), 0);
+    .reduce((s, a) => s + (servicePrice.get(a.service_id ?? '') ?? 0), 0);
   insights.push({
     id: 'tomorrow-opportunity',
     type: 'opportunity',
