@@ -31,7 +31,7 @@ describe('sample data is internally consistent', () => {
 
   it('only references rows that exist', () => {
     const ids = (table: keyof typeof seedData) => new Set(seedData[table].map((r: { id: string }) => r.id));
-    // Patients, services and appointments are the backend dev seed's fixed ids.
+    // Patient, service and appointment references must be one of the ids in ids.ts.
     const range = (make: (n: number) => string, count: number) => new Set(Array.from({ length: count }, (_, i) => make(i + 1)));
     const patients = range(pat, 12);
     const services = range(svc, 11);

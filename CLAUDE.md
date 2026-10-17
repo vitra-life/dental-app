@@ -23,7 +23,7 @@ npm run preview
 npm run api:types   # regenerate src/lib/api/schema.d.ts from the running backend's Swagger
 ```
 
-`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed`, `npm run start:dev` there). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
+`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed` to create the dev clinic, `npm run start:dev` there; the database starts with no patients, services or appointments). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
 
 `npm run build` does not type-check, so run `typecheck`, `lint` and `test` to verify changes.
 
@@ -65,7 +65,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 **Data in the browser (every other table):** there is no server for these yet. The data flows like this:
 - `src/constants/seed/` holds the sample data, one typed array per table, assembled into `seedData` in `index.ts`.
   - Dates are relative to load time (`daysFromToday` / `timestampFromNow`), so "today" views always have content.
-  - IDs are readable strings (`inv-04`) and cross-reference each other. References to patients, services and appointments use `pat(n)`, `svc(n)`, `apt(n)` from `ids.ts`: the fixed ids of the backend's dev seed.
+  - IDs are readable strings (`inv-04`) and cross-reference each other. References to patients, services and appointments use `pat(n)`, `svc(n)`, `apt(n)` from `ids.ts`: the ids the backend's sample data used to have. The backend no longer creates those records, so these links point at nothing and the rows show without a patient or service name.
   - Derived numbers must stay consistent when you edit the seed; `seed.test.ts` checks them.
 - `src/lib/store.ts` (imported as `import * as db from '@/lib/store'`) is the only API for these tables.
   - Reads: `list(table, where?)`, `get`, `first`.
