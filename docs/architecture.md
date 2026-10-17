@@ -110,7 +110,7 @@ Things to know:
 
 ### The sample data
 
-`src/constants/seed/` holds one file per area. Rows that point at patients, services or appointments use `pat(n)`, `svc(n)` and `apt(n)` from `ids.ts`, the fixed ids of the backend's dev seed (`npm run db:seed` in Dental-Api), so the links hold. `seed.test.ts` checks that the numbers agree: payments match `paid_amount`, items and instalments match the totals, and every reference points at a row that exists. Run `npm test` after editing the seed.
+`src/constants/seed/` holds one file per area. Rows that point at patients, services or appointments use `pat(n)`, `svc(n)` and `apt(n)` from `ids.ts`: the ids the backend's sample data used to have. The backend no longer creates those records, so these links point at nothing and the rows show without a patient or service name. `seed.test.ts` checks that the numbers agree: payments match `paid_amount`, items and instalments match the totals, and every reference points at a row that exists (patient, service and appointment references only need to be one of the `ids.ts` ids). Run `npm test` after editing the seed.
 
 ### Saved data
 

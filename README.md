@@ -13,7 +13,7 @@ You need Node.js 20.19 or newer (on Node 22: 22.12 or newer), as Vite 8 requires
 ```bash
 # in ../Dental-Api
 npm run db:up
-npm run db:seed        # a dev clinic with sample patients, services and appointments
+npm run db:seed        # creates the dev clinic the app acts for (no sample data)
 npm run start:dev
 
 # here
@@ -28,7 +28,7 @@ The API address and the clinic to act for come from `.env.development`:
 | Variable | Meaning |
 |---|---|
 | `VITE_API_BASE_URL` | Dental-Api's base URL, without `/api/v1` (`http://localhost:3000`) |
-| `VITE_CLINIC_ID` | Temporary: the clinic sent as the `x-clinic-id` header until login exists. The default is the dev seed's clinic |
+| `VITE_CLINIC_ID` | Temporary: the clinic sent as the `x-clinic-id` header until login exists. The default is the clinic `npm run db:seed` creates |
 
 For another environment, copy `.env.example` to `.env.production.local` or set the variables in CI.
 
@@ -96,8 +96,8 @@ Files and folders under `src/` are kebab-case (`patient-form.tsx`); lint enforce
 ## How the data works
 
 - **Patients, appointments and services** are read and written through the hooks in `src/data/`, which call Dental-Api and cache the answers. Money is shown in Toman and stored by the API in Rial; `src/lib/api/mappers.ts` converts.
-- **Everything else** goes through `src/lib/store.ts`. It loads the sample data in `src/constants/seed/` on first run, then keeps every change in localStorage under the key `dentaclinic:data:v2`. Those sample rows refer to patients and services by the fixed ids of the backend's dev seed, so the two line up.
-- To discard local changes, open Settings → اطلاعات کلینیک and press "بازنشانی داده‌ها" (reset data). To reset patients, appointments and services, run `npm run db:seed` in Dental-Api.
+- **Everything else** goes through `src/lib/store.ts`. It loads the sample data in `src/constants/seed/` on first run, then keeps every change in localStorage under the key `dentaclinic:data:v2`. Those sample rows refer to patients and services by ids that don't exist in the backend, so they show without a patient or service name.
+- To discard local changes, open Settings → اطلاعات کلینیک and press "بازنشانی داده‌ها" (reset data). Patients, appointments and services are only what you add through the app; `npm run db:seed` never adds or removes them.
 - Dates are stored as Gregorian values (`YYYY-MM-DD`) and shown as Jalali dates. All conversion goes through `src/lib/date.ts`.
 
 ## Things that are simulated
