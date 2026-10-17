@@ -7,8 +7,8 @@ import { smsCampaigns, smsMessages, smsPackages } from './sms';
 
 /**
  * The browser store's initial data, one array per table. Rows refer to
- * patients, services and appointments by the fixed ids of the backend's dev
- * seed (`npm run db:seed` in Dental-Api), see `ids.ts`.
+ * patients, services and appointments by the ids in `ids.ts`, which do not
+ * exist in the backend.
  */
 export const seedData: Database = {
   clinic_settings: clinicSettings,

@@ -45,14 +45,14 @@ export function plannedAppointmentIds(): Set<string> {
  * - completing the appointment completes the item, and the plan once all its items are done;
  * - cancelling it (or a no-show) frees the item to be booked again.
  */
-export function syncPlanWithAppointment(appointment: Pick<Appointment, 'id' | 'price'>, status: Appointment['status']) {
+export function syncPlanWithAppointment(appointment: Pick<Appointment, 'id'>, status: Appointment['status']) {
   const items = db.list('treatment_plan_items', (i) => i.appointment_id === appointment.id);
   for (const item of items) {
     if (status === 'completed') {
       db.update('treatment_plan_items', item.id, {
         status: 'completed',
         completed_date: todayISO(),
-        actual_cost: appointment.price || item.estimated_cost,
+        actual_cost: item.estimated_cost,
       });
       const open = db.list('treatment_plan_items', (i) => i.plan_id === item.plan_id && i.status !== 'completed' && i.status !== 'cancelled');
       if (open.length === 0) db.update('treatment_plans', item.plan_id, { status: 'completed' });

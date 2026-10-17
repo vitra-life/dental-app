@@ -1,6 +1,7 @@
 /**
- * Fixed ids of the backend's dev seed (`prisma/seed.ts` in Dental-Api), so the
- * sample rows kept here still point at real patients, services and appointments.
+ * Ids the sample rows use for patients, services and appointments. They are the
+ * ids the backend's sample data used to have; the backend no longer creates
+ * those records, so these references point at nothing.
  */
 const fixedId = (group: number, n: number) => `00000000-0000-7000-8000-${String(group * 100 + n).padStart(12, '0')}`;
 

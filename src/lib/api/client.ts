@@ -24,5 +24,9 @@ export type ApiPaths = { [Path in keyof paths]: { [Method in keyof paths[Path]]:
  * Typed client for Dental-Api. Paths, bodies and responses come from
  * `schema.d.ts`, generated from the backend's Swagger by `npm run api:types`.
  */
-export const api = createClient<ApiPaths>({ baseUrl: env.apiBaseUrl });
+export const api = createClient<ApiPaths>({
+  baseUrl: env.apiBaseUrl,
+  // Look up `fetch` per request rather than once at import, so tests can stub it.
+  fetch: (request) => globalThis.fetch(request),
+});
 api.use(clinicHeader);
