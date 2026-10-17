@@ -3,12 +3,15 @@ import { todayISO as today } from '@/lib/date';
 import type { Database, TableName, Tables } from '@/lib/types';
 
 /**
- * Local data store. Starts from the sample data in `src/constants/seed/` and
- * persists every change to localStorage, so edits survive a reload.
+ * Local data store for the tables that have no API yet; patients,
+ * appointments and services come from Dental-Api (`src/data/`). Starts from
+ * the sample data in `src/constants/seed/` and persists every change to
+ * localStorage, so edits survive a reload.
  * All reads return copies; mutate only through the write functions below.
  */
 
-const STORAGE_KEY = 'dentaclinic:data:v1';
+// v2: patients, appointments and services moved to the API.
+const STORAGE_KEY = 'dentaclinic:data:v2';
 
 export type Insert<T extends TableName> = Partial<Omit<Tables[T], 'id'>>;
 export type Patch<T extends TableName> = Partial<Omit<Tables[T], 'id' | 'created_at'>>;
@@ -19,12 +22,9 @@ const now = () => new Date().toISOString();
 const defaults: { [K in TableName]: () => Partial<Tables[K]> } = {
   clinic_settings: () => ({ name: 'کلینیک دندانپزشکی', address: null, phone: null, email: null, logo_url: null, working_hours: null, tax_rate: 0, currency: 'تومان' }),
   staff: () => ({ role: 'dentist', phone: null, email: null, color: '#3b82f6', active: true }),
-  services: () => ({ category: 'general', default_price: 0, duration_minutes: 30, description: null, active: true }),
-  patients: () => ({ national_id: null, email: null, birth_date: null, gender: 'male', address: null, blood_type: null, allergies: null, medical_history: null, emergency_contact: null, emergency_phone: null, insurance_company: null, insurance_number: null, notes: null, balance: 0, status: 'active' }),
-  appointments: () => ({ staff_id: null, service_id: null, status: 'pending', notes: null, price: 0 }),
   treatments: () => ({ appointment_id: null, staff_id: null, service_id: null, tooth_number: null, description: null, status: 'completed', cost: 0, treatment_date: today(), notes: null }),
   dental_records: () => ({ status: 'healthy', treatment_type: null, treatment_date: null, notes: null }),
-  invoices: () => ({ appointment_id: null, invoice_number: null, subtotal: 0, tax_amount: 0, discount: 0, total: 0, paid_amount: 0, balance: 0, status: 'unpaid', payment_type: 'full', installment_count: 0, notes: null }),
+  invoices: () => ({ appointment_id: null, treatment_plan_id: null, invoice_number: null, subtotal: 0, tax_amount: 0, discount: 0, total: 0, paid_amount: 0, balance: 0, status: 'unpaid', payment_type: 'full', installment_count: 0, notes: null }),
   invoice_items: () => ({ service_id: null, quantity: 1, unit_price: 0, total: 0 }),
   payments: () => ({ payment_method: 'cash', payment_date: today(), reference_number: null, notes: null }),
   installments: () => ({ paid: false, paid_date: null, payment_id: null }),
@@ -35,6 +35,7 @@ const defaults: { [K in TableName]: () => Partial<Tables[K]> } = {
   lab_payments: () => ({ lab_order_id: null, payment_method: 'cash', payment_date: today(), reference_number: null, notes: null }),
   treatment_plans: () => ({ title: 'طرح درمان', total_estimated_cost: 0, status: 'active', start_date: today(), target_end_date: null, notes: null }),
   treatment_plan_items: () => ({ service_id: null, tooth_number: null, description: null, estimated_cost: 0, actual_cost: 0, status: 'planned', appointment_id: null, installment_id: null, due_date: null, completed_date: null, sort_order: 0, notes: null }),
+  treatment_plan_templates: () => ({ description: null, items: [], active: true }),
   sms_packages: () => ({ package_name: 'بسته پیامک', total_credits: 0, used_credits: 0, remaining_credits: 0, purchase_date: today(), expiry_date: null, price: 0, status: 'active' }),
   sms_campaigns: () => ({ target_filter: null, total_recipients: 0, sent_count: 0, failed_count: 0, pending_count: 0, status: 'draft', scheduled_at: null, sent_at: null }),
   sms_messages: () => ({ campaign_id: null, patient_id: null, status: 'pending', sent_at: null, error_message: null }),
@@ -42,37 +43,20 @@ const defaults: { [K in TableName]: () => Partial<Tables[K]> } = {
 
 // Foreign keys: what happens to child rows when a parent row is removed.
 const foreignKeys: { table: TableName; column: string; parent: TableName; onDelete: 'cascade' | 'set null' }[] = [
-  { table: 'appointments', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
-  { table: 'appointments', column: 'staff_id', parent: 'staff', onDelete: 'set null' },
-  { table: 'appointments', column: 'service_id', parent: 'services', onDelete: 'set null' },
-  { table: 'treatments', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
-  { table: 'treatments', column: 'appointment_id', parent: 'appointments', onDelete: 'set null' },
   { table: 'treatments', column: 'staff_id', parent: 'staff', onDelete: 'set null' },
-  { table: 'treatments', column: 'service_id', parent: 'services', onDelete: 'set null' },
-  { table: 'dental_records', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
-  { table: 'invoices', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
-  { table: 'invoices', column: 'appointment_id', parent: 'appointments', onDelete: 'set null' },
+  { table: 'invoices', column: 'treatment_plan_id', parent: 'treatment_plans', onDelete: 'set null' },
   { table: 'invoice_items', column: 'invoice_id', parent: 'invoices', onDelete: 'cascade' },
-  { table: 'invoice_items', column: 'service_id', parent: 'services', onDelete: 'set null' },
   { table: 'payments', column: 'invoice_id', parent: 'invoices', onDelete: 'cascade' },
-  { table: 'payments', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
   { table: 'installments', column: 'invoice_id', parent: 'invoices', onDelete: 'cascade' },
   { table: 'installments', column: 'payment_id', parent: 'payments', onDelete: 'set null' },
-  { table: 'rvg_images', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
   { table: 'lab_services', column: 'lab_id', parent: 'labs', onDelete: 'cascade' },
   { table: 'lab_orders', column: 'lab_id', parent: 'labs', onDelete: 'cascade' },
-  { table: 'lab_orders', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
   { table: 'lab_orders', column: 'staff_id', parent: 'staff', onDelete: 'set null' },
   { table: 'lab_payments', column: 'lab_id', parent: 'labs', onDelete: 'cascade' },
   { table: 'lab_payments', column: 'lab_order_id', parent: 'lab_orders', onDelete: 'set null' },
-  { table: 'treatment_plans', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
   { table: 'treatment_plan_items', column: 'plan_id', parent: 'treatment_plans', onDelete: 'cascade' },
-  { table: 'treatment_plan_items', column: 'patient_id', parent: 'patients', onDelete: 'cascade' },
-  { table: 'treatment_plan_items', column: 'service_id', parent: 'services', onDelete: 'set null' },
-  { table: 'treatment_plan_items', column: 'appointment_id', parent: 'appointments', onDelete: 'set null' },
   { table: 'treatment_plan_items', column: 'installment_id', parent: 'installments', onDelete: 'set null' },
   { table: 'sms_messages', column: 'campaign_id', parent: 'sms_campaigns', onDelete: 'cascade' },
-  { table: 'sms_messages', column: 'patient_id', parent: 'patients', onDelete: 'set null' },
 ];
 
 function loadData(): Database {
@@ -209,6 +193,20 @@ export function orderBy<R>(items: R[], key: keyof R, { ascending = true } = {}):
     if (typeof x === 'string' && typeof y === 'string') return x.localeCompare(y, 'fa') * dir;
     return (x < y ? -1 : x > y ? 1 : 0) * dir;
   });
+}
+
+/**
+ * Attaches the row of `parents` referenced by `foreignKey` under `as`. For
+ * parents that are not in the store, such as patients and services from the API.
+ */
+export function joinOne<R, K extends string, P extends { id: string }>(
+  items: R[],
+  as: K,
+  parents: readonly P[],
+  foreignKey: keyof R,
+): (R & { [Q in K]?: P })[] {
+  const byId = new Map(parents.map((p) => [p.id, p]));
+  return items.map((item) => ({ ...item, [as]: byId.get(item[foreignKey] as unknown as string) }) as R & { [Q in K]?: P });
 }
 
 /** Attaches the parent row referenced by `foreignKey` (e.g. `patient_id`) under `as`. */

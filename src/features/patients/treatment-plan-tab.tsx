@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ClipboardList, Plus, Smile, Trash2 } from 'lucide-react';
+import { ClipboardList, Plus, Trash2 } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -8,45 +8,46 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { planItemStatus, statusStyle, treatmentPlanStatus } from '@/constants/status';
 import { formatDate, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, percent } from '@/lib/format';
+import { useServices } from '@/data/services';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Service, TreatmentPlan, TreatmentPlanItem } from '@/lib/types';
+import { createPlanFromTemplate } from '@/lib/treatment-plans';
+import type { TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 
 export function TreatmentPlanTab({ patientId }: { patientId: string }) {
-  const [plans, setPlans] = useState<TreatmentPlan[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
+  const [planRows, setPlanRows] = useState<TreatmentPlan[]>([]);
+  const { data: allServices = [] } = useServices();
+  const services = allServices.filter((s) => s.active);
+  const plans = planRows.map((plan) => ({ ...plan, items: db.joinOne(plan.items ?? [], 'service', allServices, 'service_id') }));
   const [loading, setLoading] = useState(true);
   const [showPlanForm, setShowPlanForm] = useState(false);
-  const [planForm, setPlanForm] = useState({ title: '', target_end_date: '', notes: '' });
+  const [templates, setTemplates] = useState<TreatmentPlanTemplate[]>([]);
+  const [planForm, setPlanForm] = useState({ title: '', target_end_date: '', notes: '', template_id: '' });
   const [showItemForm, setShowItemForm] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState({ service_id: '', tooth_number: '', description: '', estimated_cost: '', due_date: '', notes: '' });
 
   const load = useCallback(() => {
     const rows = db.orderBy(db.list('treatment_plans', (p) => p.patient_id === patientId), 'created_at', { ascending: false });
-    setPlans(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id').map((plan) => ({
-      ...plan,
-      items: db.withOne(plan.items, 'service', 'services', 'service_id'),
-    })));
+    setPlanRows(db.withMany(rows, 'items', 'treatment_plan_items', 'plan_id'));
     setLoading(false);
   }, [patientId]);
 
   useEffect(() => {
     load();
-    setServices(db.list('services', (s) => s.active));
+    setTemplates(db.list('treatment_plan_templates', (t) => t.active));
   }, [load]);
 
   function createPlan() {
     if (!planForm.title) { showToast('عنوان طرح الزامی است', 'error'); return; }
-    db.insert('treatment_plans', {
-      patient_id: patientId,
-      title: planForm.title,
-      target_end_date: planForm.target_end_date || null,
-      notes: planForm.notes || null,
-      total_estimated_cost: 0,
-      status: 'active',
-    });
+    const values = { title: planForm.title, target_end_date: planForm.target_end_date || null, notes: planForm.notes || null };
+    const template = templates.find((t) => t.id === planForm.template_id);
+    if (template) {
+      createPlanFromTemplate(patientId, template, values);
+    } else {
+      db.insert('treatment_plans', { ...values, patient_id: patientId, total_estimated_cost: 0, status: 'active' });
+    }
     showToast('طرح درمان ایجاد شد');
-    setPlanForm({ title: '', target_end_date: '', notes: '' });
+    setPlanForm({ title: '', target_end_date: '', notes: '', template_id: '' });
     setShowPlanForm(false);
     load();
   }
@@ -96,20 +97,40 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
     load();
   }
 
-  if (loading) return <Skeleton className="h-32" variant="inset" />;
+  if (loading) return <Skeleton className="h-32" />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(plans.length)} طرح درمان</p>
-        <button onClick={() => setShowPlanForm(!showPlanForm)} className="btn-primary">
-          <Plus size={16} />
-          طرح درمان جدید
+        <h2 className="text-sm font-semibold text-surface-700">طرح‌های درمان</h2>
+        <button onClick={() => setShowPlanForm(!showPlanForm)} className="btn-primary text-xs px-3 py-1.5">
+          <Plus size={14} />
+          طرح جدید
         </button>
       </div>
 
       {showPlanForm && (
-        <div className="p-4 bg-surface-50 rounded-xl space-y-3 animate-slide-down">
+        <div className="card p-4 space-y-3 animate-fade-in">
+          {templates.length > 0 && (
+            <div>
+              <label className="label-field">شروع از الگو</label>
+              <select
+                className="input-field"
+                value={planForm.template_id}
+                onChange={(e) => {
+                  const template = templates.find((t) => t.id === e.target.value);
+                  setPlanForm({ ...planForm, template_id: e.target.value, title: template ? template.name : planForm.title });
+                }}
+              >
+                <option value="">بدون الگو (طرح خالی)</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} - {formatCurrency(t.items.reduce((sum, i) => sum + i.price, 0))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="label-field">عنوان طرح *</label>
@@ -122,128 +143,139 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
           </div>
           <div>
             <label className="label-field">یادداشت</label>
-            <textarea className="input-field min-h-[60px]" value={planForm.notes} onChange={(e) => setPlanForm({ ...planForm, notes: e.target.value })} />
+            <textarea className="input-field min-h-[60px] resize-none" value={planForm.notes} onChange={(e) => setPlanForm({ ...planForm, notes: e.target.value })} placeholder="توضیحات اضافی..." />
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={createPlan} className="btn-primary">ایجاد طرح</button>
+            <button onClick={createPlan} className="btn-primary">ذخیره طرح درمان</button>
             <button onClick={() => setShowPlanForm(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
       )}
 
       {plans.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="هیچ طرح درمانی" description="طرح درمان جدید برای این بیمار ایجاد کنید" />
+        <div className="card">
+          <EmptyState
+            icon={ClipboardList}
+            title="هنوز طرح درمانی ثبت نشده"
+            action={<button onClick={() => setShowPlanForm(true)} className="text-sm text-primary-600 hover:underline">+ ایجاد طرح درمان</button>}
+          />
+        </div>
       ) : (
-        <div className="space-y-4">
-          {plans.map((plan) => {
-            const completed = plan.items?.filter((i) => i.status === 'completed').length || 0;
-            const total = plan.items?.length || 0;
-            const progress = percent(completed, total);
-            return (
-              <div key={plan.id} className="card p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h4 className="font-bold text-surface-800 text-sm">{plan.title}</h4>
-                    <p className="text-xs text-surface-400 mt-0.5">
-                      {formatNumber(total)} آیتم • {formatCurrency(plan.total_estimated_cost)}
-                    </p>
+        plans.map((plan) => {
+          const items = plan.items ?? [];
+          const completed = items.filter((i) => i.status === 'completed').length;
+          const done = items.filter((i) => i.status === 'completed').reduce((sum, i) => sum + (i.actual_cost ?? i.estimated_cost), 0);
+          return (
+            <div key={plan.id} className="card p-5">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-bold text-surface-800">{plan.title}</h3>
+                  <p className="text-xs text-surface-400 mt-0.5">
+                    {formatDate(plan.start_date || plan.created_at)}
+                    {plan.target_end_date && <> · هدف: {formatDate(plan.target_end_date)}</>}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <StatusBadge status={statusStyle(treatmentPlanStatus, plan.status, 'cancelled')} />
+                  <button onClick={() => deletePlan(plan.id)} title="حذف طرح" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+
+              {items.length > 0 && (
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1">
+                    <ProgressBar value={percent(completed, items.length)} />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={statusStyle(treatmentPlanStatus, plan.status, 'cancelled')} />
-                    <button onClick={() => deletePlan(plan.id)} className="p-1.5 rounded-lg hover:bg-error-50">
-                      <Trash2 size={14} className="text-surface-400 hover:text-error-500" />
+                  <span className="text-xs text-surface-500">{formatNumber(completed)}/{formatNumber(items.length)}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5 mb-3">
+                {items.map((item) => (
+                  <div key={item.id} className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${item.status === 'completed' ? 'bg-accent-400' : item.status === 'in_progress' ? 'bg-secondary-400' : 'bg-surface-300'}`} />
+                    <span className="text-surface-700 flex-1 min-w-32">
+                      {item.service?.name || item.description || 'آیتم'}
+                      {item.tooth_number && ` (دندان ${formatNumber(item.tooth_number)})`}
+                      {item.due_date && <span className="text-surface-400"> · موعد {formatDate(item.due_date)}</span>}
+                    </span>
+                    <span className="text-surface-500">{formatCurrency(item.estimated_cost)}</span>
+                    {item.status === 'planned' && (
+                      <button onClick={() => updateItemStatus(item.id, 'in_progress')} className="btn-chip px-2 py-0.5 bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100">شروع</button>
+                    )}
+                    {item.status === 'in_progress' && (
+                      <button onClick={() => updateItemStatus(item.id, 'completed')} className="btn-chip px-2 py-0.5 bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100">تکمیل</button>
+                    )}
+                    <StatusBadge status={statusStyle(planItemStatus, item.status, 'planned')} className="px-1.5 py-0.5 rounded-sm" />
+                    <button onClick={() => deleteItem(item.id)} title="حذف" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
+                      <Trash2 size={12} />
                     </button>
                   </div>
-                </div>
+                ))}
+              </div>
 
-                {total > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-surface-400">پیشرفت: {formatNumber(completed)} از {formatNumber(total)}</span>
-                      <span className="text-xs font-medium text-primary-600">{formatNumber(progress)}%</span>
-                    </div>
-                    <ProgressBar value={progress} slow />
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  {plan.items?.map((item) => (
-                      <div key={item.id} className="flex items-start gap-3 p-3 bg-surface-50 rounded-xl">
-                        <div className="w-9 h-9 rounded-lg bg-white flex items-center justify-center shrink-0">
-                          {item.tooth_number ? <Smile size={16} className="text-primary-500" /> : <ClipboardList size={16} className="text-surface-400" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-surface-700">
-                            {item.service?.name || item.description || 'آیتم'}
-                            {item.tooth_number && <span className="text-surface-400"> • دندان {formatNumber(item.tooth_number)}</span>}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-surface-400">{formatCurrency(item.estimated_cost)}</span>
-                            {item.due_date && <span className="text-xs text-surface-400">• موعد: {formatDate(item.due_date)}</span>}
-                          </div>
-                          {item.notes && <p className="text-xs text-surface-500 mt-1">{item.notes}</p>}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {item.status === 'planned' && (
-                            <button onClick={() => updateItemStatus(item.id, 'in_progress')} className="px-2 py-1 rounded-lg bg-warning-50 text-warning-600 text-xs hover:bg-warning-100">شروع</button>
-                          )}
-                          {item.status === 'in_progress' && (
-                            <button onClick={() => updateItemStatus(item.id, 'completed')} className="px-2 py-1 rounded-lg bg-accent-50 text-accent-600 text-xs hover:bg-accent-100">تکمیل</button>
-                          )}
-                          <StatusBadge status={statusStyle(planItemStatus, item.status, 'planned')} />
-                          <button onClick={() => deleteItem(item.id)} className="p-1 rounded-lg hover:bg-error-50">
-                            <Trash2 size={12} className="text-surface-400 hover:text-error-500" />
-                          </button>
-                        </div>
-                      </div>
-                  ))}
-                </div>
-
-                {showItemForm === plan.id ? (
-                  <div className="mt-3 p-4 bg-surface-50 rounded-xl space-y-3 animate-slide-down">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="label-field">خدمت</label>
-                        <select className="input-field" value={itemForm.service_id} onChange={(e) => {
-                          const svc = services.find((s) => s.id === e.target.value);
-                          setItemForm({ ...itemForm, service_id: e.target.value, estimated_cost: svc ? String(svc.default_price) : itemForm.estimated_cost, description: svc?.name || itemForm.description });
-                        }}>
-                          <option value="">انتخاب</option>
-                          {services.map((s) => <option key={s.id} value={s.id}>{s.name} - {formatCurrency(s.default_price)}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="label-field">شماره دندان</label>
-                        <input type="number" className="input-field" value={itemForm.tooth_number} onChange={(e) => setItemForm({ ...itemForm, tooth_number: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label-field">هزینه (تومان)</label>
-                        <input type="number" className="input-field" value={itemForm.estimated_cost} onChange={(e) => setItemForm({ ...itemForm, estimated_cost: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="label-field">موعد انجام</label>
-                        <JalaliDateInput value={itemForm.due_date} onChange={(due_date) => setItemForm({ ...itemForm, due_date })} />
-                      </div>
+              {showItemForm === plan.id ? (
+                <div className="p-4 bg-surface-50 rounded-xl space-y-3 mb-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="label-field">خدمت</label>
+                      <select className="input-field" value={itemForm.service_id} onChange={(e) => {
+                        const svc = services.find((s) => s.id === e.target.value);
+                        setItemForm({ ...itemForm, service_id: e.target.value, estimated_cost: svc ? String(svc.default_price) : itemForm.estimated_cost, description: svc?.name || itemForm.description });
+                      }}>
+                        <option value="">-- انتخاب خدمت --</option>
+                        {services.map((s) => <option key={s.id} value={s.id}>{s.name} - {formatCurrency(s.default_price)}</option>)}
+                      </select>
                     </div>
                     <div>
-                      <label className="label-field">توضیحات</label>
-                      <input className="input-field" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} />
+                      <label className="label-field">شماره دندان</label>
+                      <input type="number" className="input-field" value={itemForm.tooth_number} onChange={(e) => setItemForm({ ...itemForm, tooth_number: e.target.value })} />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => addItem(plan.id)} className="btn-primary text-sm">افزودن آیتم</button>
-                      <button onClick={() => setShowItemForm(null)} className="btn-secondary text-sm">انصراف</button>
+                    <div>
+                      <label className="label-field">هزینه (تومان)</label>
+                      <input type="number" className="input-field" value={itemForm.estimated_cost} onChange={(e) => setItemForm({ ...itemForm, estimated_cost: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="label-field">موعد انجام</label>
+                      <JalaliDateInput value={itemForm.due_date} onChange={(due_date) => setItemForm({ ...itemForm, due_date })} />
                     </div>
                   </div>
-                ) : (
-                  <button onClick={() => setShowItemForm(plan.id)} className="w-full mt-2 py-2 border border-dashed border-surface-200 rounded-xl text-sm text-surface-400 hover:border-primary-300 hover:text-primary-500 transition-colors">
-                    <Plus size={14} className="inline ml-1" />
-                    افزودن آیتم
-                  </button>
-                )}
+                  <div>
+                    <label className="label-field">توضیحات</label>
+                    <input className="input-field" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => addItem(plan.id)} className="btn-primary">افزودن خدمت</button>
+                    <button onClick={() => setShowItemForm(null)} className="btn-secondary">انصراف</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowItemForm(plan.id)} className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline mb-3">
+                  <Plus size={12} />
+                  افزودن خدمت
+                </button>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-surface-100 text-sm">
+                <div>
+                  <span className="text-surface-500 text-xs">انجام‌شده: </span>
+                  <span className="font-semibold text-accent-600">{formatCurrency(done)}</span>
+                </div>
+                <div>
+                  <span className="text-surface-500 text-xs">باقی‌مانده: </span>
+                  <span className="font-semibold text-warning-600">{formatCurrency(Math.max(plan.total_estimated_cost - done, 0))}</span>
+                </div>
+                <div>
+                  <span className="text-surface-500 text-xs">جمع کل: </span>
+                  <span className="font-bold text-surface-800">{formatCurrency(plan.total_estimated_cost)}</span>
+                </div>
               </div>
-            );
-          })}
-        </div>
+              {plan.notes && <p className="text-xs text-surface-400 mt-2">{plan.notes}</p>}
+            </div>
+          );
+        })
       )}
     </div>
   );

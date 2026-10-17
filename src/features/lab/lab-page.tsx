@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Clock, DollarSign, FlaskConical, Mail, MapPin, Package, Phone, Plus } from 'lucide-react';
-import { Avatar } from '@/components/ui/avatar';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { FlaskConical, Package, Plus, Wallet } from 'lucide-react';
+import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { SectionHeader } from '@/components/ui/section-header';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { StatTile } from '@/components/ui/stat-tile';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { labOrderStatus, statusStyle } from '@/constants/status';
-import { formatDate, todayISO } from '@/lib/date';
+import { formatDateNumeric, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName, paymentMethodLabel } from '@/lib/format';
+import { usePatients } from '@/data/patients';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
-import type { Lab as LabRow, LabOrder, LabPayment, Patient } from '@/lib/types';
+import type { Lab as LabRow, LabOrder, LabPayment, LabService } from '@/lib/types';
 import { LabForm } from './lab-form';
 import { LabOrderForm } from './lab-order-form';
 import { LabPaymentForm } from './lab-payment-form';
@@ -24,24 +26,35 @@ interface LabProps {
 type LabTab = 'orders' | 'labs' | 'payments';
 
 const tabs: TabItem<LabTab>[] = [
-  { key: 'orders', label: 'سفارشات', icon: <Package size={16} /> },
-  { key: 'labs', label: 'لابراتوارها', icon: <FlaskConical size={16} /> },
-  { key: 'payments', label: 'پرداخت‌ها', icon: <DollarSign size={16} /> },
+  { key: 'orders', label: 'سفارشات' },
+  { key: 'labs', label: 'لابراتوارها' },
+  { key: 'payments', label: 'پرداخت‌ها' },
 ];
 
-/** The next step for an order in each status, and the toast shown after taking it. */
-const nextStep: Partial<Record<LabOrder['status'], { to: LabOrder['status']; action: string; toast: string }>> = {
-  pending: { to: 'in_progress', action: 'شروع ساخت', toast: 'وضعیت بروزرسانی شد' },
-  in_progress: { to: 'ready', action: 'آماده شد', toast: 'وضعیت بروزرسانی شد' },
-  ready: { to: 'delivered', action: 'تحویل به بیمار', toast: 'تحویل داده شد' },
+type OrderFilter = 'all' | LabOrder['status'];
+
+const orderFilters: { value: OrderFilter; label: string }[] = [
+  { value: 'all', label: 'همه' },
+  ...(['pending', 'in_progress', 'ready', 'delivered'] as const).map((value) => ({ value, label: labOrderStatus[value].label })),
+];
+
+/** The next step for an order in each status: its button and the toast shown after taking it. */
+const nextStep: Partial<Record<LabOrder['status'], { to: LabOrder['status']; action: string; toast: string; className: string }>> = {
+  pending: { to: 'in_progress', action: 'شروع ساخت', toast: 'وضعیت بروزرسانی شد', className: 'bg-secondary-50 text-secondary-700 border-secondary-200 hover:bg-secondary-100' },
+  in_progress: { to: 'ready', action: 'آماده تحویل', toast: 'وضعیت بروزرسانی شد', className: 'bg-warning-50 text-warning-700 border-warning-200 hover:bg-warning-100' },
+  ready: { to: 'delivered', action: 'تحویل گرفته شد', toast: 'تحویل داده شد', className: 'bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100' },
 };
 
 export function Lab({ onOpenPatient }: LabProps) {
   const [tab, setTab] = useState<LabTab>('orders');
+  const [statusFilter, setStatusFilter] = useState<OrderFilter>('all');
   const [labs, setLabs] = useState<LabRow[]>([]);
-  const [orders, setOrders] = useState<LabOrder[]>([]);
+  const [labServices, setLabServices] = useState<LabService[]>([]);
+  const [orderRows, setOrderRows] = useState<LabOrder[]>([]);
   const [labPayments, setLabPayments] = useState<(LabPayment & { lab?: LabRow })[]>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const { data: allPatients = [] } = usePatients();
+  const patients = useMemo(() => [...allPatients].sort((a, b) => a.first_name.localeCompare(b.first_name, 'fa')), [allPatients]);
+  const orders = useMemo(() => db.joinOne(orderRows, 'patient', allPatients, 'patient_id'), [orderRows, allPatients]);
   const [loading, setLoading] = useState(true);
   const [showLabForm, setShowLabForm] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
@@ -53,9 +66,9 @@ export function Lab({ onOpenPatient }: LabProps) {
     const orderRows = db.orderBy(db.list('lab_orders'), 'created_at', { ascending: false });
     const paymentRows = db.orderBy(db.list('lab_payments'), 'payment_date', { ascending: false });
     setLabs(db.orderBy(db.list('labs'), 'name'));
-    setOrders(db.withOne(db.withOne(orderRows, 'lab', 'labs', 'lab_id'), 'patient', 'patients', 'patient_id'));
+    setLabServices(db.list('lab_services'));
+    setOrderRows(db.withOne(orderRows, 'lab', 'labs', 'lab_id'));
     setLabPayments(db.withOne(paymentRows, 'lab', 'labs', 'lab_id'));
-    setPatients(db.orderBy(db.list('patients'), 'first_name'));
     setLoading(false);
   }, []);
 
@@ -76,129 +89,138 @@ export function Lab({ onOpenPatient }: LabProps) {
   const pendingOrders = orders.filter((o) => o.status === 'pending' || o.status === 'in_progress').length;
   const totalLabCost = orders.reduce((s, o) => s + o.price, 0);
 
+  const filteredOrders = statusFilter === 'all' ? orders : orders.filter((o) => o.status === statusFilter);
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="لابراتوار" subtitle="مدیریت سفارشات و پرداخت‌های لابراتوار">
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowLabForm(true)} className="btn-secondary">
-            <Plus size={18} />
-            لابراتوار
-          </button>
-          <button onClick={() => setShowOrderForm(true)} className="btn-primary">
-            <Plus size={18} />
-            سفارش جدید
-          </button>
-        </div>
+    <div className="space-y-5">
+      <PageHeader title="لابراتوار" subtitle={<>{formatNumber(orders.length)} سفارش</>}>
+        <button onClick={() => setShowLabForm(true)} className="btn-secondary">+ لابراتوار جدید</button>
+        <button onClick={() => setShowOrderForm(true)} className="btn-primary">
+          <Plus size={16} />
+          سفارش جدید
+        </button>
       </PageHeader>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatTile label="لابراتوارها" value={formatNumber(labs.length)} icon={FlaskConical} tone="secondary" />
-        <StatTile label="سفارشات در انتظار" value={formatNumber(pendingOrders)} icon={Clock} tone="warning" valueClassName="text-warning-600" delay={100} />
-        <StatTile label="هزینه کل لابراتوار" value={formatCurrency(totalLabCost)} icon={DollarSign} tone="primary" size="lg" delay={200} />
-        <StatTile label="بدهی به لابراتوارها" value={formatCurrency(totalLabDebt)} icon={DollarSign} tone="error" size="lg" valueClassName="text-error-600" delay={300} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatTile label="کل سفارشات" value={formatNumber(orders.length)} valueClassName="text-surface-700" />
+        <StatTile label="در حال انجام" value={formatNumber(pendingOrders)} valueClassName="text-secondary-600" />
+        <StatTile label="هزینه کل" value={formatCurrency(totalLabCost)} valueClassName="text-surface-700" />
+        <StatTile label="بدهی کل" value={formatCurrency(totalLabDebt)} valueClassName="text-error-600" />
       </div>
 
-      <Tabs tabs={tabs} active={tab} onChange={setTab} scrollable={false} />
+      <Tabs tabs={tabs} active={tab} onChange={setTab} fit />
 
       {loading ? (
         <div className="space-y-3">
-          <SkeletonList count={3} className="h-20" />
+          <SkeletonList count={3} className="h-24" />
         </div>
       ) : tab === 'orders' ? (
-        orders.length === 0 ? (
-          <EmptyState icon={Package} title="هیچ سفارشی" description="سفارش لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowOrderForm(true)} className="btn-primary"><Plus size={18} />سفارش جدید</button>} />
+        <div className="space-y-4">
+          <ChoiceChips options={orderFilters} value={statusFilter} onChange={setStatusFilter} />
+          {filteredOrders.length === 0 ? (
+            <EmptyState icon={Package} title="سفارشی یافت نشد" description="سفارش لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowOrderForm(true)} className="btn-primary"><Plus size={16} />سفارش جدید</button>} />
+          ) : (
+            <div className="space-y-3">
+              {filteredOrders.map((order) => {
+                const step = nextStep[order.status];
+                return (
+                  <div key={order.id} className="card p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <button onClick={() => onOpenPatient(order.patient_id)} className="text-sm font-semibold text-surface-800 hover:text-primary-600 transition-colors">
+                            {fullName(order.patient)}
+                          </button>
+                          {order.tooth_numbers && <span className="text-xs bg-surface-100 text-surface-600 px-1.5 py-0.5 rounded-sm">دندان {order.tooth_numbers}</span>}
+                        </div>
+                        <p className="text-xs text-surface-600 mb-1">{order.service_name} · {order.lab?.name || 'نامشخص'}</p>
+                        <div className="flex flex-wrap gap-x-3 text-xs text-surface-400">
+                          <span>ثبت: {formatDateNumeric(order.order_date)}</span>
+                          {order.due_date && <span>تحویل: {formatDateNumeric(order.due_date)}</span>}
+                        </div>
+                      </div>
+                      <div className="text-left shrink-0">
+                        <p className="text-sm font-bold text-surface-800 mb-1">{formatCurrency(order.price)}</p>
+                        <StatusBadge status={statusStyle(labOrderStatus, order.status, 'pending')} />
+                      </div>
+                    </div>
+                    {step && (
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100">
+                        <button onClick={() => advanceOrder(order)} className={`btn-chip ${step.className}`}>{step.action}</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : tab === 'labs' ? (
+        labs.length === 0 ? (
+          <EmptyState icon={FlaskConical} title="لابراتواری ثبت نشده" description="لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowLabForm(true)} className="btn-primary"><Plus size={16} />لابراتوار جدید</button>} />
         ) : (
           <div className="space-y-3">
-            {orders.map((order, i) => {
-              const step = nextStep[order.status];
+            {labs.map((lab) => {
+              const services = labServices.filter((svc) => svc.lab_id === lab.id);
               return (
-                <div key={order.id} className="card card-hover p-4 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
-                  <div className="flex items-start gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-secondary-50 flex items-center justify-center shrink-0">
-                      <FlaskConical size={20} className="text-secondary-500" />
+                <div key={lab.id} className="card p-5">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-surface-800">{lab.name}</h3>
+                      <p className="text-xs text-surface-500 mt-0.5">{[lab.phone, lab.contact_person, lab.email].filter(Boolean).join(' · ')}</p>
+                      {lab.address && <p className="text-xs text-surface-400">{lab.address}</p>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-surface-800 text-sm">{order.service_name}</p>
-                      <button onClick={() => onOpenPatient(order.patient_id)} className="text-xs text-primary-600 hover:text-primary-700 mt-0.5">
-                        {fullName(order.patient)}
-                      </button>
-                      <p className="text-xs text-surface-400 mt-0.5">{order.lab?.name || 'نامشخص'} • {formatDate(order.order_date)}</p>
-                      {order.tooth_numbers && <p className="text-xs text-surface-400">دندان‌ها: {order.tooth_numbers}</p>}
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-surface-800 text-sm">{formatCurrency(order.price)}</p>
-                      <StatusBadge status={statusStyle(labOrderStatus, order.status, 'pending')} showIcon className="mt-1" />
+                    <div className="text-left shrink-0">
+                      {lab.balance > 0 ? (
+                        <>
+                          <p className="text-xs text-surface-400">بدهی به لابراتوار</p>
+                          <p className="text-base font-bold text-error-600">{formatCurrency(lab.balance)}</p>
+                        </>
+                      ) : (
+                        <span className="badge border bg-accent-50 text-accent-700 border-accent-200">تسویه شده</span>
+                      )}
                     </div>
                   </div>
-                  {step && (
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-surface-100">
-                      <button onClick={() => advanceOrder(order)} className="btn-ghost text-xs">{step.action}</button>
+                  {services.length > 0 && (
+                    <div className="pt-3 border-t border-surface-100">
+                      <p className="text-xs font-medium text-surface-600 mb-2">خدمات:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {services.map((svc) => (
+                          <span key={svc.id} className="text-xs bg-surface-50 border border-surface-200 text-surface-600 px-2 py-1 rounded-lg">{svc.name} - {formatCurrency(svc.price)}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
+                  <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100">
+                    <button onClick={() => { setSelectedLab(lab); setShowPaymentForm(true); }} className="btn-chip bg-accent-600 border-accent-600 text-white hover:bg-accent-700">
+                      {lab.balance > 0 ? 'تسویه / ثبت پرداخت' : 'ثبت پرداخت'}
+                    </button>
+                    <button onClick={() => { setSelectedLab(lab); setShowOrderForm(true); }} className="btn-chip bg-white border-surface-200 text-surface-600 hover:bg-surface-50">
+                      <Plus size={12} />
+                      سفارش
+                    </button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )
-      ) : tab === 'labs' ? (
-        labs.length === 0 ? (
-          <EmptyState icon={FlaskConical} title="هیچ لابراتواری" description="لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowLabForm(true)} className="btn-primary"><Plus size={18} />لابراتوار جدید</button>} />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {labs.map((lab, i) => (
-              <div key={lab.id} className="card card-hover p-5 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
-                <div className="flex items-start gap-3">
-                  <Avatar tone="secondary" className="w-12 h-12 rounded-xl shrink-0">{lab.name.charAt(0)}</Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-surface-800 text-sm truncate">{lab.name}</h3>
-                    {lab.contact_person && <p className="text-xs text-surface-400 mt-0.5">{lab.contact_person}</p>}
-                  </div>
-                </div>
-                <div className="space-y-1.5 mt-3 pt-3 border-t border-surface-100">
-                  {lab.phone && <p className="flex items-center gap-2 text-xs text-surface-500"><Phone size={12} /> {lab.phone}</p>}
-                  {lab.email && <p className="flex items-center gap-2 text-xs text-surface-500"><Mail size={12} /> {lab.email}</p>}
-                  {lab.address && <p className="flex items-center gap-2 text-xs text-surface-500"><MapPin size={12} /> {lab.address}</p>}
-                </div>
-                {lab.balance > 0 && (
-                  <div className="mt-3 px-3 py-2 bg-error-50 rounded-xl">
-                    <p className="text-xs text-error-600 font-medium">بدهی: {formatCurrency(lab.balance)}</p>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mt-3">
-                  <button onClick={() => { setSelectedLab(lab); setShowPaymentForm(true); }} className="btn-secondary text-xs flex-1">
-                    <DollarSign size={14} />
-                    ثبت پرداخت
-                  </button>
-                  <button onClick={() => { setSelectedLab(lab); setShowOrderForm(true); }} className="btn-ghost text-xs">
-                    <Plus size={14} />
-                    سفارش
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
+      ) : labPayments.length === 0 ? (
+        <EmptyState icon={Wallet} title="پرداختی ثبت نشده" description="پرداخت به لابراتوارها اینجا ثبت می‌شود" />
       ) : (
-        labPayments.length === 0 ? (
-          <EmptyState icon={DollarSign} title="هیچ پرداختی" description="پرداخت به لابراتوارها اینجا ثبت می‌شود" />
-        ) : (
-          <div className="space-y-3">
-            {labPayments.map((pay, i) => (
-              <div key={pay.id} className="card p-4 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-accent-50 flex items-center justify-center shrink-0">
-                    <DollarSign size={18} className="text-accent-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-surface-800 text-sm">{formatCurrency(pay.amount)}</p>
-                    <p className="text-xs text-surface-400 mt-0.5">{pay.lab?.name || 'نامشخص'} • {formatDate(pay.payment_date)}</p>
-                  </div>
-                  <span className="badge bg-surface-100 text-surface-500">{paymentMethodLabel(pay.payment_method)}</span>
-                </div>
+        <div className="card p-5">
+          <SectionHeader title="پرداخت‌ها به لابراتوارها" note={formatCurrency(labPayments.reduce((sum, p) => sum + p.amount, 0))} className="mb-3" />
+          <div className="space-y-1">
+            {labPayments.map((pay) => (
+              <div key={pay.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-50 text-sm">
+                <span className="text-surface-400 text-xs w-20 shrink-0">{formatDateNumeric(pay.payment_date)}</span>
+                <span className="text-surface-700 flex-1 min-w-0 truncate">{pay.lab?.name || 'نامشخص'}</span>
+                <span className="text-xs bg-surface-100 text-surface-600 px-1.5 py-0.5 rounded-sm">{paymentMethodLabel(pay.payment_method)}</span>
+                <span className="font-semibold text-surface-800">{formatCurrency(pay.amount)}</span>
               </div>
             ))}
           </div>
-        )
+        </div>
       )}
 
       {showLabForm && (

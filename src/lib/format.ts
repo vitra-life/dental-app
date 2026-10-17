@@ -17,6 +17,11 @@ export function formatTime(time: string): string {
   return `${displayHour}:${m} ${period}`;
 }
 
+/** `14:30:00` → `14:30`: the 24-hour clock, for tight spots where the AM/PM suffix doesn't fit. */
+export function formatClock(time: string): string {
+  return time.slice(0, 5);
+}
+
 export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`;
 }

@@ -44,14 +44,14 @@ export function StaffTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(staff.length)} عضو</p>
-        <button onClick={addStaff} className="btn-primary"><Plus size={18} />افزودن عضو</button>
+        <h2 className="text-sm font-semibold text-surface-700">پرسنل ({formatNumber(staff.length)})</h2>
+        <button onClick={addStaff} className="btn-primary"><Plus size={16} />عضو جدید</button>
       </div>
       <div className="space-y-3">
         {staff.map((s) => (
           <div key={s.id} className="card p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shrink-0" style={{ backgroundColor: s.color }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0" style={{ backgroundColor: s.color }}>
                 {s.full_name.charAt(0)}
               </div>
               <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -61,9 +61,9 @@ export function StaffTab() {
                 </select>
                 <input className="input-field" value={s.phone || ''} onChange={(e) => edit(s.id, { phone: e.target.value })} placeholder="تلفن" />
                 <div className="flex items-center gap-2">
-                  <input type="color" className="w-10 h-10 rounded-lg border border-surface-200" value={s.color} onChange={(e) => edit(s.id, { color: e.target.value })} />
+                  <input type="color" className="w-9 h-9 rounded-lg border border-surface-200 shrink-0" value={s.color} onChange={(e) => edit(s.id, { color: e.target.value })} />
                   <button onClick={() => saveStaff(s)} className="btn-secondary text-xs">ذخیره</button>
-                  <button onClick={() => deleteStaff(s.id)} className="p-2 rounded-lg hover:bg-error-50"><Trash2 size={16} className="text-error-400" /></button>
+                  <button onClick={() => deleteStaff(s.id)} title="حذف" className="p-2 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500"><Trash2 size={16} /></button>
                 </div>
               </div>
             </div>

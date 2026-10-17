@@ -1,28 +1,21 @@
 import type { ReactNode } from 'react';
-import type { LucideIcon } from 'lucide-react';
-import { IconBox } from './icon-box';
-import type { Tone } from './tones';
 
 interface SectionHeaderProps {
   title: string;
-  subtitle: string;
-  icon: LucideIcon;
-  tone: Tone;
-  /** Replaces the icon box, for headers that show more than an icon. */
+  /** A short note shown opposite the title, e.g. the period a chart covers. */
+  note?: string;
+  /** Replaces the note, for headers that need a button or a badge. */
   aside?: ReactNode;
   /** Bottom margin. */
   className?: string;
 }
 
-/** The title row of a card: heading and subtitle, with an icon box opposite. */
-export function SectionHeader({ title, subtitle, icon, tone, aside, className = 'mb-6' }: SectionHeaderProps) {
+/** The title row of a card. */
+export function SectionHeader({ title, note, aside, className = 'mb-4' }: SectionHeaderProps) {
   return (
-    <div className={`flex items-center justify-between ${className}`}>
-      <div>
-        <h3 className="font-bold text-surface-800">{title}</h3>
-        <p className="text-xs text-surface-400 mt-0.5">{subtitle}</p>
-      </div>
-      {aside ?? <IconBox icon={icon} tone={tone} />}
+    <div className={`flex items-center justify-between gap-3 ${className}`}>
+      <h2 className="text-sm font-semibold text-surface-700">{title}</h2>
+      {aside ?? (note && <span className="text-xs text-surface-400 bg-surface-50 px-2 py-1 rounded-lg">{note}</span>)}
     </div>
   );
 }

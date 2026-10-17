@@ -15,10 +15,7 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
     <div className="space-y-4">
       {/* Bundles on offer */}
       <div className="card p-5">
-        <h3 className="font-bold text-surface-800 text-sm mb-4 flex items-center gap-2">
-          <Package size={18} className="text-primary-500" />
-          خرید بسته پیامک
-        </h3>
+        <h2 className="text-sm font-semibold text-surface-700 mb-4">خرید بسته پیامک</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {SMS_PACKAGE_OFFERS.map((offer, i) => (
             <button
@@ -26,8 +23,8 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
               onClick={() => onBuy(offer)}
               className="p-4 border border-surface-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 transition-all text-center group"
             >
-              <div className="w-12 h-12 rounded-xl bg-linear-to-br/srgb from-primary-100 to-primary-50 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <Package size={20} className="text-primary-600" />
+              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center mx-auto mb-3">
+                <Package size={18} strokeWidth={1.8} className="text-primary-600" />
               </div>
               <p className="font-bold text-surface-800 text-sm">{formatNumber(offer.credits)} پیامک</p>
               <p className="text-xs text-surface-400 mt-1">{formatCurrency(offer.price)}</p>
@@ -39,24 +36,24 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
 
       {/* Purchased bundles */}
       <div>
-        <h3 className="font-bold text-surface-800 text-sm mb-3">بسته‌های خریداری شده</h3>
+        <h2 className="text-sm font-semibold text-surface-700 mb-3">بسته‌های خریداری شده</h2>
         {packages.length === 0 ? (
           <p className="text-sm text-surface-400 text-center py-6">هنوز بسته‌ای خریداری نشده است</p>
         ) : (
           <div className="space-y-3">
-            {packages.map((pkg, i) => {
+            {packages.map((pkg) => {
               const isExpired = pkg.expiry_date !== null && isPast(pkg.expiry_date);
               return (
-                <div key={pkg.id} className="card p-4 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
+                <div key={pkg.id} className="card p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <p className="font-medium text-surface-800 text-sm">{pkg.package_name}</p>
                       <p className="text-xs text-surface-400 mt-0.5">
                         خرید: {formatDate(pkg.purchase_date)}
-                        {pkg.expiry_date && ` • انقضا: ${formatDate(pkg.expiry_date)}`}
+                        {pkg.expiry_date && ` · انقضا: ${formatDate(pkg.expiry_date)}`}
                       </p>
                     </div>
-                    <span className={`badge ${isExpired ? 'bg-error-50 text-error-600' : pkg.status === 'active' ? 'bg-accent-50 text-accent-600' : 'bg-surface-100 text-surface-500'}`}>
+                    <span className={`badge border ${isExpired ? 'bg-error-50 text-error-600 border-error-200' : pkg.status === 'active' ? 'bg-accent-50 text-accent-700 border-accent-200' : 'bg-surface-100 text-surface-600 border-surface-200'}`}>
                       {isExpired ? 'منقضی' : pkg.status === 'active' ? 'فعال' : 'غیرفعال'}
                     </span>
                   </div>
@@ -64,7 +61,7 @@ export function SmsPackagesTab({ packages, onBuy }: SmsPackagesTabProps) {
                     <span>{formatNumber(pkg.used_credits)} استفاده شده از {formatNumber(pkg.total_credits)}</span>
                     <span className="font-medium text-primary-600">{formatNumber(pkg.remaining_credits)} باقی‌مانده</span>
                   </div>
-                  <ProgressBar value={percent(pkg.used_credits, pkg.total_credits)} barClassName="bg-linear-to-l/srgb from-primary-500 to-accent-400" />
+                  <ProgressBar value={percent(pkg.used_credits, pkg.total_credits)} />
                 </div>
               );
             })}

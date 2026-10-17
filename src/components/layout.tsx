@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -10,11 +10,13 @@ import {
   Settings,
   Menu,
   X,
-  Stethoscope,
   Bell,
-  Search,
   MessageSquare,
+  ChevronRight,
+  type LucideIcon,
 } from 'lucide-react';
+import logo from '@/assets/vitra-life-logo.svg';
+import * as db from '@/lib/store';
 import type { PageKey } from '@/lib/types';
 
 interface LayoutProps {
@@ -23,155 +25,164 @@ interface LayoutProps {
   onNavigate: (page: PageKey) => void;
 }
 
-const navItems: { key: PageKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'dashboard', label: 'داشبورد', icon: <LayoutDashboard size={20} /> },
-  { key: 'patients', label: 'بیماران', icon: <Users size={20} /> },
-  { key: 'appointments', label: 'نوبت‌دهی', icon: <CalendarDays size={20} /> },
-  { key: 'billing', label: 'صورتحساب', icon: <Receipt size={20} /> },
-  { key: 'lab', label: 'لابراتوار', icon: <FlaskConical size={20} /> },
-  { key: 'reports', label: 'گزارش‌ها', icon: <BarChart3 size={20} /> },
-  { key: 'ai', label: 'دستیار هوشمند', icon: <Sparkles size={20} /> },
-  { key: 'sms', label: 'پنل پیامک', icon: <MessageSquare size={20} /> },
-  { key: 'settings', label: 'تنظیمات', icon: <Settings size={20} /> },
+const navItems: { key: PageKey; label: string; icon: LucideIcon }[] = [
+  { key: 'dashboard', label: 'داشبورد', icon: LayoutDashboard },
+  { key: 'patients', label: 'بیماران', icon: Users },
+  { key: 'appointments', label: 'نوبت‌دهی', icon: CalendarDays },
+  { key: 'billing', label: 'صورتحساب', icon: Receipt },
+  { key: 'lab', label: 'لابراتوار', icon: FlaskConical },
+  { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
+  { key: 'sms', label: 'پنل پیامک', icon: MessageSquare },
+  { key: 'settings', label: 'تنظیمات', icon: Settings },
 ];
+
+const COLLAPSED_KEY = 'dentaclinic:sidebar-collapsed';
+
+interface SidebarContentProps {
+  currentPage: PageKey;
+  onNavigate: (page: PageKey) => void;
+  collapsed: boolean;
+}
+
+/** The menu, the assistant entry and the signed-in user: shared by the desktop sidebar and the mobile drawer. */
+function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentProps) {
+  const aiActive = currentPage === 'ai';
+  return (
+    <>
+      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+        {navItems.map(({ key, label, icon: Icon }) => {
+          const active = currentPage === key;
+          return (
+            <button
+              key={key}
+              onClick={() => onNavigate(key)}
+              title={collapsed ? label : undefined}
+              className={`nav-item w-full ${collapsed ? 'justify-center' : ''} ${active ? 'nav-item-active' : 'nav-item-inactive'}`}
+            >
+              <Icon size={20} strokeWidth={1.8} className={`shrink-0 ${active ? 'text-primary-600' : ''}`} />
+              {!collapsed && <span>{label}</span>}
+              {!collapsed && active && <span className="mr-auto w-1.5 h-1.5 rounded-full bg-primary-500" />}
+            </button>
+          );
+        })}
+
+        <div className="pt-2 mt-1 border-t border-surface-100">
+          <button
+            onClick={() => onNavigate('ai')}
+            title={collapsed ? 'دستیار هوشمند' : undefined}
+            className={`nav-item w-full font-semibold bg-linear-to-l/srgb ${collapsed ? 'justify-center' : ''} ${
+              aiActive ? 'from-violet-500 to-primary-500 text-white shadow-md' : 'from-violet-50 to-primary-50 text-violet-700 hover:from-violet-100 hover:to-primary-100'
+            }`}
+          >
+            <Sparkles size={20} strokeWidth={1.8} className="shrink-0" />
+            {!collapsed && <span>دستیار هوشمند</span>}
+            {!collapsed && !aiActive && <span className="mr-auto text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-medium">جدید</span>}
+          </button>
+        </div>
+      </nav>
+
+      <div className={`p-3 border-t border-surface-100 ${collapsed ? 'flex justify-center' : ''}`}>
+        <div className={`flex items-center gap-3 ${collapsed ? '' : 'px-2 py-1.5'}`}>
+          <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold shrink-0">س</div>
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-surface-700 truncate">دکتر سارا احمدی</p>
+              <p className="text-xs text-surface-400">مدیر کلینیک</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const mainRef = useRef<HTMLElement>(null);
+  const clinicName = db.first('clinic_settings')?.name ?? 'سیستم مدیریت دندانپزشکی';
 
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 8);
-    window.addEventListener('scroll', handler);
-    return () => window.removeEventListener('scroll', handler);
-  }, []);
-
+  // The page scrolls inside <main>, so a new page starts from its top.
   useEffect(() => {
     setMobileOpen(false);
+    mainRef.current?.scrollTo?.(0, 0);
   }, [currentPage]);
 
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
+    } catch {
+      // The preference just isn't remembered.
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-surface-50 flex">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 fixed inset-y-0 right-0 bg-white border-l border-surface-100 z-30">
-        <div className="flex items-center gap-3 px-5 h-16 border-b border-surface-100">
-          <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-200">
-            <Stethoscope className="text-white" size={22} />
-          </div>
-          <div>
-            <h1 className="font-bold text-surface-800 text-base leading-tight">دنتاکلینیک</h1>
-            <p className="text-[11px] text-surface-400 leading-tight">سیستم مدیریت دندانپزشکی</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => onNavigate(item.key)}
-              className={`nav-item w-full ${currentPage === item.key ? 'nav-item-active' : 'nav-item-inactive'}`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-              {currentPage === item.key && (
-                <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary-500 rounded-l-full" />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-surface-100">
-          <div className="flex items-center gap-3 p-2">
-            <div className="w-9 h-9 rounded-full bg-linear-to-br/srgb from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
-              س
-            </div>
+    <div className="flex h-screen bg-surface-50 overflow-hidden">
+      {/* Desktop sidebar */}
+      <aside className={`${collapsed ? 'w-16' : 'w-60'} hidden md:flex flex-col bg-white border-l border-surface-200 transition-all duration-200 ease-in-out shrink-0 h-full z-20`}>
+        <div className={`flex items-center gap-3 p-4 border-b border-surface-100 ${collapsed ? 'flex-col' : ''}`}>
+          <img src={logo} alt="" className="w-8 h-8 shrink-0" />
+          {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-surface-700 truncate">دکتر سارا احمدی</p>
-              <p className="text-[11px] text-surface-400 truncate">مدیر کلینیک</p>
+              <p className="text-sm font-bold text-surface-800 truncate">ویترا لایف</p>
+              <p className="text-xs text-surface-400 truncate">{clinicName}</p>
             </div>
-          </div>
+          )}
+          <button onClick={toggleCollapsed} title={collapsed ? 'باز کردن منو' : 'جمع کردن منو'} className="p-1 rounded-lg hover:bg-surface-100 text-surface-400 transition-colors shrink-0">
+            <ChevronRight size={16} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          </button>
         </div>
+        <SidebarContent currentPage={currentPage} onNavigate={onNavigate} collapsed={collapsed} />
       </aside>
 
-      {/* Mobile Sidebar Overlay */}
-      {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-surface-900/40 backdrop-blur-xs z-40 animate-fade-in"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
-      {/* Mobile Sidebar */}
+      {/* Mobile drawer */}
+      {mobileOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setMobileOpen(false)} />}
       <aside
-        className={`lg:hidden fixed inset-y-0 right-0 w-72 bg-white z-50 transform transition-transform duration-300 ${
+        className={`fixed inset-y-0 right-0 z-50 w-60 flex flex-col bg-white border-l border-surface-200 transform transition-transform duration-200 ease-in-out md:hidden ${
           mobileOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between px-5 h-16 border-b border-surface-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center">
-              <Stethoscope className="text-white" size={22} />
-            </div>
-            <div>
-              <h1 className="font-bold text-surface-800 text-base leading-tight">دنتاکلینیک</h1>
-              <p className="text-[11px] text-surface-400">سیستم مدیریت</p>
-            </div>
+        <div className="flex items-center gap-3 p-4 border-b border-surface-100">
+          <img src={logo} alt="" className="w-8 h-8 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-surface-800 truncate">ویترا لایف</p>
+            <p className="text-xs text-surface-400 truncate">{clinicName}</p>
           </div>
-          <button onClick={() => setMobileOpen(false)} className="p-2 rounded-lg hover:bg-surface-100">
-            <X size={20} className="text-surface-500" />
+          <button onClick={() => setMobileOpen(false)} className="p-1 rounded-lg text-surface-400 hover:bg-surface-100">
+            <X size={20} />
           </button>
         </div>
-
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => onNavigate(item.key)}
-              className={`nav-item w-full ${currentPage === item.key ? 'nav-item-active' : 'nav-item-inactive'}`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
+        <SidebarContent currentPage={currentPage} onNavigate={onNavigate} collapsed={false} />
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 lg:mr-64 flex flex-col min-h-screen">
-        {/* Top Header */}
-        <header
-          className={`sticky top-0 z-20 h-16 flex items-center justify-between px-4 lg:px-8 transition-all duration-300 ${
-            scrolled ? 'glass border-b border-surface-100' : 'bg-transparent'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="lg:hidden p-2 rounded-xl hover:bg-surface-100"
-            >
-              <Menu size={22} className="text-surface-600" />
-            </button>
-            <div className="hidden sm:flex items-center gap-2 bg-surface-100 rounded-xl px-3.5 py-2 w-64">
-              <Search size={16} className="text-surface-400" />
-              <input
-                type="text"
-                placeholder="جستجو..."
-                className="bg-transparent text-sm outline-hidden flex-1 placeholder:text-surface-400 text-surface-700"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button className="relative p-2.5 rounded-xl hover:bg-surface-100 transition-colors">
-              <Bell size={20} className="text-surface-600" />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className="h-14 bg-white border-b border-surface-200 flex items-center justify-between px-4 md:px-6 shrink-0 z-10">
+          <button onClick={() => setMobileOpen(true)} className="md:hidden p-2 rounded-lg hover:bg-surface-100 text-surface-500">
+            <Menu size={20} />
+          </button>
+          <div className="flex items-center gap-3 mr-auto">
+            <button className="relative p-2 rounded-lg hover:bg-surface-100 text-surface-500 transition-colors">
+              <Bell size={20} strokeWidth={1.8} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error-500 rounded-full" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-linear-to-br/srgb from-secondary-400 to-secondary-600 flex items-center justify-center text-white text-sm font-bold">
-              س
-            </div>
+            <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-semibold">س</div>
           </div>
         </header>
-
-        <main className="flex-1 px-4 lg:px-8 py-6 animate-fade-in">{children}</main>
+        <main ref={mainRef} className="flex-1 overflow-y-auto">
+          <div key={currentPage} className="p-4 md:p-6 animate-fade-in">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

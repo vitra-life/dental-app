@@ -1,14 +1,15 @@
 import { AlertTriangle, CalendarDays, Clock, TrendingUp, Users, type LucideIcon } from 'lucide-react';
-import { daysFromToday, formatDateShort, monthsBeforeToday } from '@/lib/date';
+import { daysFromToday, formatDateShort, monthsBeforeToday, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, formatTime } from '@/lib/format';
 import { monthOverMonth } from '@/lib/revenue';
-import { findFreeSlots, type FreeSlot } from '@/lib/schedule';
+import { clinicWorkingHours, findFreeSlots, type FreeSlot } from '@/lib/schedule';
+import { patientBalances } from '@/lib/patient-balance';
 import * as db from '@/lib/store';
-import type { PageKey, Patient } from '@/lib/types';
+import type { Appointment, PageKey, Patient } from '@/lib/types';
 
 /**
  * The "AI assistant" calls no language model. It derives insights from the
- * store's data and answers questions by matching Persian keywords.
+ * clinic's data and answers questions by matching Persian keywords.
  */
 
 export interface Insight {
@@ -35,23 +36,28 @@ export interface AssistantData {
   segments: Segment[];
   /** The next free appointment slots. */
   freeSlots: FreeSlot[];
+  /** The first free slot in the next 14 days, for "when is the next free time?". */
+  nextFreeSlot: FreeSlot | null;
+  /** The figures shown above the conversation. */
+  summary: { todayAppointments: number; activePlans: number; pendingAmount: number; openLabOrders: number };
 }
 
-export function loadAssistantData(): AssistantData {
-  const patients = db.list('patients');
-  const appointments = db.list('appointments');
+/** The data that comes from the API; invoices, plans and lab orders are read from the browser store. */
+export interface AssistantInput {
+  patients: Patient[];
+  appointments: Appointment[];
+}
+
+export function loadAssistantData({ patients, appointments }: AssistantInput): AssistantData {
   const invoices = db.list('invoices');
 
-  // Latest appointment date per patient.
-  const lastVisit = new Map<string, string>();
-  for (const apt of appointments) {
-    const known = lastVisit.get(apt.patient_id);
-    if (!known || apt.appointment_date > known) lastVisit.set(apt.patient_id, apt.appointment_date);
-  }
-  const notSeenSince = (cutoff: string) => (p: Patient) => (lastVisit.get(p.id) ?? '') < cutoff;
+  // `last_visit` is the patient's latest completed appointment, computed by the API.
+  const notSeenSince = (cutoff: string) => (p: Patient) => (p.last_visit ?? '') < cutoff;
   const sixMonthsAgo = monthsBeforeToday(6);
   const inactive = patients.filter(notSeenSince(sixMonthsAgo));
-  const debtors = patients.filter((p) => p.balance > 0);
+  const balances = patientBalances();
+  const balanceOf = (p: Patient) => balances.get(p.id) ?? 0;
+  const debtors = patients.filter((p) => balanceOf(p) > 0);
 
   const insights: Insight[] = [];
 
@@ -79,7 +85,7 @@ export function loadAssistantData(): AssistantData {
   }
 
   if (debtors.length > 0) {
-    const totalDebt = debtors.reduce((s, p) => s + p.balance, 0);
+    const totalDebt = debtors.reduce((s, p) => s + balanceOf(p), 0);
     insights.push({
       id: 'pending-payments',
       type: 'alert',
@@ -144,24 +150,38 @@ export function loadAssistantData(): AssistantData {
     { label: ACTIVE_SEGMENT, count: patients.length - inactive.length, color: '#22c55e' },
   ];
 
-  return { insights, segments, freeSlots: findFreeSlots(appointments, 7, 10) };
+  const today = todayISO();
+  const summary = {
+    todayAppointments: appointments.filter((a) => a.appointment_date === today).length,
+    activePlans: db.list('treatment_plans', (p) => p.status === 'active').length,
+    pendingAmount: invoices.filter((i) => i.status !== 'paid').reduce((s, i) => s + (i.balance || 0), 0),
+    openLabOrders: db.list('lab_orders', (o) => o.status !== 'delivered').length,
+  };
+
+  const hours = clinicWorkingHours();
+  return {
+    insights,
+    segments,
+    freeSlots: findFreeSlots(appointments, 7, 8, hours),
+    nextFreeSlot: findFreeSlots(appointments, 14, 1, hours)[0] ?? null,
+    summary,
+  };
 }
 
 const HELP = `من می‌توانم در مورد موارد زیر کمک کنم:\n\n• اولین نوبت خالی کی است؟\n• وضعیت درآمد و مالی\n• بیماران غیرفعال و فرصت‌های بازگشت\n• نوبت‌های فردا\n• بدهی‌ها و مطالبات\n• درمان‌های ناتمام\n• تعداد بیماران\n• بهترین پیشنهادها\n\nسوال خود را دقیق‌تر بپرسید.`;
 
-function firstFreeSlotAnswer(): string {
-  const [slot] = findFreeSlots(db.list('appointments'), 14, 1);
+function firstFreeSlotAnswer(slot: FreeSlot | null): string {
   if (!slot) return 'در ۱۴ روز آینده هیچ نوبت خالی یافت نشد.';
   return `نزدیک‌ترین نوبت خالی:\n\n${slot.dayName}، ${formatDateShort(slot.date)}\nساعت ${formatTime(slot.time)}\n\nبرای رزرو این نوبت به بخش نوبت‌دهی مراجعه کنید.`;
 }
 
 /** Answers a free-text question by keyword, using the insights already computed. */
-export function answerQuestion(question: string, { insights, segments }: AssistantData): string {
+export function answerQuestion(question: string, { insights, segments, nextFreeSlot }: AssistantData): string {
   const q = question.trim();
   const has = (...words: string[]) => words.some((w) => q.includes(w));
   const insight = (id: string) => insights.find((i) => i.id === id);
 
-  if (isSlotQuestion(q)) return firstFreeSlotAnswer();
+  if (isSlotQuestion(q)) return firstFreeSlotAnswer(nextFreeSlot);
 
   if (has('درآمد', 'پول', 'مالی')) {
     const revenue = insights.find((i) => i.type === 'revenue');

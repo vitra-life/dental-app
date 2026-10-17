@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Image, Plus } from 'lucide-react';
-import { EmptyState } from '@/components/ui/empty-state';
+import { SectionHeader } from '@/components/ui/section-header';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/format';
 import * as db from '@/lib/store';
@@ -46,21 +46,26 @@ export function RvgManager({ patientId }: { patientId: string }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-surface-500">{formatNumber(images.length)} تصویر ثبت شده</p>
-        <button onClick={() => setShowAdd(!showAdd)} className="btn-primary">
-          <Plus size={16} />
-          افزودن تصویر
-        </button>
-      </div>
+    <div className="card p-5">
+      <SectionHeader
+        title={`تصاویر رادیوگرافی (${formatNumber(images.length)})`}
+        aside={
+          <div className="flex gap-2">
+            <button onClick={() => showToast('دستگاه RVG متصل نیست', 'info')} className="btn-secondary text-xs px-3 py-1.5">اتصال به RVG</button>
+            <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
+              <Plus size={14} />
+              افزودن تصویر
+            </button>
+          </div>
+        }
+      />
 
       {showAdd && (
-        <div className="p-4 bg-surface-50 rounded-xl space-y-3 animate-slide-down">
+        <div className="p-4 mb-4 bg-surface-50 rounded-xl space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="label-field">آدرس تصویر</label>
-              <input className="input-field" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
+              <input className="input-field" dir="ltr" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." />
             </div>
             <div>
               <label className="label-field">شماره دندان</label>
@@ -79,16 +84,14 @@ export function RvgManager({ patientId }: { patientId: string }) {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <SkeletonList count={3} className="h-40" variant="inset" />
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <SkeletonList count={3} className="aspect-square" variant="inset" />
         </div>
-      ) : images.length === 0 ? (
-        <EmptyState icon={Image} title="هیچ تصویری ثبت نشده" description="تصاویر رادیولوژی بیمار را اینجا اضافه کنید" />
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {images.map((img) => (
-            <div key={img.id} className="group relative overflow-hidden rounded-xl border border-surface-100 bg-surface-50">
-              <img src={img.image_url} alt={img.description || 'RVG'} className="w-full h-40 object-cover" />
+            <div key={img.id} className="group relative aspect-square overflow-hidden rounded-xl border border-surface-100 bg-surface-100">
+              <img src={img.image_url} alt={img.description || 'RVG'} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-linear-to-t/srgb from-surface-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
                 <p className="text-white text-xs font-medium">{img.description || 'تصویر RVG'}</p>
                 {img.tooth_number && <p className="text-white/70 text-[11px]">دندان شماره {formatNumber(img.tooth_number)}</p>}
@@ -99,6 +102,13 @@ export function RvgManager({ patientId }: { patientId: string }) {
               </div>
             </div>
           ))}
+          <button
+            onClick={() => setShowAdd(true)}
+            className="aspect-square bg-surface-50 rounded-xl flex flex-col items-center justify-center text-surface-400 border-2 border-dashed border-surface-200 hover:bg-surface-100 transition-colors"
+          >
+            <Image size={30} strokeWidth={1.5} className="mb-2" />
+            <span className="text-xs">افزودن تصویر</span>
+          </button>
         </div>
       )}
     </div>

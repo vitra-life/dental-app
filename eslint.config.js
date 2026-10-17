@@ -21,6 +21,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Pages read the (synchronous) store in an effect and put the rows in state.
+      // That costs one extra render on mount; the rule would have every page restructured.
+      'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

@@ -3,15 +3,15 @@ import { CheckCircle2, Clock, DollarSign, Wallet } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { Modal } from '@/components/ui/modal';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { invoiceStatus, statusStyle } from '@/constants/status';
 import { formatDate, isPast, todayISO } from '@/lib/date';
-import { formatCurrency, formatNumber, paymentMethodLabel } from '@/lib/format';
+import { formatCurrency, formatNumber, paymentMethodLabel, percent } from '@/lib/format';
 import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Installment, Invoice, InvoiceItem, Payment } from '@/lib/types';
-import { syncPatientBalance } from './patient-balance';
 
 const paymentMethods = (['cash', 'card', 'online', 'transfer'] as const).map((m) => ({ value: m, label: paymentMethodLabel(m) }));
 
@@ -57,8 +57,6 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
       status: newStatus,
     });
 
-    syncPatientBalance(invoice.patient_id);
-
     if (invoice.payment_type === 'installment' && installments.length > 0) {
       const unpaid = installments.find((inst) => !inst.paid);
       if (unpaid) {
@@ -89,20 +87,25 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
         <Skeleton className="h-40" variant="inset" />
       ) : (
         <div className="space-y-5">
-          <div className="flex items-center justify-between p-4 bg-surface-50 rounded-xl">
-            <div>
-              <p className="text-xs text-surface-400">مبلغ کل</p>
-              <p className="text-lg font-bold text-surface-800">{formatCurrency(invoice.total)}</p>
+          <div className="p-4 bg-surface-50 rounded-xl">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="grid grid-cols-3 gap-4 flex-1 text-sm">
+                <div>
+                  <p className="text-xs text-surface-400">مبلغ کل</p>
+                  <p className="font-bold text-surface-800">{formatCurrency(invoice.total)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-surface-400">پرداخت شده</p>
+                  <p className="font-semibold text-accent-600">{formatCurrency(invoice.paid_amount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-surface-400">مانده</p>
+                  <p className="font-semibold text-warning-600">{formatCurrency(invoice.balance)}</p>
+                </div>
+              </div>
+              <StatusBadge status={statusStyle(invoiceStatus, invoice.status, 'unpaid')} />
             </div>
-            <div>
-              <p className="text-xs text-surface-400">پرداخت شده</p>
-              <p className="text-sm font-medium text-accent-600">{formatCurrency(invoice.paid_amount)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-surface-400">باقی‌مانده</p>
-              <p className="text-sm font-medium text-error-600">{formatCurrency(invoice.balance)}</p>
-            </div>
-            <StatusBadge status={statusStyle(invoiceStatus, invoice.status, 'unpaid')} />
+            <ProgressBar value={percent(invoice.paid_amount, invoice.total)} barClassName="bg-accent-500" />
           </div>
 
           <div>
@@ -193,12 +196,12 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
           {invoice.balance > 0 && (
             <div className="border-t border-surface-100 pt-4">
               {!showPayment ? (
-                <button onClick={() => { setPayAmount(invoice.balance); setShowPayment(true); }} className="btn-primary w-full">
+                <button onClick={() => { setPayAmount(invoice.balance); setShowPayment(true); }} className="btn-primary w-full py-2.5 bg-accent-600 hover:bg-accent-700">
                   <DollarSign size={18} />
                   ثبت پرداخت
                 </button>
               ) : (
-                <div className="space-y-3 animate-slide-down">
+                <div className="space-y-3">
                   <div>
                     <label className="label-field">مبلغ پرداخت (تومان)</label>
                     <input type="number" className="input-field" value={payAmount} onChange={(e) => setPayAmount(parseFloat(e.target.value) || 0)} />

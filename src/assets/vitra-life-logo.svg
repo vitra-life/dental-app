@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="70 69 372 372" fill="none">
+  <defs>
+    <linearGradient id="blue" x1="80" y1="95" x2="345" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7B9FF7"/>
+      <stop offset="0.55" stop-color="#648BEA"/>
+      <stop offset="1" stop-color="#A4B7F3"/>
+    </linearGradient>
+    <linearGradient id="green" x1="273" y1="103" x2="414" y2="329" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#63D9BD"/>
+      <stop offset="0.55" stop-color="#55D5B5"/>
+      <stop offset="1" stop-color="#A5E8D9"/>
+    </linearGradient>
+    <linearGradient id="overlap" x1="258" y1="185" x2="340" y2="355" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2875D3" stop-opacity="0.82"/>
+      <stop offset="1" stop-color="#2C86D8" stop-opacity="0.58"/>
+    </linearGradient>
+  </defs>
+  <!-- Left lobe -->
+  <path d="M126 91 C101 90 82 100 78.5 123 C74 151 89 181 103 210 L157 333 C171 365 192 395 221 410 C243 422 267 423 286 410 C310 395 327 372 338 347 C350 319 347 295 335 267 C321 236 296 208 273 181 C247 151 217 121 184 102 C163 90 143 87 126 91 Z" fill="url(#blue)"/>
+  <!-- Right lobe -->
+  <path d="M274 191 C291 161 307 132 326 113 C342 97 362 91 381 97 C407 105 426 122 432 142 C438 163 428 188 417 207 L338 335 C328 351 316 368 302 381 C316 365 326 347 336 326 C346 304 347 288 338 267 C325 237 300 210 274 191 Z" fill="url(#green)"/>
+  <!-- Overlap -->
+  <path d="M274 191 C291 208 321 238 335 267 C347 292 349 314 338 340 C328 363 311 387 286 410 C269 421 247 422 226 415 C241 407 249 391 249 368 C248 336 244 306 246 275 C248 247 257 218 274 191 Z" fill="url(#overlap)"/>
+</svg>

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ALL_SLOTS, addMinutes, bookedSlots, findFreeSlots } from './schedule';
+import { ALL_SLOTS, DEFAULT_WORKING_HOURS, addMinutes, bookedSlots, findFreeSlots, freeSlotsOn, workingSlots } from './schedule';
 
 const booking = (date: string, start: string, end: string, status = 'confirmed') => ({
   appointment_date: date,
@@ -59,5 +59,29 @@ describe('findFreeSlots', () => {
   it('moves to the next day when today is full', () => {
     const [first] = findFreeSlots([booking('2026-10-01', '09:00', '18:00')], 7, 1);
     expect(first).toEqual({ date: '2026-10-02', time: '09:00', dayName: 'جمعه' });
+  });
+});
+
+describe('working hours', () => {
+  // 2026-10-01 is a Thursday, 2026-10-02 a Friday.
+  const hours = { ...DEFAULT_WORKING_HOURS, thu: { start: '09:00', end: '11:00' } };
+
+  it('gives each weekday its own slots, and none on a closed day', () => {
+    expect(workingSlots('2026-10-01', hours)).toEqual(['09:00', '09:30', '10:00', '10:30']);
+    expect(workingSlots('2026-10-02', hours)).toEqual([]);
+    expect(workingSlots('2026-10-03', hours)).toEqual(ALL_SLOTS);
+  });
+
+  it('uses the default day for every date when no hours are set', () => {
+    expect(workingSlots('2026-10-02', null)).toEqual(ALL_SLOTS);
+  });
+
+  it('leaves out booked slots', () => {
+    expect(freeSlotsOn('2026-10-01', [booking('2026-10-01', '09:30', '10:30')], hours)).toEqual(['09:00', '10:30']);
+  });
+
+  it('skips closed days when looking for a free slot', () => {
+    const [first] = findFreeSlots([booking('2026-10-01', '09:00', '11:00')], 7, 1, hours);
+    expect(first).toEqual({ date: '2026-10-03', time: '09:00', dayName: 'شنبه' });
   });
 });

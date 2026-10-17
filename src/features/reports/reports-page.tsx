@@ -1,169 +1,151 @@
-import { useState, useEffect } from 'react';
-import { Activity, Award, BarChart3, CalendarDays, DollarSign, TrendingUp, Users } from 'lucide-react';
-import { BarChart } from '@/components/ui/bar-chart';
+import { AreaTrend, Bars, Donut } from '@/components/ui/charts';
 import { PageHeader } from '@/components/ui/page-header';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Skeleton, SkeletonList } from '@/components/ui/skeleton';
-import { formatCurrency, formatNumber, percent } from '@/lib/format';
-import { loadReportStats, type ReportStats } from './report-stats';
+import { StatTile } from '@/components/ui/stat-tile';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { statusStyle, treatmentPlanStatus } from '@/constants/status';
+import { formatCurrency, formatNumber, fullName, percent } from '@/lib/format';
+import { LoadError } from '@/components/ui/load-error';
+import { useClinicData } from '@/data/clinic-data';
+import { loadReportStats } from './report-stats';
 
-const summaryColors = {
-  accent: 'bg-accent-50 text-accent-500',
-  secondary: 'bg-secondary-50 text-secondary-500',
-  primary: 'bg-primary-50 text-primary-500',
-  warning: 'bg-warning-50 text-warning-500',
-};
-
-// Circumference of the completion ring (r = 52 in a 120×120 viewBox).
-const RING = 327;
+const planHeaders = ['بیمار', 'عنوان طرح', 'مرحله', 'جمع کل', 'انجام‌شده', 'مانده', 'وضعیت'];
 
 export function Reports() {
-  const [data, setData] = useState<ReportStats | null>(null);
+  const clinic = useClinicData();
+  const data = clinic.data ? loadReportStats(clinic.data) : null;
 
-  useEffect(() => {
-    setData(loadReportStats());
-  }, []);
+  if (!data && clinic.error) return <LoadError error={clinic.error} onRetry={clinic.refetch} />;
 
   if (!data) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <SkeletonList count={4} className="h-32" />
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <SkeletonList count={4} className="h-20" />
         </div>
-        <Skeleton className="h-80" />
+        <Skeleton className="h-72" />
       </div>
     );
   }
 
   const completionRate = percent(data.completedAppointments, data.totalAppointments);
-  const maxServiceCount = Math.max(...data.serviceStats.map((s) => s.count), 1);
   const maxStaffAppointments = Math.max(...data.staffStats.map((s) => s.appointments), 1);
 
-  const summary = [
-    { label: 'درآمد کل', value: formatCurrency(data.totalRevenue), icon: DollarSign, color: 'accent' as const },
-    { label: 'بیماران', value: formatNumber(data.totalPatients), icon: Users, color: 'secondary' as const },
-    { label: 'نوبت‌ها', value: formatNumber(data.totalAppointments), icon: CalendarDays, color: 'primary' as const },
-    { label: 'مطالبات', value: formatCurrency(data.pendingPayments), icon: TrendingUp, color: 'warning' as const },
-  ];
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader title="گزارش‌ها" subtitle="تحلیل عملکرد کلینیک" />
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {summary.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="stat-card animate-slide-up" style={{ animationDelay: `${i * 100}ms` }}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs text-surface-500 mb-2">{stat.label}</p>
-                  <p className="text-lg font-bold text-surface-800">{stat.value}</p>
-                </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${summaryColors[stat.color]}`}>
-                  <Icon size={18} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Monthly Revenue Chart */}
-      <div className="card p-6">
-        <SectionHeader title="درآمد ماهانه" subtitle="۶ ماه اخیر" icon={BarChart3} tone="accent" />
-        <BarChart
-          tone="accent"
-          className="gap-2 lg:gap-4 h-56"
-          minHeight={12}
-          compactTooltip
-          bars={data.monthlyRevenue.map((m) => ({ label: m.month, value: m.amount, tooltip: formatCurrency(m.amount) }))}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatTile label="کل درآمد دریافتی" value={formatCurrency(data.totalRevenue)} valueClassName="text-accent-600" />
+        <StatTile label="در انتظار دریافت" value={formatCurrency(data.pendingPayments)} valueClassName="text-warning-600" />
+        <StatTile
+          label="ویزیت انجام‌شده"
+          value={formatNumber(data.completedAppointments)}
+          sub={<>{formatNumber(completionRate)}٪ از {formatNumber(data.totalAppointments)} نوبت · {formatNumber(data.cancelledAppointments)} لغو</>}
+          valueClassName="text-primary-600"
         />
+        <StatTile label="طرح درمان فعال" value={formatNumber(data.activePlans)} sub={<>{formatNumber(data.totalPatients)} بیمار</>} valueClassName="text-violet-600" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Weekly Appointments */}
-        <div className="card p-6">
-          <SectionHeader title="نوبت‌های هفته" subtitle="آمار هفتگی" icon={Activity} tone="primary" />
-          <BarChart
-            tone="primary"
-            className="gap-2 h-40"
-            bars={data.weeklyAppointments.map((w) => ({ label: w.day, value: w.count, tooltip: formatNumber(w.count) }))}
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="card p-5">
+          <SectionHeader title="درآمد ماهانه (تومان)" note="۶ ماه اخیر" />
+          <AreaTrend data={data.monthlyRevenue.map((m) => ({ label: m.month, value: m.amount }))} height={220} format={formatCurrency} />
         </div>
+        <div className="card p-5">
+          <SectionHeader title="رشد بیماران" note="بیمار جدید در ماه" />
+          <Bars data={data.monthlyActivity.map((m) => ({ label: m.month, value: m.newPatients }))} height={220} format={(v) => `${formatNumber(v)} بیمار جدید`} barSize={20} />
+        </div>
+      </div>
 
-        {/* Completion Rate */}
-        <div className="card p-6">
-          <SectionHeader title="نرخ تکمیل درمان" subtitle="درصد نوبت‌های تکمیل شده" icon={Award} tone="accent" />
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="relative w-32 h-32">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="10" />
-                <circle
-                  cx="60" cy="60" r="52" fill="none" stroke="#22c55e" strokeWidth="10"
-                  strokeDasharray={`${(completionRate / 100) * RING} ${RING}`}
-                  strokeLinecap="round"
-                  className="transition-all duration-1000"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-surface-800">{formatNumber(completionRate)}%</span>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-5">
+          <SectionHeader title="پرکاربردترین خدمات" />
+          {data.serviceStats.length === 0 ? (
+            <p className="text-sm text-surface-400 text-center py-10">هنوز ویزیتی انجام نشده است</p>
+          ) : (
+            <Donut data={data.serviceStats.map((s) => ({ label: s.name, value: s.count }))} height={200} format={(v) => `${formatNumber(v)} ویزیت`} />
+          )}
+        </div>
+        <div className="lg:col-span-2 card p-5">
+          <SectionHeader title="تعداد نوبت‌ها در ماه" note="۶ ماه اخیر" />
+          <Bars data={data.monthlyActivity.map((m) => ({ label: m.month, value: m.appointments }))} height={220} format={(v) => `${formatNumber(v)} نوبت`} barSize={24} color="#06b6d4" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="card p-5">
+          <SectionHeader title="نوبت‌های هفته" note="۷ روز اخیر" />
+          <Bars data={data.weeklyAppointments.map((w) => ({ label: w.day, value: w.count }))} height={200} format={(v) => `${formatNumber(v)} نوبت`} />
+        </div>
+        <div className="card p-5">
+          <SectionHeader title="عملکرد دندانپزشکان" note="تعداد نوبت‌ها" />
+          <div className="space-y-3">
+            {data.staffStats.map((s) => (
+              <div key={s.name} className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: s.color }}>
+                  {s.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-surface-700 truncate">{s.name}</span>
+                    <span className="text-xs text-surface-400 shrink-0">{formatNumber(s.appointments)} نوبت</span>
+                  </div>
+                  <ProgressBar value={(s.appointments / maxStaffAppointments) * 100} color={s.color} />
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4 mt-4">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-accent-500" />
-                <span className="text-xs text-surface-500">تکمیل: {formatNumber(data.completedAppointments)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-error-500" />
-                <span className="text-xs text-surface-500">لغو: {formatNumber(data.cancelledAppointments)}</span>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Service Distribution */}
-      <div className="card p-6">
-        <SectionHeader title="پرکاربردترین خدمات" subtitle="آمار خدمات ارائه شده" icon={Award} tone="secondary" />
-        <div className="space-y-3">
-          {data.serviceStats.map((svc, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-surface-700 truncate">{svc.name}</span>
-                  <span className="text-xs text-surface-400">{formatNumber(svc.count)} بار</span>
-                </div>
-                <ProgressBar value={(svc.count / maxServiceCount) * 100} slow />
-              </div>
-              <span className="text-xs font-medium text-surface-600 whitespace-nowrap">{formatCurrency(svc.revenue)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Staff Performance */}
-      <div className="card p-6">
-        <SectionHeader title="عملکرد دندانپزشکان" subtitle="تعداد نوبت‌های هر پزشک" icon={Users} tone="primary" />
-        <div className="space-y-3">
-          {data.staffStats.map((s, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ backgroundColor: s.color }}>
-                {s.name.charAt(0)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-surface-700">{s.name}</span>
-                  <span className="text-xs text-surface-400">{formatNumber(s.appointments)} نوبت</span>
-                </div>
-                <ProgressBar value={(s.appointments / maxStaffAppointments) * 100} color={s.color} slow />
-              </div>
-            </div>
-          ))}
-        </div>
+      <div className="card p-5">
+        <SectionHeader title="عملکرد طرح‌های درمان" />
+        {data.plans.length === 0 ? (
+          <p className="text-sm text-surface-400 text-center py-6">هنوز طرح درمانی ثبت نشده است</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-100">
+                  {planHeaders.map((h) => (
+                    <th key={h} className="text-xs font-medium text-surface-500 py-2 px-3 text-right whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.plans.map((plan) => {
+                  const items = plan.items ?? [];
+                  const completed = items.filter((i) => i.status === 'completed');
+                  const done = completed.reduce((sum, i) => sum + (i.actual_cost ?? i.estimated_cost), 0);
+                  const progress = percent(completed.length, items.length);
+                  return (
+                    <tr key={plan.id} className="border-b border-surface-50 hover:bg-surface-50 transition-colors">
+                      <td className="py-3 px-3 font-medium text-surface-700 whitespace-nowrap">{fullName(plan.patient)}</td>
+                      <td className="py-3 px-3 text-surface-600 text-xs whitespace-nowrap">{plan.title}</td>
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16">
+                            <ProgressBar value={progress} />
+                          </div>
+                          <span className="text-xs text-surface-500">{formatNumber(progress)}٪</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3 font-medium whitespace-nowrap">{formatCurrency(plan.total_estimated_cost)}</td>
+                      <td className="py-3 px-3 text-accent-600 font-medium whitespace-nowrap">{formatCurrency(done)}</td>
+                      <td className="py-3 px-3 text-warning-600 font-medium whitespace-nowrap">{formatCurrency(Math.max(plan.total_estimated_cost - done, 0))}</td>
+                      <td className="py-3 px-3">
+                        <StatusBadge status={statusStyle(treatmentPlanStatus, plan.status, 'cancelled')} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
