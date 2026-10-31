@@ -60,6 +60,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Newest first, with optional search. */
         get: operations["ClientsController_list_v1"];
         put?: never;
         post: operations["ClientsController_create_v1"];
@@ -340,10 +341,7 @@ export interface components {
             service_id: string;
             /** Format: date-time */
             start_time: string;
-            /** Format: date-time */
-            end_time: string;
-            /** @description In Rial. */
-            price: number;
+            duration_minutes: number;
             description: string | null;
             /** Format: date-time */
             created_at: string;
@@ -353,33 +351,37 @@ export interface components {
             service: components["schemas"]["AppointmentServiceDto"];
         };
         CreateAppointmentDto: {
-            /** @example 2026-10-14T09:30:00+03:30 */
-            start_time: string;
             /**
-             * @description Defaults to `start_time` plus the service's `duration_minutes`.
+             * @description The chosen date at the chosen time.
              * @example 2026-10-14T10:00:00+03:30
              */
-            end_time?: string;
+            start_time: string;
+            /**
+             * @description Defaults to the service's `duration_minutes` if that is one of the allowed values, else 30.
+             * @example 30
+             * @enum {number}
+             */
+            duration_minutes?: 20 | 30 | 45 | 60 | 90 | 120;
             client_id: string;
             /** @description Must be an active service of the clinic. */
             service_id: string;
-            /** @description In Rial. Defaults to the service's `default_price`. */
-            price?: number;
             description?: string | null;
         };
         UpdateAppointmentDto: {
-            /** @example 2026-10-14T09:30:00+03:30 */
-            start_time?: string;
             /**
-             * @description Defaults to `start_time` plus the service's `duration_minutes`.
+             * @description The chosen date at the chosen time.
              * @example 2026-10-14T10:00:00+03:30
              */
-            end_time?: string;
+            start_time?: string;
+            /**
+             * @description Defaults to the service's `duration_minutes` if that is one of the allowed values, else 30.
+             * @example 30
+             * @enum {number}
+             */
+            duration_minutes?: 20 | 30 | 45 | 60 | 90 | 120;
             client_id?: string;
             /** @description Must be an active service of the clinic. */
             service_id?: string;
-            /** @description In Rial. Defaults to the service's `default_price`. */
-            price?: number;
             description?: string | null;
         };
         UpdateAppointmentStatusDto: {

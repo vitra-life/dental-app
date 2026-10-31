@@ -72,10 +72,11 @@ export interface Appointment {
   service_id: string | null;
   appointment_date: string;
   start_time: string;
+  /** Worked out from `start_time` + `duration_minutes`; the API stores only the duration. */
   end_time: string;
+  duration_minutes: number;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   notes: string | null;
-  price: number;
   created_at: string;
   patient?: AppointmentPatient;
   staff?: Staff;

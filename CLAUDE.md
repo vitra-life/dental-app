@@ -23,7 +23,7 @@ npm run preview
 npm run api:types   # regenerate src/lib/api/schema.d.ts from the running backend's Swagger
 ```
 
-`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed`, `npm run start:dev` there). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
+`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed` to create the dev clinic, `npm run start:dev` there; the database starts with no patients, services or appointments). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
 
 `npm run build` does not type-check, so run `typecheck`, `lint` and `test` to verify changes.
 
@@ -55,7 +55,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 **Data from the API (patients, appointments, services):** read and written only through the TanStack Query hooks in `src/data/` (`usePatients`, `useAppointments`, `useServices`, their mutations, and `useClinicData` for summaries).
 - `src/lib/api/client.ts` is a typed openapi-fetch client over `schema.d.ts`, which `npm run api:types` generates; never edit it by hand. A middleware adds `x-clinic-id`.
-- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments have no `staff_id` yet (always null).
+- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments are booked by date, time and `duration_minutes` (one of `APPOINTMENT_DURATIONS`, `src/constants/schedule.ts`); `end_time` is worked out from the duration. They have no price and no `staff_id` yet (always null).
 - Mutations invalidate their query keys (`src/data/keys.ts`), so screens refresh by themselves; don't refetch by hand.
 - Errors are `ApiError` (`src/lib/api/errors.ts`): show `errorMessage(error)` in a toast, or `<LoadError>` for a screen that failed to load. A 400 carries `fieldErrors`.
 - Appointments load as one shared window (`appointmentWindow()`: 7 Jalali months back to 90 days ahead); `usePatientAppointments` loads one patient's full history.
@@ -65,7 +65,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 **Data in the browser (every other table):** there is no server for these yet. The data flows like this:
 - `src/constants/seed/` holds the sample data, one typed array per table, assembled into `seedData` in `index.ts`.
   - Dates are relative to load time (`daysFromToday` / `timestampFromNow`), so "today" views always have content.
-  - IDs are readable strings (`inv-04`) and cross-reference each other. References to patients, services and appointments use `pat(n)`, `svc(n)`, `apt(n)` from `ids.ts`: the fixed ids of the backend's dev seed.
+  - IDs are readable strings (`inv-04`) and cross-reference each other. References to patients, services and appointments use `pat(n)`, `svc(n)`, `apt(n)` from `ids.ts`: the ids the backend's sample data used to have. The backend no longer creates those records, so these links point at nothing and the rows show without a patient or service name.
   - Derived numbers must stay consistent when you edit the seed; `seed.test.ts` checks them.
 - `src/lib/store.ts` (imported as `import * as db from '@/lib/store'`) is the only API for these tables.
   - Reads: `list(table, where?)`, `get`, `first`.
@@ -86,6 +86,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 - Display: `formatDate`, `formatDateShort`, `formatDateNumeric`, `getPersianDayName`. Weeks start on Saturday.
 - Month-based figures (calendar, monthly revenue, this month vs last) use Jalali months: `currentJalaliMonth`, `shiftJalaliMonth`, `isInJalaliMonth`, `jalaliMonthGrid`.
 - Every date field in a form is a `JalaliDateInput`, which takes and returns `YYYY-MM-DD`.
+- Every number field is a `NumberInput` (`value: number | null`, `null` while empty), never `<input type="number">`: it can be emptied while typing, has no up/down arrows, ignores the scroll wheel and accepts Persian digits. Decide what an empty field means when saving.
 
 **Statuses:** `src/constants/status.ts` holds the label and badge colors (background, text and border) for every status (appointment, invoice, lab order, treatment plan and item, SMS campaign and message, tooth). Render them with `StatusBadge` and `statusStyle(map, value, fallback)`; don't redefine a status map inside a component.
 
@@ -106,7 +107,7 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 
 A change to a derived value has to be made in every place that writes it.
 
-**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs` (pill segments), `Modal`, `StatusBadge`, `StatTile`, `SectionHeader`, `ProgressBar`, `ChoiceChips` (filters and form choices), `Skeleton`, `EmptyState`, `JalaliDateInput`, and the charts `AreaTrend`, `Bars` and `Donut`.
+**UI kit:** `src/components/ui/`. The ones to reach for first: `PageHeader`, `Tabs` (pill segments), `Modal`, `StatusBadge`, `StatTile`, `SectionHeader`, `ProgressBar`, `ChoiceChips` (filters and form choices), `Skeleton`, `EmptyState`, `JalaliDateInput`, `NumberInput`, and the charts `AreaTrend`, `Bars` and `Donut`.
 - Lists are stacks of `card` rows; a row's small actions use `btn-chip` plus its colors.
 - Toasts: call `showToast(message, 'success' | 'error' | 'info')` from `@/lib/toast`; `<ToastContainer />` is mounted once in `app.tsx`.
 - Reusable component classes are defined in `src/index.css` as `@utility` rules, e.g. `card`, `btn-primary`, `btn-secondary`, `btn-chip`, `input-field`, `label-field`, `badge`, `nav-item`. Prefer them over re-spelling utility classes.

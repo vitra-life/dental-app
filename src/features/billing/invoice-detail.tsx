@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { NumberInput } from '@/components/ui/number-input';
 import { invoiceStatus, statusStyle } from '@/constants/status';
 import { formatDate, isPast, todayISO } from '@/lib/date';
 import { formatCurrency, formatNumber, paymentMethodLabel, percent } from '@/lib/format';
@@ -25,7 +26,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayment, setShowPayment] = useState(false);
-  const [payAmount, setPayAmount] = useState(0);
+  const [payAmountInput, setPayAmount] = useState<number | null>(0);
   const [payMethod, setPayMethod] = useState<Payment['payment_method']>('cash');
 
   const load = useCallback(() => {
@@ -38,6 +39,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
   useEffect(() => { load(); }, [load]);
 
   function recordPayment() {
+    const payAmount = payAmountInput ?? 0;
     if (payAmount <= 0) { showToast('مبلغ را وارد کنید', 'error'); return; }
     const payment = db.insert('payments', {
       invoice_id: invoice.id,
@@ -204,7 +206,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
                 <div className="space-y-3">
                   <div>
                     <label className="label-field">مبلغ پرداخت (تومان)</label>
-                    <input type="number" className="input-field" value={payAmount} onChange={(e) => setPayAmount(parseFloat(e.target.value) || 0)} />
+                    <NumberInput value={payAmountInput} onChange={setPayAmount} placeholder="0" />
                   </div>
                   <div>
                     <label className="label-field">روش پرداخت</label>

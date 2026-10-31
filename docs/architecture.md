@@ -88,7 +88,7 @@ Writes are mutations (`useCreatePatient`, `useUpdatePatient`, `useCreateAppointm
 Things to know:
 
 - **Types** come from the backend's Swagger. After an API change, run `npm run api:types` with the backend running, then fix what TypeScript reports.
-- **Mapping** happens only in `src/lib/api/mappers.ts`. The API says `client`, `description` and Rial; the app says `patient`, `notes` and Toman. Appointment times arrive as UTC timestamps and become `appointment_date` + `start_time` / `end_time` in local time.
+- **Mapping** happens only in `src/lib/api/mappers.ts`. The API says `client`, `description` and Rial; the app says `patient`, `notes` and Toman. An appointment arrives as a UTC `start_time` and a `duration_minutes` (one of 20, 30, 45, 60, 90, 120: `APPOINTMENT_DURATIONS` in `src/constants/schedule.ts`); it becomes `appointment_date` + `start_time` in local time, and `end_time` is worked out from the duration. Appointments have no price; where a value is needed (reports, the assistant) a visit counts at its service's default price.
 - **Errors** are `ApiError`s. `errorMessage(error)` gives a Persian message; a 400's `fieldErrors` names the invalid fields; `<LoadError>` replaces a screen whose data failed to load.
 - **The clinic** is sent as the `x-clinic-id` header from `VITE_CLINIC_ID` until login exists. The generated types leave that header out, because the client's middleware adds it.
 - **A patient's balance** is computed from the invoices in the browser store (`src/lib/patient-balance.ts`), not stored.
@@ -110,7 +110,7 @@ Things to know:
 
 ### The sample data
 
-`src/constants/seed/` holds one file per area. Rows that point at patients, services or appointments use `pat(n)`, `svc(n)` and `apt(n)` from `ids.ts`, the fixed ids of the backend's dev seed (`npm run db:seed` in Dental-Api), so the links hold. `seed.test.ts` checks that the numbers agree: payments match `paid_amount`, items and instalments match the totals, and every reference points at a row that exists. Run `npm test` after editing the seed.
+`src/constants/seed/` holds one file per area. Rows that point at patients, services or appointments use `pat(n)`, `svc(n)` and `apt(n)` from `ids.ts`: the ids the backend's sample data used to have. The backend no longer creates those records, so these links point at nothing and the rows show without a patient or service name. `seed.test.ts` checks that the numbers agree: payments match `paid_amount`, items and instalments match the totals, and every reference points at a row that exists (patient, service and appointment references only need to be one of the `ids.ts` ids). Run `npm test` after editing the seed.
 
 ### Saved data
 
@@ -131,7 +131,7 @@ The clinic's opening hours per weekday are stored in `clinic_settings.working_ho
 
 A plan belongs to a patient and has items. `src/lib/treatment-plans.ts` connects plans to the rest of the app:
 
-- **Booking:** the appointment form lists the patient's open plan items. Choosing one fills in the service and price, and saving calls `linkAppointment`.
+- **Booking:** the appointment form lists the patient's open plan items. Choosing one fills in the service and duration, and saving calls `linkAppointment`.
 - **Status:** when an appointment's status changes, `syncPlanWithAppointment` completes the linked item (and the plan, when it was the last one) or frees the item if the appointment is cancelled.
 - **Billing:** the invoice form can load a plan's done or in-progress items as invoice lines; the invoice keeps the plan in `treatment_plan_id`.
 - **Templates:** Settings → طرح درمان holds reusable templates. `createPlanFromTemplate` creates a plan with one item per template line.

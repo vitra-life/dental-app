@@ -21,8 +21,8 @@ const service = {
 };
 const appointment = () => ({
   id: apt(17), clinic_id: 'clinic', client_id: client.id, service_id: service.id,
-  start_time: joinTimestamp(todayISO(), '23:00'), end_time: joinTimestamp(todayISO(), '23:30'),
-  status: 'pending', price: 60_000_000, description: null, created_at: stamp, updated_at: stamp,
+  start_time: joinTimestamp(todayISO(), '23:00'), duration_minutes: 30,
+  status: 'pending', description: null, created_at: stamp, updated_at: stamp,
   client: { id: client.id, first_name: client.first_name, last_name: client.last_name, phone: client.phone },
   service: { id: service.id, name: service.name },
 });

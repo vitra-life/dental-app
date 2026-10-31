@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/modal';
+import { NumberInput } from '@/components/ui/number-input';
 import { useCreateService, useUpdateService } from '@/data/services';
 import { ApiError, errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
@@ -17,8 +18,9 @@ export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
   const [form, setForm] = useState({
     name: service?.name ?? '',
     category: service?.category ?? 'general',
-    default_price: service?.default_price ?? 0,
-    duration_minutes: service?.duration_minutes ?? 30,
+    /** `null` while the field is empty; an empty price saves as 0. */
+    default_price: service ? service.default_price : (null as number | null),
+    duration_minutes: (service?.duration_minutes ?? 30) as number | null,
     description: service?.description ?? '',
   });
 
@@ -28,7 +30,14 @@ export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
 
   async function save() {
     if (!form.name.trim()) { showToast('نام خدمت الزامی است', 'error'); return; }
-    const values = { ...form, name: form.name.trim(), description: form.description || null };
+    if (form.duration_minutes === null) { showToast('مدت خدمت را وارد کنید', 'error'); return; }
+    const values = {
+      ...form,
+      name: form.name.trim(),
+      default_price: form.default_price ?? 0,
+      duration_minutes: form.duration_minutes,
+      description: form.description || null,
+    };
     try {
       if (service) {
         await updateService.mutateAsync({ id: service.id, input: values });
@@ -64,12 +73,12 @@ export function ServiceForm({ service, onClose, onSaved }: ServiceFormProps) {
           </div>
           <div>
             <label className="label-field">مدت (دقیقه)</label>
-            <input type="number" className="input-field py-2.5" value={form.duration_minutes} onChange={(e) => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 30 })} />
+            <NumberInput className="input-field py-2.5" value={form.duration_minutes} onChange={(duration_minutes) => setForm({ ...form, duration_minutes })} />
           </div>
         </div>
         <div>
           <label className="label-field">قیمت پیش‌فرض (تومان)</label>
-          <input type="number" className="input-field py-2.5" value={form.default_price || ''} onChange={(e) => setForm({ ...form, default_price: parseFloat(e.target.value) || 0 })} placeholder="0" />
+          <NumberInput className="input-field py-2.5" value={form.default_price} onChange={(default_price) => setForm({ ...form, default_price })} placeholder="0" />
         </div>
         <div>
           <label className="label-field">توضیحات</label>

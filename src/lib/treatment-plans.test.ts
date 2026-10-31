@@ -16,13 +16,13 @@ function newPlan(costs: number[]) {
   return { patient, plan, items };
 }
 
-/** An appointment as the API would return it; only its id and price matter here. */
-const book = (_patientId: string, price = 0) => ({ id: `appointment-${++appointmentCount}`, price });
+/** An appointment as the API would return it; only its id matters here. */
+const book = () => ({ id: `appointment-${++appointmentCount}` });
 
 describe('booking a plan item', () => {
   it('marks the item under way and stops offering it for booking', () => {
-    const { patient, items } = newPlan([100, 200]);
-    const appointment = book(patient.id);
+    const { items } = newPlan([100, 200]);
+    const appointment = book();
     linkAppointment(items[0].id, appointment.id);
 
     const [plan] = activePlans(patient.id, []);
@@ -34,15 +34,15 @@ describe('booking a plan item', () => {
 });
 
 describe('syncPlanWithAppointment', () => {
-  it('completes the item with the appointment price, and the plan once nothing is left', () => {
-    const { patient, plan, items } = newPlan([100, 200]);
-    const first = book(patient.id, 150);
-    const second = book(patient.id);
+  it('completes the item at its estimated cost, and the plan once nothing is left', () => {
+    const { plan, items } = newPlan([100, 200]);
+    const first = book();
+    const second = book();
     linkAppointment(items[0].id, first.id);
     linkAppointment(items[1].id, second.id);
 
     syncPlanWithAppointment(first, 'completed');
-    expect(db.get('treatment_plan_items', items[0].id)).toMatchObject({ status: 'completed', actual_cost: 150 });
+    expect(db.get('treatment_plan_items', items[0].id)).toMatchObject({ status: 'completed', actual_cost: 100 });
     expect(db.get('treatment_plans', plan.id)?.status).toBe('active');
 
     syncPlanWithAppointment(second, 'completed');
@@ -51,8 +51,8 @@ describe('syncPlanWithAppointment', () => {
   });
 
   it('frees the item when the appointment is cancelled', () => {
-    const { patient, items } = newPlan([100]);
-    const appointment = book(patient.id);
+    const { items } = newPlan([100]);
+    const appointment = book();
     linkAppointment(items[0].id, appointment.id);
 
     syncPlanWithAppointment(appointment, 'cancelled');
@@ -60,8 +60,8 @@ describe('syncPlanWithAppointment', () => {
   });
 
   it('leaves the plan alone when the appointment is only confirmed', () => {
-    const { patient, items } = newPlan([100]);
-    const appointment = book(patient.id);
+    const { items } = newPlan([100]);
+    const appointment = book();
     linkAppointment(items[0].id, appointment.id);
 
     syncPlanWithAppointment(appointment, 'confirmed');

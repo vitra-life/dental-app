@@ -85,6 +85,7 @@ components/
     ├── jalali-date-input.tsx   Jalali date field with a calendar popover
     ├── skeleton.tsx            loading placeholders
     ├── empty-state.tsx         "nothing here yet" block
+    ├── number-input.tsx        number field: can be emptied, no arrows, no scroll stepping, Persian digits
     ├── load-error.tsx          shown when a screen's data could not be loaded, with a retry button
     └── toast.tsx               renders toast messages
 ```
@@ -169,7 +170,7 @@ constants/
 ├── service-categories.ts   the categories a service can have
 └── seed/                   the sample data the browser store starts with
     ├── index.ts            gathers every table into `seedData`
-    ├── ids.ts              `pat(n)`, `svc(n)`, `apt(n)`: the fixed ids of the backend's dev seed
+    ├── ids.ts              `pat(n)`, `svc(n)`, `apt(n)`: ids the sample rows use for patients, services, appointments
     ├── clinic.ts           clinic settings, staff
     ├── billing.ts          invoices, invoice items, payments, instalments
     ├── clinical.ts         treatments, tooth records, radiology images, treatment plans and templates
@@ -226,4 +227,4 @@ lib/
 | A hook that reads or writes the API | `src/data/` |
 | A status, a fixed list or a setting | `src/constants/` |
 | Sample rows for a table without an API | `src/constants/seed/` |
-| Sample patients, services or appointments | the backend's dev seed (`prisma/seed.ts` in Dental-Api) |
+| Patients, services or appointments | the app itself, through the API; there is no sample data for them |
