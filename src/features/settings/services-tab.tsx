@@ -3,6 +3,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { useDeleteService, useServices, useUpdateService } from '@/data/services';
+import { useCan } from '@/data/session';
+import { CAN } from '@/lib/permissions';
 import { ApiError, errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
 import type { Service } from '@/lib/types';
@@ -16,6 +18,7 @@ const headers = ['نام خدمت', 'دسته‌بندی', 'قیمت پیش‌ف
 /** The service catalogue: every service with its default price and length. */
 export function ServicesTab() {
   const { data: services = [] } = useServices();
+  const canManage = useCan(CAN.manageServices);
   const updateService = useUpdateService();
   const deleteServiceMutation = useDeleteService();
   const [category, setCategory] = useState('all');
@@ -46,10 +49,12 @@ export function ServicesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-surface-700">کاتالوگ خدمات ({formatNumber(services.length)})</h2>
-        <button onClick={() => setEditing(null)} className="btn-primary">
-          <Plus size={16} />
-          خدمت جدید
-        </button>
+        {canManage && (
+          <button onClick={() => setEditing(null)} className="btn-primary">
+            <Plus size={16} />
+            خدمت جدید
+          </button>
+        )}
       </div>
 
       <ChoiceChips options={categoryFilters} value={category} onChange={setCategory} />
@@ -76,6 +81,7 @@ export function ServicesTab() {
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleActive(service)}
+                      disabled={!canManage}
                       className={`text-xs px-2 py-1 rounded-full font-medium transition-colors whitespace-nowrap ${
                         service.active ? 'bg-accent-100 text-accent-700 hover:bg-accent-200' : 'bg-surface-100 text-surface-500 hover:bg-surface-200'
                       }`}
@@ -84,12 +90,14 @@ export function ServicesTab() {
                     </button>
                   </td>
                   <td className="py-3 px-4">
+                    {canManage && (
                     <div className="flex items-center gap-3 justify-end">
                       <button onClick={() => setEditing(service)} className="text-xs text-primary-600 hover:text-primary-700 hover:underline">ویرایش</button>
                       <button onClick={() => deleteService(service.id)} title="حذف" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    )}
                   </td>
                 </tr>
               ))}

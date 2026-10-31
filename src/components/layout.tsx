@@ -13,10 +13,14 @@ import {
   Bell,
   MessageSquare,
   ChevronRight,
+  ChevronDown,
+  LogOut,
+  Building2,
   type LucideIcon,
 } from 'lucide-react';
 import logo from '@/assets/vitra-life-logo.svg';
-import * as db from '@/lib/store';
+import { useLogout, useMe, usePermissions, useSwitchClinic } from '@/data/session';
+import { PAGE_PERMISSION } from '@/lib/permissions';
 import type { PageKey } from '@/lib/types';
 
 interface LayoutProps {
@@ -44,13 +48,79 @@ interface SidebarContentProps {
   collapsed: boolean;
 }
 
+/** The signed-in user's name, their roles in the active clinic, and the active clinic. */
+function useSignedInUser() {
+  const { data: me } = useMe();
+  const clinic = me?.clinics.find((c) => c.clinic_id === me.active_clinic_id);
+  return {
+    name: me?.user.full_name ?? '',
+    initial: me?.user.full_name.trim().charAt(0) ?? '',
+    roles: clinic?.roles.map((r) => r.name).join('، ') ?? '',
+    clinicName: clinic?.clinic_name ?? 'سیستم مدیریت دندانپزشکی',
+    otherClinics: me?.clinics.filter((c) => c.clinic_id !== me.active_clinic_id) ?? [],
+  };
+}
+
+/** The user box: who is signed in, and a menu to switch clinic or log out. */
+function UserMenu({ collapsed }: { collapsed: boolean }) {
+  const user = useSignedInUser();
+  const logout = useLogout();
+  const switchClinic = useSwitchClinic();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`relative p-3 border-t border-surface-100 ${collapsed ? 'flex justify-center' : ''}`}>
+      {open && (
+        <div className="absolute bottom-full right-3 left-3 mb-2 min-w-48 bg-white border border-surface-200 rounded-xl shadow-lg p-1 z-30">
+          {user.otherClinics.length > 0 && <p className="text-xs text-surface-400 px-3 pt-2 pb-1">رفتن به کلینیک</p>}
+          {user.otherClinics.map((clinic) => (
+            <button
+              key={clinic.clinic_id}
+              disabled={switchClinic.isPending}
+              onClick={() => switchClinic.mutate(clinic.clinic_id, { onSettled: () => setOpen(false) })}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-surface-700 hover:bg-surface-50"
+            >
+              <Building2 size={16} className="text-surface-400" />
+              <span className="truncate">{clinic.clinic_name}</span>
+            </button>
+          ))}
+          <button
+            onClick={() => logout.mutate()}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-error-600 hover:bg-error-50"
+          >
+            <LogOut size={16} />
+            خروج
+          </button>
+        </div>
+      )}
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        title={collapsed ? user.name : undefined}
+        className={`w-full flex items-center gap-3 rounded-xl hover:bg-surface-50 text-right ${collapsed ? 'justify-center' : 'px-2 py-1.5'}`}
+      >
+        <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold shrink-0">{user.initial}</div>
+        {!collapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-surface-700 truncate">{user.name}</p>
+              <p className="text-xs text-surface-400 truncate">{user.roles}</p>
+            </div>
+            <ChevronDown size={16} className={`text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+          </>
+        )}
+      </button>
+    </div>
+  );
+}
+
 /** The menu, the assistant entry and the signed-in user: shared by the desktop sidebar and the mobile drawer. */
 function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentProps) {
   const aiActive = currentPage === 'ai';
+  const { can } = usePermissions();
   return (
     <>
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ key, label, icon: Icon }) => {
+        {navItems.filter(({ key }) => can(PAGE_PERMISSION[key])).map(({ key, label, icon: Icon }) => {
           const active = currentPage === key;
           return (
             <button
@@ -66,7 +136,7 @@ function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentPr
           );
         })}
 
-        <div className="pt-2 mt-1 border-t border-surface-100">
+        {can(PAGE_PERMISSION.ai) && <div className="pt-2 mt-1 border-t border-surface-100">
           <button
             onClick={() => onNavigate('ai')}
             title={collapsed ? 'دستیار هوشمند' : undefined}
@@ -78,20 +148,10 @@ function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentPr
             {!collapsed && <span>دستیار هوشمند</span>}
             {!collapsed && !aiActive && <span className="mr-auto text-xs bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full font-medium">جدید</span>}
           </button>
-        </div>
+        </div>}
       </nav>
 
-      <div className={`p-3 border-t border-surface-100 ${collapsed ? 'flex justify-center' : ''}`}>
-        <div className={`flex items-center gap-3 ${collapsed ? '' : 'px-2 py-1.5'}`}>
-          <div className="w-8 h-8 rounded-full bg-linear-to-br/srgb from-primary-500 to-primary-700 flex items-center justify-center text-white text-xs font-bold shrink-0">س</div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-surface-700 truncate">دکتر سارا احمدی</p>
-              <p className="text-xs text-surface-400">مدیر کلینیک</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <UserMenu collapsed={collapsed} />
     </>
   );
 }
@@ -108,7 +168,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const mainRef = useRef<HTMLElement>(null);
-  const clinicName = db.first('clinic_settings')?.name ?? 'سیستم مدیریت دندانپزشکی';
+  const { clinicName, initial } = useSignedInUser();
 
   // The page scrolls inside <main>, so a new page starts from its top.
   useEffect(() => {
@@ -175,7 +235,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <Bell size={20} strokeWidth={1.8} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error-500 rounded-full" />
             </button>
-            <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-semibold">س</div>
+            <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-semibold">{initial}</div>
           </div>
         </header>
         <main ref={mainRef} className="flex-1 overflow-y-auto">

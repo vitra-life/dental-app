@@ -20,6 +20,332 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Signs in with mobile and password. Five wrong passwords in a row lock the account for 15 minutes. */
+        post: operations["AuthController_login_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchanges a refresh token for new tokens. Each refresh token works once. */
+        post: operations["AuthController_refresh_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/switch-clinic": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chooses the clinic to work in; returns a new access token. */
+        post: operations["AuthController_switchClinic_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in user, their clinics, and their permissions in the active clinic. */
+        get: operations["AuthController_me_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/change-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sets a new password and signs out the user's other devices. */
+        post: operations["AuthController_changePassword_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["AuthController_logout_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The system roles and the clinic's own roles. */
+        get: operations["RolesController_list_v1"];
+        put?: never;
+        /** Creates a custom role for this clinic, without permissions. */
+        post: operations["RolesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/roles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RolesController_get_v1"];
+        put?: never;
+        post?: never;
+        /** Deletes a custom role nobody holds. */
+        delete: operations["RolesController_remove_v1"];
+        options?: never;
+        head?: never;
+        /** Renames a custom role. System roles cannot be changed. */
+        patch: operations["RolesController_update_v1"];
+        trace?: never;
+    };
+    "/api/v1/roles/{id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replaces a custom role's permissions. You can only grant what you hold, at your scope or narrower. */
+        put: operations["RolesController_setPermissions_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The permission catalogue as a tree: pages → features → actions, with Persian labels. */
+        get: operations["ReferenceController_permissions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Professional types: doctor, secretary, assistant. */
+        get: operations["ReferenceController_staffTypes_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/relationship-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Kinds of staff ↔ doctor relationship. */
+        get: operations["ReferenceController_relationshipTypes_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Newest first. */
+        get: operations["AuditController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every member of the clinic with staff types, roles and doctor profile. */
+        get: operations["StaffController_list_v1"];
+        put?: never;
+        /**
+         * Adds someone by mobile. A new account gets a temporary password, returned
+         *     once in `temporary_password`; they must change it at first login.
+         */
+        post: operations["StaffController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StaffController_get_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Changes active state, staff types or roles. The clinic always keeps one active admin. */
+        patch: operations["StaffController_update_v1"];
+        trace?: never;
+    };
+    "/api/v1/staff/{membershipId}/doctor-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["StaffController_setDoctorProfile_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StaffAssignmentsController_list_v1"];
+        put?: never;
+        /** Assigns a staff member to a doctor, e.g. as their secretary. */
+        post: operations["StaffAssignmentsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staff-assignments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["StaffAssignmentsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/doctors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The clinic's active doctors, for the booking form. Any member may read it. */
+        get: operations["DoctorsController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/services": {
         parameters: {
             query?: never;
@@ -27,7 +353,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The clinic's whole service catalogue, ordered by name. */
+        /** The clinic's whole service catalogue, ordered by name. Any member may read it (booking needs it). */
         get: operations["ServicesController_list_v1"];
         put?: never;
         post: operations["ServicesController_create_v1"];
@@ -60,7 +386,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Newest first, with optional search. */
+        /** Newest first, with optional search. Only the clients the caller's scope reaches. */
         get: operations["ClientsController_list_v1"];
         put?: never;
         post: operations["ClientsController_create_v1"];
@@ -93,10 +419,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ordered by start time. Needs `from` and `to`, or `client_id`. */
+        /** Ordered by start time. Needs `from` and `to`, or `client_id`. Only what the caller's scope reaches. */
         get: operations["AppointmentsController_list_v1"];
         put?: never;
-        /** Books a new appointment; it starts as `pending`. */
+        /** Books a new appointment; it starts as `pending`. The doctor must be free and within the caller's scope. */
         post: operations["AppointmentsController_create_v1"];
         delete?: never;
         options?: never;
@@ -134,11 +460,25 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * pending → confirmed, completed, cancelled or no_show;
-         *     confirmed → completed, cancelled or no_show. The rest are final.
-         */
+        /** pending → confirmed, completed or no_show; confirmed → completed or no_show. The rest are final. */
         patch: operations["AppointmentsController_changeStatus_v1"];
+        trace?: never;
+    };
+    "/api/v1/appointments/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancels a pending or confirmed appointment. Recorded in the audit log. */
+        post: operations["AppointmentsController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -170,6 +510,237 @@ export interface components {
             request_id: string;
             /** @example 2026-10-03T08:00:00.000Z */
             timestamp: string;
+        };
+        LoginDto: {
+            /** @example 09121234567 */
+            mobile: string;
+            password: string;
+        };
+        MeUserDto: {
+            id: string;
+            full_name: string;
+            mobile: string;
+            /** @description While true, only `me`, `change-password` and `logout` work. */
+            must_change_password: boolean;
+        };
+        MeRoleDto: {
+            id: string;
+            code: string;
+            name: string;
+            is_system: boolean;
+        };
+        MeClinicDto: {
+            clinic_id: string;
+            clinic_name: string;
+            membership_id: string;
+            roles: components["schemas"]["MeRoleDto"][];
+            /** @description Codes, e.g. doctor, secretary. */
+            staff_types: string[];
+        };
+        MePermissionDto: {
+            /** @enum {string} */
+            scope: "own" | "assigned" | "clinic";
+            /** @description A catalogue code, e.g. `appointments.booking.create`. */
+            code: string;
+        };
+        MeDto: {
+            user: components["schemas"]["MeUserDto"];
+            /** @description The clinics the user is an active member of. */
+            clinics: components["schemas"]["MeClinicDto"][];
+            /** @description Null until the user chooses a clinic (or has only one). */
+            active_clinic_id: string | null;
+            /** @description Effective permissions in the active clinic; empty without one. */
+            permissions: components["schemas"]["MePermissionDto"][];
+        };
+        TokensDto: {
+            /** @description Exchange at `POST /auth/refresh`; replaced on every use. */
+            refresh_token: string;
+            me: components["schemas"]["MeDto"];
+            access_token: string;
+            token_type: string;
+            /** @description Seconds until the access token expires. */
+            expires_in: number;
+        };
+        RefreshDto: {
+            refresh_token: string;
+        };
+        SwitchClinicDto: {
+            clinic_id: string;
+        };
+        ClinicSwitchDto: {
+            me: components["schemas"]["MeDto"];
+            access_token: string;
+            token_type: string;
+            /** @description Seconds until the access token expires. */
+            expires_in: number;
+        };
+        ChangePasswordDto: {
+            current_password: string;
+            /** @description At least 8 characters. */
+            new_password: string;
+        };
+        RoleGrantDto: {
+            /**
+             * @description Only matters for items that touch data; others are stored as `clinic`.
+             * @enum {string}
+             */
+            scope: "own" | "assigned" | "clinic";
+            /** @description A catalogue code, e.g. `appointments.booking.create`. */
+            code: string;
+        };
+        RoleDto: {
+            permissions: components["schemas"]["RoleGrantDto"][];
+            id: string;
+            /** @description Null for system roles. */
+            clinic_id: string | null;
+            code: string;
+            name: string;
+            /** @description System roles are defined by the software and cannot be changed. */
+            is_system: boolean;
+            /** @description How many memberships of this clinic hold the role. */
+            member_count: number;
+        };
+        CreateRoleDto: {
+            /**
+             * @description Lowercase letters, digits and `_`, e.g. `senior_secretary`. Unique in the clinic.
+             * @example senior_secretary
+             */
+            code: string;
+            name: string;
+        };
+        UpdateRoleDto: {
+            name: string;
+        };
+        SetRolePermissionsDto: {
+            /** @description The role's complete set of grants; replaces the current one. */
+            permissions: components["schemas"]["RoleGrantDto"][];
+        };
+        PermissionNodeDto: {
+            /** @enum {string} */
+            kind: "page" | "feature" | "action";
+            children: components["schemas"]["PermissionNodeDto"][];
+            code: string;
+            /** @description Persian label. */
+            label: string;
+            description: string | null;
+            /** @description Whether a grant of this item carries a scope. */
+            scoped: boolean;
+        };
+        ReferenceItemDto: {
+            id: string;
+            code: string;
+            name: string;
+        };
+        AuditLogDto: {
+            details?: Record<string, never>;
+            id: string;
+            action: string;
+            resource_type: string;
+            resource_id: string | null;
+            actor_membership_id: string;
+            /** @description Empty if the actor's user no longer exists. */
+            actor_name: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        AuditLogPageDto: {
+            items: components["schemas"]["AuditLogDto"][];
+            total: number;
+            page: number;
+            page_size: number;
+        };
+        StaffRoleDto: {
+            id: string;
+            code: string;
+            name: string;
+            is_system: boolean;
+        };
+        DoctorProfileDto: {
+            medical_license: string;
+            specialty: string | null;
+            license_verified: boolean;
+        };
+        StaffMemberDto: {
+            roles: components["schemas"]["StaffRoleDto"][];
+            doctor_profile?: components["schemas"]["DoctorProfileDto"] | null;
+            membership_id: string;
+            user_id: string;
+            full_name: string;
+            mobile: string;
+            is_active: boolean;
+            /** Format: date-time */
+            joined_at: string;
+            /** @description Codes: doctor, secretary, assistant. */
+            staff_types: string[];
+        };
+        CreateStaffMemberDto: {
+            /** @example 09121234567 */
+            mobile: string;
+            /**
+             * @example [
+             *       "secretary"
+             *     ]
+             */
+            staff_types: string[];
+            /** @description Used only when no user has this mobile yet. */
+            full_name: string;
+            /** @description System roles or this clinic's roles. */
+            role_ids: string[];
+        };
+        CreatedStaffMemberDto: {
+            roles: components["schemas"]["StaffRoleDto"][];
+            doctor_profile?: components["schemas"]["DoctorProfileDto"] | null;
+            membership_id: string;
+            user_id: string;
+            full_name: string;
+            mobile: string;
+            is_active: boolean;
+            /** Format: date-time */
+            joined_at: string;
+            /** @description Codes: doctor, secretary, assistant. */
+            staff_types: string[];
+            /**
+             * @description Only when a new user account was created: the temporary password, shown
+             *     this once. The user must change it at first login.
+             */
+            temporary_password: string | null;
+        };
+        UpdateStaffMemberDto: {
+            is_active?: boolean;
+            /** @description Replaces the current set. */
+            staff_types?: string[];
+            /** @description Replaces the current set. */
+            role_ids?: string[];
+        };
+        SetDoctorProfileDto: {
+            /** @description شماره نظام پزشکی; unique across all doctors. */
+            medical_license: string;
+            specialty?: string | null;
+            license_verified?: boolean;
+        };
+        StaffAssignmentDto: {
+            id: string;
+            staff_membership_id: string;
+            staff_name: string;
+            doctor_membership_id: string;
+            doctor_name: string;
+            /** @description e.g. secretary_of */
+            relationship_type: string;
+            relationship_name: string;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CreateStaffAssignmentDto: {
+            /** @example secretary_of */
+            relationship_type: string;
+            staff_membership_id: string;
+            doctor_membership_id: string;
+        };
+        DoctorDto: {
+            membership_id: string;
+            full_name: string;
+            specialty: string | null;
         };
         ServiceDto: {
             /** @enum {string} */
@@ -332,6 +903,10 @@ export interface components {
             id: string;
             name: string;
         };
+        AppointmentDoctorDto: {
+            membership_id: string;
+            full_name: string;
+        };
         AppointmentDto: {
             /** @enum {string} */
             status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
@@ -339,6 +914,8 @@ export interface components {
             clinic_id: string;
             client_id: string;
             service_id: string;
+            doctor_membership_id: string | null;
+            created_by_membership_id: string | null;
             /** Format: date-time */
             start_time: string;
             duration_minutes: number;
@@ -349,6 +926,8 @@ export interface components {
             updated_at: string;
             client: components["schemas"]["AppointmentClientDto"];
             service: components["schemas"]["AppointmentServiceDto"];
+            /** @description Null for older appointments booked before doctors were recorded. */
+            doctor: components["schemas"]["AppointmentDoctorDto"] | null;
         };
         CreateAppointmentDto: {
             /**
@@ -365,6 +944,11 @@ export interface components {
             client_id: string;
             /** @description Must be an active service of the clinic. */
             service_id: string;
+            /**
+             * @description The doctor's membership id (see `GET /doctors`). With scope `own` it must
+             *     be the caller; with `assigned`, the caller or one of their doctors.
+             */
+            doctor_membership_id: string;
             description?: string | null;
         };
         UpdateAppointmentDto: {
@@ -382,11 +966,19 @@ export interface components {
             client_id?: string;
             /** @description Must be an active service of the clinic. */
             service_id?: string;
+            /**
+             * @description The doctor's membership id (see `GET /doctors`). With scope `own` it must
+             *     be the caller; with `assigned`, the caller or one of their doctors.
+             */
+            doctor_membership_id?: string;
             description?: string | null;
         };
         UpdateAppointmentStatusDto: {
-            /** @enum {string} */
-            status: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
+            /**
+             * @description Cancelling has its own endpoint, `POST /appointments/:id/cancel`.
+             * @enum {string}
+             */
+            status: "confirmed" | "completed" | "no_show";
         };
     };
     responses: never;
@@ -545,6 +1137,1107 @@ export interface operations {
             };
         };
     };
+    AuthController_login_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokensDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_refresh_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokensDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_switchClinic_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SwitchClinicDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicSwitchDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_me_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeDto"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_changePassword_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_logout_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The clinic already has a role with this code */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The role is assigned to members */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    RolesController_setPermissions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetRolePermissionsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoleDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    ReferenceController_permissions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionNodeDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    ReferenceController_staffTypes_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceItemDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    ReferenceController_relationshipTypes_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferenceItemDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AuditController_list_v1: {
+        parameters: {
+            query: {
+                action?: string;
+                resource_type?: string;
+                page: number;
+                page_size: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPageDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMemberDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStaffMemberDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedStaffMemberDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Already a member of the clinic */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMemberDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStaffMemberDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMemberDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Would leave the clinic without an active admin */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_setDoctorProfile_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDoctorProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMemberDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The medical license number is already used */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffAssignmentsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAssignmentDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffAssignmentsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStaffAssignmentDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAssignmentDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The assignment already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffAssignmentsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    DoctorsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DoctorDto"][];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
     ServicesController_list_v1: {
         parameters: {
             query?: {
@@ -552,10 +2245,7 @@ export interface operations {
                 /** @description `true` for bookable services only, `false` for inactive ones only. */
                 active?: boolean;
             };
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -569,7 +2259,8 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceDto"][];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -577,7 +2268,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -590,10 +2291,7 @@ export interface operations {
     ServicesController_create_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -611,7 +2309,8 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -619,7 +2318,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -641,10 +2341,7 @@ export interface operations {
     ServicesController_get_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -660,7 +2357,8 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -668,7 +2366,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -681,10 +2389,7 @@ export interface operations {
     ServicesController_remove_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -698,7 +2403,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -706,7 +2412,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -728,10 +2435,7 @@ export interface operations {
     ServicesController_update_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -751,7 +2455,8 @@ export interface operations {
                     "application/json": components["schemas"]["ServiceDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -759,7 +2464,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -789,10 +2495,7 @@ export interface operations {
                 page: number;
                 page_size: number;
             };
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -806,7 +2509,8 @@ export interface operations {
                     "application/json": components["schemas"]["ClientPageDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -814,7 +2518,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -827,10 +2541,7 @@ export interface operations {
     ClientsController_create_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -848,7 +2559,8 @@ export interface operations {
                     "application/json": components["schemas"]["ClientDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -856,7 +2568,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -878,10 +2591,7 @@ export interface operations {
     ClientsController_get_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -897,7 +2607,8 @@ export interface operations {
                     "application/json": components["schemas"]["ClientDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -905,7 +2616,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -918,10 +2639,7 @@ export interface operations {
     ClientsController_update_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -941,7 +2659,8 @@ export interface operations {
                     "application/json": components["schemas"]["ClientDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -949,7 +2668,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -978,10 +2698,7 @@ export interface operations {
                 status?: "pending" | "confirmed" | "completed" | "cancelled" | "no_show";
                 client_id?: string;
             };
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -995,7 +2712,8 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentDto"][];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1003,7 +2721,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1016,10 +2744,7 @@ export interface operations {
     AppointmentsController_create_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -1037,7 +2762,8 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1045,7 +2771,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The doctor already has an appointment at this time */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1058,10 +2794,7 @@ export interface operations {
     AppointmentsController_get_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -1077,7 +2810,8 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1085,7 +2819,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No active clinic chosen yet */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1098,10 +2842,7 @@ export interface operations {
     AppointmentsController_update_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -1121,7 +2862,8 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1129,7 +2871,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1137,7 +2880,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description The appointment is completed, cancelled or no-show */
+            /** @description The appointment is completed, cancelled or no-show, or the doctor is busy then */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1151,10 +2894,7 @@ export interface operations {
     AppointmentsController_changeStatus_v1: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Id of the clinic to act for. Temporary: it will come from the login token. */
-                "x-clinic-id": string;
-            };
+            header?: never;
             path: {
                 id: string;
             };
@@ -1174,7 +2914,8 @@ export interface operations {
                     "application/json": components["schemas"]["AppointmentDto"];
                 };
             };
-            400: {
+            /** @description Not signed in, or the session ended */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1182,7 +2923,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            404: {
+            /** @description Not a member, or missing the permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1191,6 +2933,54 @@ export interface operations {
                 };
             };
             /** @description The change is not allowed from the current status */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AppointmentsController_cancel_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppointmentDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The appointment is already completed or cancelled */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -21,7 +21,8 @@ interface PatientDetailProps {
   onTabChange: (tab: PatientTab) => void;
   /** Returns to the patient list. */
   onBack: () => void;
-  onEdit: () => void;
+  /** Opens the edit form; absent when the user can't edit clients. */
+  onEdit?: () => void;
   onNavigate: (page: PageKey) => void;
 }
 
@@ -65,10 +66,12 @@ export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit,
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => onNavigate('appointments')} className="btn-primary text-xs px-3 py-1.5">رزرو نوبت</button>
                 <button onClick={() => onNavigate('billing')} className="btn-secondary text-xs px-3 py-1.5">صدور فاکتور</button>
-                <button onClick={onEdit} className="btn-secondary text-xs px-3 py-1.5">
-                  <Edit3 size={13} />
-                  ویرایش
-                </button>
+                {onEdit && (
+                  <button onClick={onEdit} className="btn-secondary text-xs px-3 py-1.5">
+                    <Edit3 size={13} />
+                    ویرایش
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 mt-3">

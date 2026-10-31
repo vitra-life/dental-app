@@ -6,4 +6,5 @@ export const keys = {
   appointmentRange: (from: string, to: string) => ['appointments', 'range', from, to] as const,
   patientAppointments: (patientId: string) => ['appointments', 'patient', patientId] as const,
   services: ['services'] as const,
+  doctors: ['doctors'] as const,
 };

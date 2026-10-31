@@ -21,14 +21,17 @@ npm install
 npm run dev
 ```
 
-Then open the address Vite prints (by default http://localhost:5173).
+Then open the address Vite prints (by default http://localhost:5173) and sign in with a mobile number and password. To get a first account, run this in Dental-Api; it prints a temporary password that must be changed at first sign-in:
 
-The API address and the clinic to act for come from `.env.development`:
+```bash
+npm run clinic:create -- --clinic-id 00000000-0000-7000-8000-000000000001 --admin-mobile 09120000000 --admin-name "…"
+```
+
+The API address comes from `.env.development`:
 
 | Variable | Meaning |
 |---|---|
 | `VITE_API_BASE_URL` | Dental-Api's base URL, without `/api/v1` (`http://localhost:3000`) |
-| `VITE_CLINIC_ID` | Temporary: the clinic sent as the `x-clinic-id` header until login exists. The default is the clinic `npm run db:seed` creates |
 
 For another environment, copy `.env.example` to `.env.production.local` or set the variables in CI.
 
@@ -99,6 +102,12 @@ Files and folders under `src/` are kebab-case (`patient-form.tsx`); lint enforce
 - **Everything else** goes through `src/lib/store.ts`. It loads the sample data in `src/constants/seed/` on first run, then keeps every change in localStorage under the key `dentaclinic:data:v2`. Those sample rows refer to patients and services by ids that don't exist in the backend, so they show without a patient or service name.
 - To discard local changes, open Settings → اطلاعات کلینیک and press "بازنشانی داده‌ها" (reset data). Patients, appointments and services are only what you add through the app; `npm run db:seed` never adds or removes them.
 - Dates are stored as Gregorian values (`YYYY-MM-DD`) and shown as Jalali dates. All conversion goes through `src/lib/date.ts`.
+
+## Sign-in and permissions
+
+- Users sign in with mobile and password. The access token lives in memory and the refresh token in localStorage (`vitra:refresh-token`); an expired access token is refreshed once and the request repeated.
+- A user in several clinics picks one after signing in and can switch from the user menu; switching clears the cached data.
+- The menu, pages and buttons show only what the user's roles grant in the active clinic, from `GET /auth/me`. The backend enforces the same permission codes.
 
 ## Things that are simulated
 

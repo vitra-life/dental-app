@@ -60,6 +60,8 @@ export interface AppointmentInput {
   appointment_date: string;
   start_time: string;
   duration_minutes: number;
+  /** The doctor's membership id (from `GET /doctors`). */
+  doctor_membership_id: string;
   notes: string | null;
 }
 
@@ -71,8 +73,9 @@ export function toAppointment(dto: Schemas['AppointmentDto']): Appointment {
   return {
     id: dto.id,
     patient_id: dto.client_id,
-    staff_id: null, // staff are not in the API yet
+    staff_id: null, // the local staff list is not linked to the API; see `doctor`
     service_id: dto.service_id,
+    doctor_membership_id: dto.doctor_membership_id,
     appointment_date: start.date,
     start_time: start.time,
     end_time: splitTimestamp(end).time,
@@ -82,6 +85,7 @@ export function toAppointment(dto: Schemas['AppointmentDto']): Appointment {
     created_at: dto.created_at,
     patient: dto.client,
     service: dto.service,
+    doctor: dto.doctor,
   };
 }
 
@@ -89,6 +93,7 @@ export function toAppointmentBody(input: AppointmentInput): Schemas['CreateAppoi
   return {
     client_id: input.patient_id,
     service_id: input.service_id,
+    doctor_membership_id: input.doctor_membership_id,
     start_time: joinTimestamp(input.appointment_date, input.start_time),
     // The API accepts only APPOINTMENT_DURATIONS; the form offers nothing else.
     duration_minutes: input.duration_minutes as Schemas['CreateAppointmentDto']['duration_minutes'],
