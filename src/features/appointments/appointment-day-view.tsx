@@ -107,7 +107,7 @@ export function AppointmentDayView({ selectedDate, onSelectDate, dayStats, appoi
                     <p className="text-sm font-semibold truncate">{fullName(apt.patient)}</p>
                     <p className="text-xs opacity-80 truncate">
                       {apt.service?.name || 'نوبت عمومی'}
-                      {apt.staff && <> · {apt.staff.full_name}</>}
+                      {apt.doctor && <> · {apt.doctor.full_name}</>}
                     </p>
                     {planned.has(apt.id) && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded-sm mt-1 inline-block">طرح درمان</span>}
                   </div>

@@ -7,6 +7,8 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { appointmentStatus, statusStyle } from '@/constants/status';
 import { formatDateShort, getPersianDayName, todayISO } from '@/lib/date';
 import { formatNumber, formatClock, fullName } from '@/lib/format';
+import { useCan } from '@/data/session';
+import { CAN } from '@/lib/permissions';
 import type { Appointment } from '@/lib/types';
 
 interface AppointmentListViewProps {
@@ -16,7 +18,7 @@ interface AppointmentListViewProps {
   planned: Set<string>;
   loading: boolean;
   onNew: () => void;
-  onStatusChange: (id: string, status: Appointment['status']) => void;
+  onStatusChange: (id: string, status: Exclude<Appointment['status'], 'pending'>) => void;
   onOpenPatient: (patientId: string) => void;
 }
 
@@ -42,6 +44,8 @@ function duration(start: string, end: string): number {
 
 /** All appointments as a filterable list, with the status actions on each row. */
 export function AppointmentListView({ appointments, planned, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
+  const canChange = useCan(CAN.changeAppointmentStatus);
+  const canCancel = useCan(CAN.cancelAppointment);
   const [period, setPeriod] = useState<Period>('upcoming');
   const [status, setStatus] = useState<StatusFilter>('all');
   const today = todayISO();
@@ -85,19 +89,19 @@ export function AppointmentListView({ appointments, planned, loading, onNew, onS
                   {planned.has(apt.id) && <span className="text-xs bg-primary-50 text-primary-600 border border-primary-200 px-1.5 py-0.5 rounded-lg whitespace-nowrap">طرح درمان</span>}
                 </div>
                 <p className="text-xs text-surface-500 mt-0.5 truncate">
-                  {apt.service?.name || 'نوبت عمومی'} · {apt.staff?.full_name || 'بدون دکتر'}
+                  {apt.service?.name || 'نوبت عمومی'} · {apt.doctor?.full_name || 'بدون پزشک'}
                 </p>
                 {apt.notes && <p className="text-xs text-surface-400 mt-1 truncate">{apt.notes}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                 <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} />
-                {apt.status === 'pending' && (
+                {canChange && apt.status === 'pending' && (
                   <button onClick={() => onStatusChange(apt.id, 'confirmed')} className="btn-chip px-2 py-1 bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100">تأیید</button>
                 )}
                 {(apt.status === 'pending' || apt.status === 'confirmed') && (
                   <>
-                    <button onClick={() => onStatusChange(apt.id, 'completed')} className="btn-chip px-2 py-1 bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100">انجام شد</button>
-                    <button onClick={() => onStatusChange(apt.id, 'cancelled')} className="btn-chip px-2 py-1 bg-error-50 text-error-600 border-error-200 hover:bg-error-100">لغو</button>
+                    {canChange && <button onClick={() => onStatusChange(apt.id, 'completed')} className="btn-chip px-2 py-1 bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100">انجام شد</button>}
+                    {canCancel && <button onClick={() => onStatusChange(apt.id, 'cancelled')} className="btn-chip px-2 py-1 bg-error-50 text-error-600 border-error-200 hover:bg-error-100">لغو</button>}
                   </>
                 )}
               </div>

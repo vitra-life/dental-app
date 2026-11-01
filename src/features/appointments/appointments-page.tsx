@@ -9,6 +9,8 @@ import { bookedSlots, clinicWorkingHours, freeSlotsOn, workingSlots } from '@/li
 import { useAppointments, useSetAppointmentStatus } from '@/data/appointments';
 import { usePatients } from '@/data/patients';
 import { useServices } from '@/data/services';
+import { useCan } from '@/data/session';
+import { CAN } from '@/lib/permissions';
 import { errorMessage } from '@/lib/api/errors';
 import { showToast } from '@/lib/toast';
 import { plannedAppointmentIds, syncPlanWithAppointment } from '@/lib/treatment-plans';
@@ -68,7 +70,7 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
 
   useEffect(loadLocal, []);
 
-  async function updateStatus(id: string, status: Appointment['status']) {
+  async function updateStatus(id: string, status: Exclude<Appointment['status'], 'pending'>) {
     try {
       const updated = await setStatus.mutateAsync({ id, status });
       syncPlanWithAppointment(updated, status);
@@ -88,15 +90,20 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
   const todaySlots = workingSlots(today, hours);
   const todayFree = freeSlotsOn(today, todayAppointments, hours).length;
 
-  const openBooking = (startTime = '09:00', date = viewMode === 'list' ? today : selectedDate) => setBooking({ date, startTime });
+  const canBook = useCan(CAN.bookAppointment);
+  const openBooking = (startTime = '09:00', date = viewMode === 'list' ? today : selectedDate) => {
+    if (canBook) setBooking({ date, startTime });
+  };
 
   return (
     <div className="space-y-5">
       <PageHeader title="نوبت‌دهی" subtitle={<>{formatNumber(todayAppointments.length)} نوبت امروز</>}>
-        <button onClick={() => openBooking()} className="btn-primary">
-          <Plus size={16} />
-          نوبت جدید
-        </button>
+        {canBook && (
+          <button onClick={() => openBooking()} className="btn-primary">
+            <Plus size={16} />
+            نوبت جدید
+          </button>
+        )}
       </PageHeader>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

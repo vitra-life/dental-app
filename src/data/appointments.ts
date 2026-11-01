@@ -71,11 +71,18 @@ export function useUpdateAppointment() {
   });
 }
 
+/** Confirm, complete, mark a no-show, or cancel (cancelling has its own endpoint and permission). */
 export function useSetAppointmentStatus() {
   const invalidate = useInvalidateAfterWrite();
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: Appointment['status'] }) =>
-      toAppointment(unwrap(await api.PATCH('/api/v1/appointments/{id}/status', { params: { path: { id } }, body: { status } }))),
+    mutationFn: async ({ id, status }: { id: string; status: Exclude<Appointment['status'], 'pending'> }) => {
+      const path = { params: { path: { id } } };
+      const result =
+        status === 'cancelled'
+          ? await api.POST('/api/v1/appointments/{id}/cancel', path)
+          : await api.PATCH('/api/v1/appointments/{id}/status', { ...path, body: { status } });
+      return toAppointment(unwrap(result));
+    },
     onSuccess: invalidate,
   });
 }
