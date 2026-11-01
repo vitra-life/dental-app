@@ -4,7 +4,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import App from './app';
 import { apt, pat, svc } from './constants/seed/ids';
 import { createQueryClient } from './data/query-client';
+import { clearSession, setTokens } from './lib/auth/session';
 import { joinTimestamp, todayISO } from './lib/date';
+import { PAGE_PERMISSION } from './lib/permissions';
 import * as db from './lib/store';
 
 // What the stubbed API returns: one patient with one appointment today.
@@ -25,12 +27,31 @@ const appointment = () => ({
   status: 'pending', description: null, created_at: stamp, updated_at: stamp,
   client: { id: client.id, first_name: client.first_name, last_name: client.last_name, phone: client.phone },
   service: { id: service.id, name: service.name },
+  doctor_membership_id: 'membership', created_by_membership_id: 'membership',
+  doctor: { membership_id: 'membership', full_name: 'دکتر سارا احمدی' },
+});
+
+/** The permissions the signed-in user holds; every page and action unless a test narrows it. */
+let granted: string[];
+const allCodes = [
+  ...Object.values(PAGE_PERMISSION),
+  'clients.list.view', 'clients.record.view', 'clients.record.create', 'clients.record.update',
+  'appointments.list.view', 'appointments.booking.create', 'appointments.status.change', 'appointments.status.cancel',
+  'settings.clinic', 'settings.hours', 'settings.services', 'settings.services.manage', 'settings.staff', 'settings.plans',
+];
+const me = () => ({
+  user: { id: 'user', full_name: 'سارا احمدی', mobile: '09120000000', must_change_password: false },
+  clinics: [{ clinic_id: 'clinic', clinic_name: 'کلینیک ویترا', membership_id: 'membership', roles: [], staff_types: ['doctor'] }],
+  active_clinic_id: 'clinic',
+  permissions: granted.map((code) => ({ code, scope: 'clinic' })),
 });
 
 /** Answers the app's GET requests the way Dental-Api would. */
 async function fakeApi(input: RequestInfo | URL): Promise<Response> {
   const { pathname } = new URL(input instanceof Request ? input.url : String(input));
   const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+  if (pathname === '/api/v1/auth/me') return json(me());
+  if (pathname === '/api/v1/doctors') return json([{ membership_id: 'membership', full_name: 'دکتر سارا احمدی', specialty: null }]);
   if (pathname === '/api/v1/clients') return json({ items: [client], total: 1, page: 1, page_size: 100 });
   if (pathname === '/api/v1/services') return json([service]);
   if (pathname === '/api/v1/appointments') return json([appointment()]);
@@ -64,23 +85,46 @@ const pageTitle = (name: string) => screen.findByRole('heading', { level: 1, nam
 
 beforeEach(() => {
   db.resetStore();
+  granted = allCodes;
+  setTokens({ access_token: 'access', refresh_token: 'refresh' });
   vi.stubGlobal('fetch', vi.fn(fakeApi));
 });
 
 afterEach(() => {
   cleanup();
+  clearSession();
   vi.unstubAllGlobals();
 });
 
 describe('App', () => {
   it.each(pages)('opens $nav from the sidebar', async ({ nav, title }) => {
     renderApp();
+    await pageTitle('داشبورد');
     openFromSidebar(nav);
     expect(await pageTitle(title)).toBeTruthy();
   });
 
+  it('asks a signed-out user to log in', async () => {
+    clearSession();
+    renderApp();
+    expect(await screen.findByRole('button', { name: 'ورود' })).toBeTruthy();
+  });
+
+  it('shows only the pages and actions the role grants', async () => {
+    granted = ['dashboard', 'clients', 'clients.list.view', 'clients.record.view'];
+    renderApp();
+    await pageTitle('داشبورد');
+    expect(screen.queryAllByRole('button', { name: /^تنظیمات/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: /^نوبت‌دهی/ })).toHaveLength(0);
+
+    openFromSidebar('بیماران');
+    expect(await pageTitle('بیماران')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'بیمار جدید' })).toBeNull();
+  });
+
   it('opens a patient record from the appointments list and returns to the patient list', async () => {
     renderApp();
+    await pageTitle('داشبورد');
     openFromSidebar('نوبت‌دهی');
     fireEvent.click((await screen.findAllByRole('button', { name: 'علیرضا کاظمی' }))[0]);
     expect(await pageTitle('علیرضا کاظمی')).toBeTruthy();
@@ -91,6 +135,7 @@ describe('App', () => {
 
   it('opens a patient record from the patient list and goes back by the breadcrumb', async () => {
     renderApp();
+    await pageTitle('داشبورد');
     openFromSidebar('بیماران');
     fireEvent.click(await screen.findByText('علیرضا کاظمی'));
     expect(await pageTitle('علیرضا کاظمی')).toBeTruthy();

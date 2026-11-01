@@ -6,10 +6,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton';
 import { usePatients } from '@/data/patients';
+import { useCan } from '@/data/session';
 import { errorMessage } from '@/lib/api/errors';
 import { formatDate } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName } from '@/lib/format';
 import { patientBalances } from '@/lib/patient-balance';
+import { CAN } from '@/lib/permissions';
 import type { PageKey, Patient } from '@/lib/types';
 import { PatientDetail, type PatientTab } from './patient-detail';
 import { PatientForm } from './patient-form';
@@ -30,6 +32,8 @@ const balanceFilters: { value: BalanceFilter; label: string }[] = [
 
 export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
   const { data: patients = [], isPending: loading, error, refetch } = usePatients();
+  const canCreate = useCan(CAN.createClient);
+  const canUpdate = useCan(CAN.updateClient);
   /** What each patient owes, from the invoices in the browser store (a cheap read, done every render). */
   const balances = patientBalances();
   const [search, setSearch] = useState('');
@@ -77,7 +81,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onBack={() => { setDetailId(null); setActiveTab('info'); }}
-          onEdit={() => { setEditingPatient(detailPatient); setShowForm(true); }}
+          onEdit={canUpdate ? () => { setEditingPatient(detailPatient); setShowForm(true); } : undefined}
           onNavigate={onNavigate}
         />
         {form}
@@ -88,10 +92,12 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
   return (
     <div className="space-y-5">
       <PageHeader title="بیماران" subtitle={<>{formatNumber(patients.length)} بیمار ثبت‌شده</>}>
-        <button onClick={openNewForm} className="btn-primary">
-          <Plus size={16} />
-          بیمار جدید
-        </button>
+        {canCreate && (
+          <button onClick={openNewForm} className="btn-primary">
+            <Plus size={16} />
+            بیمار جدید
+          </button>
+        )}
       </PageHeader>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -130,10 +136,12 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
           title="بیماری یافت نشد"
           description={search || filter !== 'all' ? 'عبارت جستجو یا فیلتر را تغییر دهید' : 'اولین بیمار خود را ثبت کنید'}
           action={
-            <button onClick={openNewForm} className="btn-primary">
-              <Plus size={16} />
-              بیمار جدید
-            </button>
+            canCreate && (
+              <button onClick={openNewForm} className="btn-primary">
+                <Plus size={16} />
+                بیمار جدید
+              </button>
+            )
           }
         />
       ) : (

@@ -4,7 +4,9 @@ import { JalaliDateInput } from '@/components/ui/jalali-date-input';
 import { Modal } from '@/components/ui/modal';
 import { APPOINTMENT_DURATIONS, DEFAULT_APPOINTMENT_DURATION } from '@/constants/schedule';
 import { useCreateAppointment } from '@/data/appointments';
-import { errorMessage } from '@/lib/api/errors';
+import { useDoctors } from '@/data/doctors';
+import { useMe } from '@/data/session';
+import { errorMessage, errorReason } from '@/lib/api/errors';
 import { formatNumber } from '@/lib/format';
 import { bookableDuration } from '@/lib/schedule';
 import { showToast } from '@/lib/toast';
@@ -23,15 +25,19 @@ interface AppointmentFormProps {
 }
 
 /**
- * Books an appointment: a patient, a service, the date, the time on that date
- * (together the start) and how long it lasts.
+ * Books an appointment: a patient, a service, the doctor, the date, the time
+ * on that date (together the start) and how long it lasts.
  */
 export function AppointmentForm({ date, startTime, patients, services, onClose, onSaved }: AppointmentFormProps) {
   const createAppointment = useCreateAppointment();
+  const { data: doctors = [] } = useDoctors();
+  const { data: me } = useMe();
+  const myMembership = me?.clinics.find((c) => c.clinic_id === me.active_clinic_id)?.membership_id;
   const [form, setForm] = useState({
     patient_id: '',
     plan_item_id: '',
     service_id: '',
+    doctor_membership_id: '',
     appointment_date: date,
     start_time: startTime,
     duration_minutes: DEFAULT_APPOINTMENT_DURATION,
@@ -64,15 +70,22 @@ export function AppointmentForm({ date, startTime, patients, services, onClose, 
     setForm({ ...form, service_id: serviceId, duration_minutes: service ? bookableDuration(service.duration_minutes) : form.duration_minutes });
   }
 
+  /** Until a doctor is picked: the user themselves if they are a doctor, or the only doctor. */
+  const doctorId =
+    form.doctor_membership_id ||
+    doctors.find((d) => d.membership_id === myMembership)?.membership_id ||
+    (doctors.length === 1 ? doctors[0].membership_id : '');
+
   async function save() {
-    if (!form.patient_id || !form.service_id || !form.appointment_date || !form.start_time) {
-      showToast('بیمار، خدمت، تاریخ و ساعت را انتخاب کنید', 'error');
+    if (!form.patient_id || !form.service_id || !doctorId || !form.appointment_date || !form.start_time) {
+      showToast('بیمار، خدمت، پزشک، تاریخ و ساعت را انتخاب کنید', 'error');
       return;
     }
     try {
       const appointment = await createAppointment.mutateAsync({
         patient_id: form.patient_id,
         service_id: form.service_id,
+        doctor_membership_id: doctorId,
         appointment_date: form.appointment_date,
         start_time: form.start_time,
         duration_minutes: form.duration_minutes,
@@ -82,7 +95,15 @@ export function AppointmentForm({ date, startTime, patients, services, onClose, 
       showToast('نوبت ثبت شد');
       onSaved();
     } catch (error) {
-      showToast(errorMessage(error), 'error');
+      const reason = errorReason(error);
+      showToast(
+        reason === 'overlap'
+          ? 'پزشک در این زمان نوبت دیگری دارد'
+          : reason === 'doctor_not_allowed'
+            ? 'شما فقط برای پزشکان خود می‌توانید نوبت ثبت کنید'
+            : errorMessage(error),
+        'error',
+      );
     }
   }
 
@@ -121,6 +142,17 @@ export function AppointmentForm({ date, startTime, patients, services, onClose, 
           <select className="input-field" value={form.service_id} onChange={(e) => selectService(e.target.value)}>
             <option value="">-- انتخاب خدمت --</option>
             {services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label-field">پزشک *</label>
+          <select className="input-field" value={doctorId} onChange={(e) => setForm({ ...form, doctor_membership_id: e.target.value })}>
+            <option value="">-- انتخاب پزشک --</option>
+            {doctors.map((d) => (
+              <option key={d.membership_id} value={d.membership_id}>
+                {d.full_name}{d.specialty ? ` (${d.specialty})` : ''}
+              </option>
+            ))}
           </select>
         </div>
         <div className="grid grid-cols-3 gap-3">

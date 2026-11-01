@@ -23,7 +23,7 @@ npm run preview
 npm run api:types   # regenerate src/lib/api/schema.d.ts from the running backend's Swagger
 ```
 
-`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed` to create the dev clinic, `npm run start:dev` there; the database starts with no patients, services or appointments). `.env.development` sets `VITE_API_BASE_URL` and `VITE_CLINIC_ID` (temporary, sent as `x-clinic-id` until login exists); `.env.test` sets them for tests.
+`npm run dev` needs Dental-Api on port 3000 (`npm run db:up`, `npm run db:seed` to create the dev clinic, `npm run start:dev` there; the database starts with no patients, services or appointments). `.env.development` sets `VITE_API_BASE_URL`; `.env.test` sets it for tests. Sign in with an account from Dental-Api's `npm run clinic:create`.
 
 `npm run build` does not type-check, so run `typecheck`, `lint` and `test` to verify changes.
 
@@ -54,8 +54,10 @@ Pages that link elsewhere receive `onNavigate(page)` and `onOpenPatient(id)`. `o
 **Layers:** `features/` (screens) → `components/` (shared UI) and `data/` (API hooks) → `lib/` and `constants/` (plain TypeScript, no React). A feature folder owns one page: `<name>-page.tsx` loads data and holds state, dialogs and tabs sit beside it, and calculations go in `.ts` files with no JSX (`dashboard-stats.ts`, `ai-insights.ts`, `report-stats.ts`) so they can be tested alone. Features don't import from each other; shared code moves down a layer.
 
 **Data from the API (patients, appointments, services):** read and written only through the TanStack Query hooks in `src/data/` (`usePatients`, `useAppointments`, `useServices`, their mutations, and `useClinicData` for summaries).
-- `src/lib/api/client.ts` is a typed openapi-fetch client over `schema.d.ts`, which `npm run api:types` generates; never edit it by hand. A middleware adds `x-clinic-id`.
-- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments are booked by date, time and `duration_minutes` (one of `APPOINTMENT_DURATIONS`, `src/constants/schedule.ts`); `end_time` is worked out from the duration. They have no price and no `staff_id` yet (always null).
+- `src/lib/api/client.ts` is a typed openapi-fetch client over `schema.d.ts`, which `npm run api:types` generates; never edit it by hand. A middleware adds the Bearer token and, on a 401, refreshes once and repeats the request (`src/lib/auth/session.ts` holds the tokens).
+- **Auth and permissions:** `AuthGate` (`src/features/auth/`) shows login / change-password / clinic picker until signed in with an active clinic. `useMe()`, `usePermissions()`, `useCan(code)` are in `src/data/session.ts`. Gate pages with `PAGE_PERMISSION` and buttons with `CAN` (`src/lib/permissions.ts`); codes come from the backend's permission catalogue, which also enforces them. The active clinic lives in the server session; no clinic is sent with requests.
+- Appointments require a doctor (`doctor_membership_id`, from `useDoctors()`).
+- `src/lib/api/mappers.ts` converts in one place: API `client`/`client_id`/`description` ⇄ app `patient`/`patient_id`/`notes`; Rial (API) ⇄ Toman (UI); ISO timestamps ⇄ `appointment_date` + `HH:MM:SS`. Appointments are booked by date, time and `duration_minutes` (one of `APPOINTMENT_DURATIONS`, `src/constants/schedule.ts`); `end_time` is worked out from the duration. They have no price; the doctor is `doctor_membership_id`, and `staff_id` stays null.
 - Mutations invalidate their query keys (`src/data/keys.ts`), so screens refresh by themselves; don't refetch by hand.
 - Errors are `ApiError` (`src/lib/api/errors.ts`): show `errorMessage(error)` in a toast, or `<LoadError>` for a screen that failed to load. A 400 carries `fieldErrors`.
 - Appointments load as one shared window (`appointmentWindow()`: 7 Jalali months back to 90 days ahead); `usePatientAppointments` loads one patient's full history.

@@ -45,6 +45,10 @@ export function errorMessage(error: unknown): string {
   switch (error.status) {
     case 400:
       return 'اطلاعات واردشده معتبر نیست';
+    case 401:
+      return 'لطفا دوباره وارد شوید';
+    case 403:
+      return 'دسترسی ندارید';
     case 404:
       return 'مورد موردنظر پیدا نشد';
     case 409:
@@ -52,4 +56,11 @@ export function errorMessage(error: unknown): string {
     default:
       return error.status >= 500 ? 'خطای سرور؛ دوباره تلاش کنید' : 'درخواست انجام نشد';
   }
+}
+
+/** The `details.reason` the API sets on some errors (e.g. locked, overlap, doctor_not_allowed). */
+export function errorReason(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const details = error.body?.details as unknown;
+  return typeof details === 'object' && details !== null && 'reason' in details ? String(details.reason) : null;
 }

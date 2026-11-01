@@ -61,6 +61,8 @@ data/
 ├── patients.ts             usePatients (all pages), usePatient, useCreatePatient, useUpdatePatient
 ├── appointments.ts         useAppointments (shared window), usePatientAppointments, create, update, status
 ├── services.ts             useServices, useCreateService, useUpdateService, useDeleteService
+├── doctors.ts              useDoctors: the clinic's active doctors, for the booking form
+├── session.ts              useSession, useMe, usePermissions, useCan, login, logout, switch clinic, change password
 └── clinic-data.ts          useClinicData: patients, appointments and services together, for summaries
 ```
 
@@ -96,6 +98,13 @@ Each folder is one page. The `*-page.tsx` file is the entry point that `app.tsx`
 
 ```
 features/
+├── auth/
+│   ├── auth-gate.tsx               shows the app only when signed in with a permanent password and an active clinic
+│   ├── auth-card.tsx               the centred card the sign-in screens share
+│   ├── login-page.tsx              mobile and password
+│   ├── change-password-page.tsx    required while the password is temporary
+│   └── clinic-picker-page.tsx      choose a clinic when the user has several
+│
 ├── dashboard/
 │   ├── dashboard-page.tsx          figures, revenue and service charts, today's appointments, assistant notes
 │   └── dashboard-stats.ts          computes everything the dashboard shows
@@ -183,10 +192,14 @@ constants/
 
 ```
 lib/
-├── env.ts                  reads `VITE_API_BASE_URL` and `VITE_CLINIC_ID`; fails at startup if one is missing
+├── env.ts                  reads `VITE_API_BASE_URL`; fails at startup if it is missing
+├── permissions.ts          the permission codes the app checks: `PAGE_PERMISSION` per page, `CAN` for actions
+├── auth/
+│   └── session.ts          the tokens: access token in memory, refresh token in localStorage
 ├── api/
 │   ├── schema.d.ts         generated from the backend's Swagger by `npm run api:types`; do not edit
-│   ├── client.ts           the typed openapi-fetch client; adds the `x-clinic-id` header
+│   ├── client.ts           the typed openapi-fetch client; adds the token, refreshes it on a 401
+│   ├── client.test.ts
 │   ├── errors.ts           `ApiError`, `unwrap()`, Persian messages per status
 │   ├── mappers.ts          API rows ⇄ app rows: names, Rial ⇄ Toman, timestamps ⇄ date and time
 │   └── mappers.test.ts

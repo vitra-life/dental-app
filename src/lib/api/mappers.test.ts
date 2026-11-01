@@ -32,6 +32,8 @@ describe('appointments', () => {
     created_at: '2026-10-01T08:00:00.000Z', updated_at: '2026-10-01T08:00:00.000Z',
     client: { id: 'c1', first_name: 'لیلا', last_name: 'بهرامی', phone: '09121110012' },
     service: { id: 's1', name: 'ترمیم' },
+    doctor_membership_id: 'm1', created_by_membership_id: 'm2',
+    doctor: { membership_id: 'm1', full_name: 'دکتر رضایی' },
   };
 
   it('gives the local date and start, and the end from the duration', () => {
@@ -44,15 +46,17 @@ describe('appointments', () => {
       notes: 'کنترل',
       staff_id: null,
       patient: { first_name: 'لیلا' },
+      doctor_membership_id: 'm1',
     });
   });
 
   it('sends the date and time as one UTC start, with the duration', () => {
     expect(
-      toAppointmentBody({ patient_id: 'c1', service_id: 's1', appointment_date: '2026-10-14', start_time: '09:00', duration_minutes: 45, notes: null }),
+      toAppointmentBody({ patient_id: 'c1', service_id: 's1', appointment_date: '2026-10-14', start_time: '09:00', duration_minutes: 45, notes: null, doctor_membership_id: 'm1' }),
     ).toEqual({
       client_id: 'c1',
       service_id: 's1',
+      doctor_membership_id: 'm1',
       start_time: '2026-10-14T05:30:00.000Z',
       duration_minutes: 45,
       description: null,

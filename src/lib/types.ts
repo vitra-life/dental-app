@@ -78,9 +78,13 @@ export interface Appointment {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
   notes: string | null;
   created_at: string;
+  /** The doctor's clinic membership; null on appointments booked before doctors were recorded. */
+  doctor_membership_id: string | null;
   patient?: AppointmentPatient;
+  /** Local staff record; not used by appointments from the API (see `doctor`). */
   staff?: Staff;
   service?: Pick<Service, 'id' | 'name'>;
+  doctor?: { membership_id: string; full_name: string } | null;
 }
 
 export interface Treatment {
