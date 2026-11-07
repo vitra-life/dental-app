@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { showToast } from '@/lib/toast';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 // These switches are not stored yet; they show the reminders the clinic can send.
 const options = [
   { key: 'reminder', title: 'یادآوری نوبت', description: 'ارسال خودکار یادآوری نوبت به بیماران', enabled: true },
@@ -10,6 +13,7 @@ const options = [
 ];
 
 export function NotificationsTab() {
+  const { can } = usePermissions();
   const [enabled, setEnabled] = useState<Record<string, boolean>>(() => Object.fromEntries(options.map((o) => [o.key, o.enabled])));
 
   return (
@@ -37,7 +41,7 @@ export function NotificationsTab() {
           );
         })}
       </div>
-      <button onClick={() => showToast('تنظیمات اعلان‌ها ذخیره شد')} className="btn-primary mt-5 px-6 py-2.5">ذخیره تنظیمات</button>
+      {can(CAN.updateClinicSettings) && (<button onClick={() => showToast('تنظیمات اعلان‌ها ذخیره شد')} className="btn-primary mt-5 px-6 py-2.5">ذخیره تنظیمات</button>)}
     </div>
   );
 }

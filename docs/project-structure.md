@@ -60,12 +60,12 @@ data/
 ├── keys.ts                 query keys; mutations invalidate by prefix
 ├── patients.ts             usePatients (all pages), usePatient, useCreatePatient, useUpdatePatient
 ├── appointments.ts         useAppointments (shared window), usePatientAppointments, create, update, status
-├── staff.ts                useStaff, assignments, staff and relationship types; create, update, doctor profile, reset password
-├── roles.ts                useRoles, usePermissionCatalog; create, update, delete
+├── staff.ts                useStaff, staff and relationship types, workspaces and their grants, doctor profile, reset password
+├── templates.ts            useTemplates, usePermissionCatalog; create, update, delete
 ├── audit.ts                useAuditLogs (one page)
 ├── services.ts             useServices, useCreateService, useUpdateService, useDeleteService
 ├── doctors.ts              useDoctors: the clinic's active doctors, for the booking form
-├── session.ts              useSession, useMe, usePermissions, useCan, login, logout, switch clinic, change password
+├── session.ts              useSession, useMe, usePermissions, useCan, login, logout, useActiveWorkspace, useSwitchWorkspace, change password
 └── clinic-data.ts          useClinicData: patients, appointments and services together, for summaries
 ```
 
@@ -74,6 +74,7 @@ data/
 ```
 components/
 ├── layout.tsx              collapsible sidebar, mobile menu, top bar and the scrolling page area
+├── workspace-switcher.tsx  the top bar's «clinic · position» menu to switch workspace
 └── ui/
     ├── modal.tsx               dialog
     ├── page-header.tsx         page title, subtitle and action buttons
@@ -87,6 +88,7 @@ components/
     ├── charts.tsx              area, bar and donut charts (recharts)
     ├── progress-bar.tsx        thin horizontal progress bar
     ├── choice-chips.tsx        single-choice row of pill buttons (filters, form choices)
+    ├── checkbox-list.tsx       multiple-choice row of pills with a tick (staff types, doctors)
     ├── jalali-date-input.tsx   Jalali date field with a calendar popover
     ├── skeleton.tsx            loading placeholders
     ├── empty-state.tsx         "nothing here yet" block
@@ -106,7 +108,7 @@ features/
 │   ├── auth-card.tsx               the centred card the sign-in screens share
 │   ├── login-page.tsx              mobile and password
 │   ├── change-password-page.tsx    required while the password is temporary
-│   └── clinic-picker-page.tsx      choose a clinic when the user has several
+│   └── workspace-picker-page.tsx   choose the clinic, then the workspace (position) to work in
 │
 ├── dashboard/
 │   ├── dashboard-page.tsx          figures, revenue and service charts, today's appointments, assistant notes
@@ -165,13 +167,14 @@ features/
     ├── settings-page.tsx           tab container
     ├── clinic-tab.tsx              clinic details and the reset-data button
     ├── hours-tab.tsx               opening hours per weekday
-    ├── staff-tab.tsx               the clinic's members from the API, with search and an active filter
-    ├── staff-form.tsx              add a member by mobile, with staff types and roles
-    ├── staff-detail.tsx            one member: roles, active, doctor profile, links to doctors, password reset
+    ├── staff-tab.tsx               the clinic's people with their workspaces, search and an active filter
+    ├── staff-form.tsx              add a person: mobile, name, doctor / secretary / assistant, which doctors they work for
+    ├── staff-detail.tsx            one person: staff types, doctor profile, workspaces (add, on/off, remove), password reset
+    ├── workspace-permissions-modal.tsx  one workspace's permissions, with «fill from a template»
+    ├── permission-checklist.tsx    the catalogue as folding groups of checkboxes; items you don't hold are disabled
     ├── temporary-password-modal.tsx  shows a new or reset temporary password once
-    ├── staff-messages.ts           Persian messages for staff and role errors (last admin, delegation…)
-    ├── roles-tab.tsx               system and custom roles
-    ├── role-editor.tsx             a role's name and grants, as a tree of the permission catalogue
+    ├── staff-messages.ts           Persian messages for staff and workspace errors (last admin, delegation…)
+    ├── templates-tab.tsx           permission templates: reusable sets copied into workspaces
     ├── audit-tab.tsx               the audit log, paged and filtered by action
     ├── services-tab.tsx            service catalogue table with category filters
     ├── service-form.tsx            add or edit a service
@@ -203,9 +206,9 @@ constants/
 ```
 lib/
 ├── env.ts                  reads `VITE_API_BASE_URL`; fails at startup if it is missing
-├── permissions.ts          the permission codes the app checks: `PAGE_PERMISSION` per page, `CAN` for actions
-├── permission-tree.ts      the role editor's rules: check parents, uncheck children, only grant what you hold
-├── permission-tree.test.ts
+├── permissions.ts          the permission codes the app checks: `CAN` for every action, `canOpen()` for pages
+├── permission-list.ts      the permissions checklist's rules: per group, only what you hold, catalogue order
+├── permission-list.test.ts
 ├── auth/
 │   └── session.ts          the tokens: access token in memory, refresh token in localStorage
 ├── api/

@@ -19,6 +19,9 @@ import { LabForm } from './lab-form';
 import { LabOrderForm } from './lab-order-form';
 import { LabPaymentForm } from './lab-payment-form';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 interface LabProps {
   onOpenPatient: (patientId: string) => void;
 }
@@ -46,6 +49,7 @@ const nextStep: Partial<Record<LabOrder['status'], { to: LabOrder['status']; act
 };
 
 export function Lab({ onOpenPatient }: LabProps) {
+  const { can } = usePermissions();
   const [tab, setTab] = useState<LabTab>('orders');
   const [statusFilter, setStatusFilter] = useState<OrderFilter>('all');
   const [labs, setLabs] = useState<LabRow[]>([]);
@@ -94,11 +98,11 @@ export function Lab({ onOpenPatient }: LabProps) {
   return (
     <div className="space-y-5">
       <PageHeader title="لابراتوار" subtitle={<>{formatNumber(orders.length)} سفارش</>}>
-        <button onClick={() => setShowLabForm(true)} className="btn-secondary">+ لابراتوار جدید</button>
-        <button onClick={() => setShowOrderForm(true)} className="btn-primary">
+        {can(CAN.createLab) && (<button onClick={() => setShowLabForm(true)} className="btn-secondary">+ لابراتوار جدید</button>)}
+        {can(CAN.createLabOrder) && (<button onClick={() => setShowOrderForm(true)} className="btn-primary">
           <Plus size={16} />
           سفارش جدید
-        </button>
+        </button>)}
       </PageHeader>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -118,7 +122,7 @@ export function Lab({ onOpenPatient }: LabProps) {
         <div className="space-y-4">
           <ChoiceChips options={orderFilters} value={statusFilter} onChange={setStatusFilter} />
           {filteredOrders.length === 0 ? (
-            <EmptyState icon={Package} title="سفارشی یافت نشد" description="سفارش لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowOrderForm(true)} className="btn-primary"><Plus size={16} />سفارش جدید</button>} />
+            <EmptyState icon={Package} title="سفارشی یافت نشد" description="سفارش لابراتوار جدید ثبت کنید" action={can(CAN.createLabOrder) && <button onClick={() => setShowOrderForm(true)} className="btn-primary"><Plus size={16} />سفارش جدید</button>} />
           ) : (
             <div className="space-y-3">
               {filteredOrders.map((order) => {
@@ -146,7 +150,7 @@ export function Lab({ onOpenPatient }: LabProps) {
                     </div>
                     {step && (
                       <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100">
-                        <button onClick={() => advanceOrder(order)} className={`btn-chip ${step.className}`}>{step.action}</button>
+                        {can(CAN.updateLabOrder) && (<button onClick={() => advanceOrder(order)} className={`btn-chip ${step.className}`}>{step.action}</button>)}
                       </div>
                     )}
                   </div>
@@ -157,7 +161,7 @@ export function Lab({ onOpenPatient }: LabProps) {
         </div>
       ) : tab === 'labs' ? (
         labs.length === 0 ? (
-          <EmptyState icon={FlaskConical} title="لابراتواری ثبت نشده" description="لابراتوار جدید ثبت کنید" action={<button onClick={() => setShowLabForm(true)} className="btn-primary"><Plus size={16} />لابراتوار جدید</button>} />
+          <EmptyState icon={FlaskConical} title="لابراتواری ثبت نشده" description="لابراتوار جدید ثبت کنید" action={can(CAN.createLab) && <button onClick={() => setShowLabForm(true)} className="btn-primary"><Plus size={16} />لابراتوار جدید</button>} />
         ) : (
           <div className="space-y-3">
             {labs.map((lab) => {
@@ -192,13 +196,13 @@ export function Lab({ onOpenPatient }: LabProps) {
                     </div>
                   )}
                   <div className="flex gap-2 mt-3 pt-3 border-t border-surface-100">
-                    <button onClick={() => { setSelectedLab(lab); setShowPaymentForm(true); }} className="btn-chip bg-accent-600 border-accent-600 text-white hover:bg-accent-700">
+                    {can(CAN.createLabPayment) && (<button onClick={() => { setSelectedLab(lab); setShowPaymentForm(true); }} className="btn-chip bg-accent-600 border-accent-600 text-white hover:bg-accent-700">
                       {lab.balance > 0 ? 'تسویه / ثبت پرداخت' : 'ثبت پرداخت'}
-                    </button>
-                    <button onClick={() => { setSelectedLab(lab); setShowOrderForm(true); }} className="btn-chip bg-white border-surface-200 text-surface-600 hover:bg-surface-50">
+                    </button>)}
+                    {can(CAN.createLabOrder) && (<button onClick={() => { setSelectedLab(lab); setShowOrderForm(true); }} className="btn-chip bg-white border-surface-200 text-surface-600 hover:bg-surface-50">
                       <Plus size={12} />
                       سفارش
-                    </button>
+                    </button>)}
                   </div>
                 </div>
               );

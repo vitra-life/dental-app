@@ -30,21 +30,29 @@ export function useMe() {
   });
 }
 
-/**
- * `can(code)` for the active clinic: true if the permission is granted.
- * `scopes` maps each granted code to its scope (for the role editor).
- */
+export type MeClinic = Me['clinics'][number];
+export type MeWorkspace = MeClinic['workspaces'][number];
+
+/** `can(code)` for the active workspace: true if it holds the permission. */
 export function usePermissions() {
   const { data } = useMe();
   return useMemo(() => {
-    const scopes = new Map(data?.permissions.map((p) => [p.code, p.scope]));
-    return { can: (code: string) => scopes.has(code), scopes, loaded: data !== undefined };
+    const granted = new Set(data?.permissions);
+    return { can: (code: string) => granted.has(code), granted, loaded: data !== undefined };
   }, [data]);
 }
 
-/** Whether the signed-in user holds `code` in the active clinic. */
+/** Whether the active workspace holds `code`. */
 export function useCan(code: string): boolean {
   return usePermissions().can(code);
+}
+
+/** The active clinic and workspace, from `/auth/me`. */
+export function useActiveWorkspace(): { clinic: MeClinic | null; workspace: MeWorkspace | null } {
+  const { data: me } = useMe();
+  const clinic = me?.clinics.find((c) => c.clinic_id === me.active_clinic_id) ?? null;
+  const workspace = clinic?.workspaces.find((w) => w.id === me?.active_workspace_id) ?? null;
+  return { clinic, workspace };
 }
 
 export function useLogin() {
@@ -74,16 +82,21 @@ export function useLogout() {
   });
 }
 
-/** Works in another clinic: new token, and nothing cached from the previous clinic. */
-export function useSwitchClinic() {
+/**
+ * Works in another workspace (and maybe another clinic): new token, and
+ * nothing cached from the previous one, since it may have seen other data.
+ */
+export function useSwitchWorkspace() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (clinicId: string) =>
-      unwrap(await api.POST('/api/v1/auth/switch-clinic', { body: { clinic_id: clinicId } })),
+    mutationFn: async (workspaceId: string) =>
+      unwrap(await api.POST('/api/v1/auth/switch-workspace', { body: { workspace_id: workspaceId } })),
     onSuccess: (result) => {
-      setTokens(result);
-      queryClient.removeQueries();
+      // Drop everything the previous workspace loaded, but update `me` in
+      // place: the screens are subscribed to that query.
+      queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== meKey[0] });
       queryClient.setQueryData(meKey, result.me);
+      setTokens(result);
     },
   });
 }

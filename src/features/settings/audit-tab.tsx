@@ -9,24 +9,28 @@ import { formatNumber, formatTime } from '@/lib/format';
 
 /** The actions the backend records, in Persian. Unknown ones show their code. */
 const ACTION_LABELS: Record<string, string> = {
-  'membership.created': 'افزودن عضو',
-  'membership.updated': 'تغییر دسترسی عضو',
+  'membership.created': 'افزودن فرد',
+  'membership.updated': 'تغییر سمت یا فعال بودن',
   'staff.password_reset': 'بازنشانی رمز عبور',
-  'staff.assigned': 'ثبت ارتباط با پزشک',
-  'staff.unassigned': 'حذف ارتباط با پزشک',
   'doctor_profile.updated': 'تغییر پروفایل پزشک',
-  'role.created': 'ساخت نقش',
-  'role.updated': 'تغییر نام نقش',
-  'role.deleted': 'حذف نقش',
-  'permission.assigned': 'تغییر دسترسی‌های نقش',
+  'workspace.created': 'افزودن جایگاه',
+  'workspace.updated': 'تغییر جایگاه',
+  'workspace.deleted': 'حذف جایگاه',
+  'workspace.permissions_set': 'تغییر دسترسی‌های جایگاه',
+  'template.created': 'ساخت الگو',
+  'template.updated': 'تغییر نام الگو',
+  'template.deleted': 'حذف الگو',
+  'template.permissions_set': 'تغییر دسترسی‌های الگو',
   'client.updated': 'ویرایش بیمار',
+  'client.deleted': 'حذف بیمار',
   'appointment.cancelled': 'لغو نوبت',
+  'appointment.deleted': 'حذف نوبت',
 };
 
 const RESOURCE_LABELS: Record<string, string> = {
-  membership: 'عضو',
-  role: 'نقش',
-  staff_assignment: 'ارتباط',
+  membership: 'فرد',
+  workspace: 'جایگاه',
+  permission_template: 'الگو',
   client: 'بیمار',
   appointment: 'نوبت',
 };

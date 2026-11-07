@@ -54,7 +54,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/switch-clinic": {
+    "/api/v1/auth/switch-workspace": {
         parameters: {
             query?: never;
             header?: never;
@@ -63,8 +63,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Chooses the clinic to work in; returns a new access token. */
-        post: operations["AuthController_switchClinic_v1"];
+        /**
+         * Chooses the workspace (and so the clinic) to work in; returns a new
+         *     access token. 403 if the workspace isn't the user's or isn't active.
+         */
+        post: operations["AuthController_switchWorkspace_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -78,7 +81,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The signed-in user, their clinics, and their permissions in the active clinic. */
+        /** The signed-in user, their clinics and workspaces, and the active workspace's permissions. */
         get: operations["AuthController_me_v1"];
         put?: never;
         post?: never;
@@ -121,43 +124,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/roles": {
+    "/api/v1/permission-templates": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The system roles and the clinic's own roles. */
-        get: operations["RolesController_list_v1"];
+        get: operations["TemplatesController_list_v1"];
         put?: never;
-        /** Creates a custom role for this clinic, without permissions. */
-        post: operations["RolesController_create_v1"];
+        /** A new, empty template; set its items with `PUT /:id/permissions`. */
+        post: operations["TemplatesController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/roles/{id}": {
+    "/api/v1/permission-templates/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["RolesController_get_v1"];
+        get: operations["TemplatesController_get_v1"];
         put?: never;
         post?: never;
-        /** Deletes a custom role nobody holds. */
-        delete: operations["RolesController_remove_v1"];
+        /** Workspaces it was applied to keep their copies of its items. */
+        delete: operations["TemplatesController_remove_v1"];
         options?: never;
         head?: never;
-        /** Renames a custom role. System roles cannot be changed. */
-        patch: operations["RolesController_update_v1"];
+        patch: operations["TemplatesController_update_v1"];
         trace?: never;
     };
-    "/api/v1/roles/{id}/permissions": {
+    "/api/v1/permission-templates/{id}/permissions": {
         parameters: {
             query?: never;
             header?: never;
@@ -165,8 +166,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Replaces a custom role's permissions. You can only grant what you hold, at your scope or narrower. */
-        put: operations["RolesController_setPermissions_v1"];
+        /** Replaces the template's items; you can only put in items you hold. */
+        put: operations["TemplatesController_setPermissions_v1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -181,7 +182,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The permission catalogue as a tree: pages → features → actions, with Persian labels. */
+        /** The permission catalogue: every action, in groups, with Persian labels. */
         get: operations["ReferenceController_permissions_v1"];
         put?: never;
         post?: never;
@@ -215,7 +216,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Kinds of staff ↔ doctor relationship. */
+        /** Kinds of position in a doctor's workspace (secretary of, assistant of, ...). */
         get: operations["ReferenceController_relationshipTypes_v1"];
         put?: never;
         post?: never;
@@ -249,12 +250,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Every member of the clinic with staff types, roles and doctor profile. */
+        /** Every member of the clinic with staff types, workspaces and doctor profile. */
         get: operations["StaffController_list_v1"];
         put?: never;
         /**
-         * Adds someone by mobile. A new account gets a temporary password, returned
-         *     once in `temporary_password`; they must change it at first login.
+         * Adds someone by mobile, with what they are (staff types) and their
+         *     positions; a doctor also gets their practice workspace. Every workspace
+         *     starts with no permissions. A new account gets a temporary password,
+         *     returned once in `temporary_password`.
          */
         post: operations["StaffController_create_v1"];
         delete?: never;
@@ -276,7 +279,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Changes active state, staff types or roles. The clinic always keeps one active admin. */
+        /** Changes active state or staff types. */
         patch: operations["StaffController_update_v1"];
         trace?: never;
     };
@@ -317,24 +320,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/staff-assignments": {
+    "/api/v1/workspaces": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["StaffAssignmentsController_list_v1"];
+        /** Every position in the clinic, with its holder and grants. */
+        get: operations["WorkspacesController_list_v1"];
         put?: never;
-        /** Assigns a staff member to a doctor, e.g. as their secretary. */
-        post: operations["StaffAssignmentsController_create_v1"];
+        /**
+         * Adds a position for a member: staff of a doctor, or clinic-wide. It
+         *     starts with no permissions. Only an admin can create an admin workspace.
+         */
+        post: operations["WorkspacesController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/v1/staff-assignments/{id}": {
+    "/api/v1/workspaces/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -344,7 +351,41 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete: operations["StaffAssignmentsController_remove_v1"];
+        delete: operations["WorkspacesController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch: operations["WorkspacesController_update_v1"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replaces the workspace's grants; you can only grant items you hold. */
+        put: operations["WorkspacesController_setPermissions_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/apply-template": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adds a template's items to the workspace's grants. */
+        post: operations["WorkspacesController_applyTemplate_v1"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -357,7 +398,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The clinic's active doctors, for the booking form. Any member may read it. */
+        /** The doctors the active workspace can book for: its own doctor, or all of the clinic's. */
         get: operations["DoctorsController_list_v1"];
         put?: never;
         post?: never;
@@ -374,7 +415,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The clinic's whole service catalogue, ordered by name. Any member may read it (booking needs it). */
+        /** The clinic's whole service catalogue, ordered by name. Booking needs it, so viewing or booking appointments is enough. */
         get: operations["ServicesController_list_v1"];
         put?: never;
         post: operations["ServicesController_create_v1"];
@@ -407,7 +448,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Newest first, with optional search. Only the clients the caller's scope reaches. */
+        /**
+         * Newest first, with optional search. Only the clients the workspace sees:
+         *     a doctor's workspace sees that doctor's clients, a clinic-wide one all.
+         */
         get: operations["ClientsController_list_v1"];
         put?: never;
         post: operations["ClientsController_create_v1"];
@@ -427,7 +471,8 @@ export interface paths {
         get: operations["ClientsController_get_v1"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Hides the client and cancels their upcoming appointments (soft delete). */
+        delete: operations["ClientsController_remove_v1"];
         options?: never;
         head?: never;
         patch: operations["ClientsController_update_v1"];
@@ -440,10 +485,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ordered by start time. Needs `from` and `to`, or `client_id`. Only what the caller's scope reaches. */
+        /** Ordered by start time. Needs `from` and `to`, or `client_id`. Only what the workspace sees: its doctor's, or all for a clinic-wide one. */
         get: operations["AppointmentsController_list_v1"];
         put?: never;
-        /** Books a new appointment; it starts as `pending`. The doctor must be free and within the caller's scope. */
+        /** Books a new appointment; it starts as `pending`. The doctor must be free, and the workspace's own doctor unless it is clinic-wide. */
         post: operations["AppointmentsController_create_v1"];
         delete?: never;
         options?: never;
@@ -461,7 +506,8 @@ export interface paths {
         get: operations["AppointmentsController_get_v1"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Hides the appointment (soft delete); it no longer blocks the doctor's time. Recorded in the audit log. */
+        delete: operations["AppointmentsController_remove_v1"];
         options?: never;
         head?: never;
         /** Edits or reschedules a pending or confirmed appointment. */
@@ -481,7 +527,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** pending → confirmed, completed or no_show; confirmed → completed or no_show. The rest are final. */
+        /**
+         * pending → confirmed, completed or no_show; confirmed → completed or
+         *     no_show. The rest are final. Each target needs its own permission:
+         *     `appointment.confirm`, `appointment.complete` or `appointment.no_show`.
+         */
         patch: operations["AppointmentsController_changeStatus_v1"];
         trace?: never;
     };
@@ -544,34 +594,38 @@ export interface components {
             /** @description While true, only `me`, `change-password` and `logout` work. */
             must_change_password: boolean;
         };
-        MeRoleDto: {
+        MeWorkspaceDto: {
+            /** @enum {string} */
+            kind: "doctor" | "staff" | "clinic";
             id: string;
-            code: string;
-            name: string;
-            is_system: boolean;
+            /** @description The doctor whose data the workspace sees; null for clinic-wide ones. */
+            doctor_membership_id: string | null;
+            doctor_name: string | null;
+            /** @description For staff workspaces: secretary_of, assistant_of, ... */
+            relationship_type: string | null;
+            is_admin: boolean;
+            /** @description e.g. «مدیر کلینیک», «مطب خودم», «دستیار پزشک: دکتر الف» */
+            label: string;
         };
         MeClinicDto: {
             clinic_id: string;
             clinic_name: string;
             membership_id: string;
-            roles: components["schemas"]["MeRoleDto"][];
             /** @description Codes, e.g. doctor, secretary. */
             staff_types: string[];
-        };
-        MePermissionDto: {
-            /** @enum {string} */
-            scope: "own" | "assigned" | "clinic";
-            /** @description A catalogue code, e.g. `appointments.booking.create`. */
-            code: string;
+            /** @description The user's active workspaces in this clinic. */
+            workspaces: components["schemas"]["MeWorkspaceDto"][];
         };
         MeDto: {
             user: components["schemas"]["MeUserDto"];
-            /** @description The clinics the user is an active member of. */
+            /** @description The clinics the user has an active workspace in. */
             clinics: components["schemas"]["MeClinicDto"][];
-            /** @description Null until the user chooses a clinic (or has only one). */
+            /** @description Null until the user chooses a workspace (or has only one). */
+            active_workspace_id: string | null;
+            /** @description The active workspace's clinic, or null. */
             active_clinic_id: string | null;
-            /** @description Effective permissions in the active clinic; empty without one. */
-            permissions: components["schemas"]["MePermissionDto"][];
+            /** @description The active workspace's permission codes, e.g. `appointment.create`; empty without one. */
+            permissions: string[];
         };
         TokensDto: {
             /** @description Exchange at `POST /auth/refresh`; replaced on every use. */
@@ -585,10 +639,10 @@ export interface components {
         RefreshDto: {
             refresh_token: string;
         };
-        SwitchClinicDto: {
-            clinic_id: string;
+        SwitchWorkspaceDto: {
+            workspace_id: string;
         };
-        ClinicSwitchDto: {
+        WorkspaceSwitchDto: {
             me: components["schemas"]["MeDto"];
             access_token: string;
             token_type: string;
@@ -600,28 +654,14 @@ export interface components {
             /** @description At least 8 characters. */
             new_password: string;
         };
-        RoleGrantDto: {
-            /**
-             * @description Only matters for items that touch data; others are stored as `clinic`.
-             * @enum {string}
-             */
-            scope: "own" | "assigned" | "clinic";
-            /** @description A catalogue code, e.g. `appointments.booking.create`. */
-            code: string;
-        };
-        RoleDto: {
-            permissions: components["schemas"]["RoleGrantDto"][];
+        PermissionTemplateDto: {
             id: string;
-            /** @description Null for system roles. */
-            clinic_id: string | null;
             code: string;
             name: string;
-            /** @description System roles are defined by the software and cannot be changed. */
-            is_system: boolean;
-            /** @description How many memberships of this clinic hold the role. */
-            member_count: number;
+            /** @description Catalogue codes, in catalogue order. */
+            permissions: string[];
         };
-        CreateRoleDto: {
+        CreatePermissionTemplateDto: {
             /**
              * @description Lowercase letters, digits and `_`, e.g. `senior_secretary`. Unique in the clinic.
              * @example senior_secretary
@@ -629,23 +669,29 @@ export interface components {
             code: string;
             name: string;
         };
-        UpdateRoleDto: {
+        UpdatePermissionTemplateDto: {
             name: string;
         };
-        SetRolePermissionsDto: {
-            /** @description The role's complete set of grants; replaces the current one. */
-            permissions: components["schemas"]["RoleGrantDto"][];
+        PermissionCodesDto: {
+            /**
+             * @example [
+             *       "appointment.view",
+             *       "appointment.create"
+             *     ]
+             */
+            permissions: string[];
         };
-        PermissionNodeDto: {
-            /** @enum {string} */
-            kind: "page" | "feature" | "action";
-            children: components["schemas"]["PermissionNodeDto"][];
+        PermissionItemDto: {
+            /** @description e.g. `appointment.create` */
             code: string;
-            /** @description Persian label. */
             label: string;
             description: string | null;
-            /** @description Whether a grant of this item carries a scope. */
-            scoped: boolean;
+        };
+        PermissionGroupDto: {
+            items: components["schemas"]["PermissionItemDto"][];
+            /** @description e.g. `appointments` */
+            code: string;
+            label: string;
         };
         ReferenceItemDto: {
             id: string;
@@ -670,11 +716,25 @@ export interface components {
             page: number;
             page_size: number;
         };
-        StaffRoleDto: {
+        WorkspaceDto: {
+            /** @enum {string} */
+            kind: "doctor" | "staff" | "clinic";
             id: string;
-            code: string;
-            name: string;
-            is_system: boolean;
+            membership_id: string;
+            /** @description The person holding it. */
+            member_name: string;
+            /** @description The doctor whose data it sees; null for clinic-wide ones. */
+            doctor_membership_id: string | null;
+            doctor_name: string | null;
+            /** @description For staff workspaces: secretary_of, assistant_of, ... */
+            relationship_type: string | null;
+            /** @description Holds every permission, including ones added later. */
+            is_admin: boolean;
+            is_active: boolean;
+            /** @description e.g. «مدیر کلینیک», «مطب خودم», «دستیار پزشک: دکتر الف» */
+            label: string;
+            /** @description Granted catalogue codes (every code for an admin workspace). */
+            permissions: string[];
         };
         DoctorProfileDto: {
             medical_license: string;
@@ -682,7 +742,7 @@ export interface components {
             license_verified: boolean;
         };
         StaffMemberDto: {
-            roles: components["schemas"]["StaffRoleDto"][];
+            workspaces: components["schemas"]["WorkspaceDto"][];
             doctor_profile?: components["schemas"]["DoctorProfileDto"] | null;
             membership_id: string;
             user_id: string;
@@ -691,25 +751,37 @@ export interface components {
             is_active: boolean;
             /** Format: date-time */
             joined_at: string;
-            /** @description Codes: doctor, secretary, assistant. */
+            /** @description What the person is: doctor, secretary, assistant. */
             staff_types: string[];
+        };
+        NewPositionDto: {
+            /** @enum {string} */
+            kind: "staff" | "clinic";
+            /**
+             * @description Required for `staff`, e.g. `assistant_of`.
+             * @example assistant_of
+             */
+            relationship_type?: string;
+            /** @description Required for `staff`: the doctor the person works for. */
+            doctor_membership_id?: string;
         };
         CreateStaffMemberDto: {
             /** @example 09121234567 */
             mobile: string;
             /**
+             * @description A doctor also gets their own practice workspace.
              * @example [
              *       "secretary"
              *     ]
              */
             staff_types: string[];
+            /** @description Further positions, e.g. assistant of Dr A. Each starts with no permissions. */
+            positions?: components["schemas"]["NewPositionDto"][];
             /** @description Used only when no user has this mobile yet. */
             full_name: string;
-            /** @description System roles or this clinic's roles. */
-            role_ids: string[];
         };
         CreatedStaffMemberDto: {
-            roles: components["schemas"]["StaffRoleDto"][];
+            workspaces: components["schemas"]["WorkspaceDto"][];
             doctor_profile?: components["schemas"]["DoctorProfileDto"] | null;
             membership_id: string;
             user_id: string;
@@ -718,7 +790,7 @@ export interface components {
             is_active: boolean;
             /** Format: date-time */
             joined_at: string;
-            /** @description Codes: doctor, secretary, assistant. */
+            /** @description What the person is: doctor, secretary, assistant. */
             staff_types: string[];
             /**
              * @description Only when a new user account was created: the temporary password, shown
@@ -728,10 +800,8 @@ export interface components {
         };
         UpdateStaffMemberDto: {
             is_active?: boolean;
-            /** @description Replaces the current set. */
+            /** @description Replaces the current set. Adding doctor creates their practice workspace. */
             staff_types?: string[];
-            /** @description Replaces the current set. */
-            role_ids?: string[];
         };
         PasswordResetDto: {
             /** @description Shown this once; the user must change it at first login. */
@@ -743,24 +813,27 @@ export interface components {
             specialty?: string | null;
             license_verified?: boolean;
         };
-        StaffAssignmentDto: {
-            id: string;
-            staff_membership_id: string;
-            staff_name: string;
-            doctor_membership_id: string;
-            doctor_name: string;
-            /** @description e.g. secretary_of */
-            relationship_type: string;
-            relationship_name: string;
-            is_active: boolean;
-            /** Format: date-time */
-            created_at: string;
+        CreateWorkspaceDto: {
+            /** @enum {string} */
+            kind: "staff" | "clinic";
+            /**
+             * @description Required for `staff`, e.g. `assistant_of`.
+             * @example assistant_of
+             */
+            relationship_type?: string;
+            /** @description Required for `staff`: the doctor the person works for. */
+            doctor_membership_id?: string;
+            membership_id: string;
+            /** @description Clinic-wide only, and only an admin can create another admin. */
+            is_admin?: boolean;
         };
-        CreateStaffAssignmentDto: {
-            /** @example secretary_of */
-            relationship_type: string;
-            staff_membership_id: string;
-            doctor_membership_id: string;
+        UpdateWorkspaceDto: {
+            is_active?: boolean;
+            /** @description Clinic-wide workspaces only; only an admin can change it. */
+            is_admin?: boolean;
+        };
+        ApplyTemplateDto: {
+            template_id: string;
         };
         DoctorDto: {
             membership_id: string;
@@ -1224,7 +1297,7 @@ export interface operations {
             };
         };
     };
-    AuthController_switchClinic_v1: {
+    AuthController_switchWorkspace_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1233,7 +1306,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SwitchClinicDto"];
+                "application/json": components["schemas"]["SwitchWorkspaceDto"];
             };
         };
         responses: {
@@ -1242,7 +1315,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ClinicSwitchDto"];
+                    "application/json": components["schemas"]["WorkspaceSwitchDto"];
                 };
             };
             401: {
@@ -1344,7 +1417,7 @@ export interface operations {
             };
         };
     };
-    RolesController_list_v1: {
+    TemplatesController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1358,7 +1431,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDto"][];
+                    "application/json": components["schemas"]["PermissionTemplateDto"][];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1370,7 +1443,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1379,7 +1452,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1390,7 +1463,7 @@ export interface operations {
             };
         };
     };
-    RolesController_create_v1: {
+    TemplatesController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1399,7 +1472,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateRoleDto"];
+                "application/json": components["schemas"]["CreatePermissionTemplateDto"];
             };
         };
         responses: {
@@ -1408,7 +1481,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDto"];
+                    "application/json": components["schemas"]["PermissionTemplateDto"];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1420,7 +1493,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1429,7 +1502,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description The clinic already has a role with this code */
+            /** @description The clinic already has a template with this code */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1440,7 +1513,7 @@ export interface operations {
             };
         };
     };
-    RolesController_get_v1: {
+    TemplatesController_get_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1456,7 +1529,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDto"];
+                    "application/json": components["schemas"]["PermissionTemplateDto"];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1468,7 +1541,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1477,7 +1550,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1488,7 +1561,7 @@ export interface operations {
             };
         };
     };
-    RolesController_remove_v1: {
+    TemplatesController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1514,7 +1587,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1523,7 +1596,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description The role is assigned to members */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1534,7 +1607,7 @@ export interface operations {
             };
         };
     };
-    RolesController_update_v1: {
+    TemplatesController_update_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1545,7 +1618,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UpdateRoleDto"];
+                "application/json": components["schemas"]["UpdatePermissionTemplateDto"];
             };
         };
         responses: {
@@ -1554,7 +1627,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDto"];
+                    "application/json": components["schemas"]["PermissionTemplateDto"];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1566,7 +1639,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1575,7 +1648,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1586,7 +1659,7 @@ export interface operations {
             };
         };
     };
-    RolesController_setPermissions_v1: {
+    TemplatesController_setPermissions_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -1597,7 +1670,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SetRolePermissionsDto"];
+                "application/json": components["schemas"]["PermissionCodesDto"];
             };
         };
         responses: {
@@ -1606,7 +1679,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RoleDto"];
+                    "application/json": components["schemas"]["PermissionTemplateDto"];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1618,7 +1691,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1627,7 +1700,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1652,7 +1725,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PermissionNodeDto"][];
+                    "application/json": components["schemas"]["PermissionGroupDto"][];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -1664,7 +1737,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1673,7 +1746,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1710,7 +1783,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1719,7 +1792,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1756,7 +1829,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1765,7 +1838,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1807,7 +1880,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1816,7 +1889,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1853,7 +1926,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1862,7 +1935,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -1903,7 +1976,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1951,7 +2024,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -1960,7 +2033,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2003,7 +2076,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2012,7 +2085,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Would leave the clinic without an active admin */
+            /** @description Would leave the clinic without an active admin workspace (reason last_admin) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2051,7 +2124,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2103,7 +2176,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2123,7 +2196,7 @@ export interface operations {
             };
         };
     };
-    StaffAssignmentsController_list_v1: {
+    WorkspacesController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2137,7 +2210,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffAssignmentDto"][];
+                    "application/json": components["schemas"]["WorkspaceDto"][];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -2149,7 +2222,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2158,7 +2231,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2169,7 +2242,7 @@ export interface operations {
             };
         };
     };
-    StaffAssignmentsController_create_v1: {
+    WorkspacesController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2178,7 +2251,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateStaffAssignmentDto"];
+                "application/json": components["schemas"]["CreateWorkspaceDto"];
             };
         };
         responses: {
@@ -2187,7 +2260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffAssignmentDto"];
+                    "application/json": components["schemas"]["WorkspaceDto"];
                 };
             };
             /** @description Not signed in, or the session ended */
@@ -2199,7 +2272,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2208,7 +2281,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description The assignment already exists */
+            /** @description The person already holds this position (reason duplicate_workspace) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2219,7 +2292,7 @@ export interface operations {
             };
         };
     };
-    StaffAssignmentsController_remove_v1: {
+    WorkspacesController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -2245,7 +2318,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2254,7 +2327,163 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description Would leave the clinic without an active admin workspace (reason last_admin) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateWorkspaceDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The workspace is not yours or inactive, or lacks the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Would leave the clinic without an active admin workspace (reason last_admin) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_setPermissions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PermissionCodesDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The workspace is not yours or inactive, or lacks the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No workspace chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    WorkspacesController_applyTemplate_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplyTemplateDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The workspace is not yours or inactive, or lacks the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2291,7 +2520,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2300,7 +2529,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2341,7 +2570,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2350,7 +2579,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2391,7 +2620,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2439,7 +2668,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2448,7 +2677,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2485,7 +2714,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2537,7 +2766,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2591,7 +2820,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2600,7 +2829,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2641,7 +2870,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2689,7 +2918,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2698,7 +2927,53 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    ClientsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The workspace is not yours or inactive, or lacks the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2741,7 +3016,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2794,7 +3069,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2803,7 +3078,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2844,7 +3119,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2892,7 +3167,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2901,7 +3176,53 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description No active clinic chosen yet */
+            /** @description No workspace chosen yet */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    AppointmentsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description The workspace is not yours or inactive, or lacks the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description No workspace chosen yet */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2944,7 +3265,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -2996,7 +3317,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3044,7 +3365,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
-            /** @description Not a member, or missing the permission */
+            /** @description The workspace is not yours or inactive, or lacks the permission */
             403: {
                 headers: {
                     [name: string]: unknown;

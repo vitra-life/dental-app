@@ -5,26 +5,20 @@ import type { components } from '@/lib/api/schema';
 import { keys } from './keys';
 
 export type StaffMember = components['schemas']['StaffMemberDto'];
-export type StaffAssignment = components['schemas']['StaffAssignmentDto'];
+export type Workspace = components['schemas']['WorkspaceDto'];
 export type ReferenceItem = components['schemas']['ReferenceItemDto'];
 export type NewStaffMember = components['schemas']['CreateStaffMemberDto'];
+export type NewPosition = components['schemas']['NewPositionDto'];
 export type StaffMemberChanges = components['schemas']['UpdateStaffMemberDto'];
 export type DoctorProfileInput = components['schemas']['SetDoctorProfileDto'];
-export type NewStaffAssignment = components['schemas']['CreateStaffAssignmentDto'];
+export type NewWorkspace = components['schemas']['CreateWorkspaceDto'];
+export type WorkspaceChanges = components['schemas']['UpdateWorkspaceDto'];
 
-/** Every member of the clinic, active and inactive, in joining order. */
+/** Every member of the clinic, active and inactive, with their workspaces. */
 export function useStaff() {
   return useQuery({
     queryKey: keys.staff,
     queryFn: async () => unwrap(await api.GET('/api/v1/staff')),
-  });
-}
-
-/** Which secretary or assistant works for which doctor. */
-export function useStaffAssignments() {
-  return useQuery({
-    queryKey: keys.staffAssignments,
-    queryFn: async () => unwrap(await api.GET('/api/v1/staff-assignments')),
   });
 }
 
@@ -47,14 +41,14 @@ export function useRelationshipTypes() {
 }
 
 /**
- * Staff changes can change who is a doctor, a role's member count, and the
- * signed-in user's own permissions, so all of those refresh.
+ * Staff and workspace changes can change who is a doctor and the signed-in
+ * user's own workspaces and permissions, so those refresh too.
  */
 function useInvalidateStaff() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all(
-      [keys.staff, keys.staffAssignments, keys.doctors, keys.roles, keys.me].map((queryKey) =>
+      [keys.staff, keys.workspaces, keys.doctors, keys.me].map((queryKey) =>
         queryClient.invalidateQueries({ queryKey }),
       ),
     );
@@ -105,19 +99,39 @@ export function useResetStaffPassword() {
   });
 }
 
-export function useCreateStaffAssignment() {
+/** Adds a position (it starts with no permissions). 409 `duplicate_workspace` if the person already holds it. */
+export function useCreateWorkspace() {
   const invalidate = useInvalidateStaff();
   return useMutation({
-    mutationFn: async (body: NewStaffAssignment) => unwrap(await api.POST('/api/v1/staff-assignments', { body })),
+    mutationFn: async (body: NewWorkspace) => unwrap(await api.POST('/api/v1/workspaces', { body })),
     onSuccess: invalidate,
   });
 }
 
-export function useDeleteStaffAssignment() {
+export function useUpdateWorkspace() {
+  const invalidate = useInvalidateStaff();
+  return useMutation({
+    mutationFn: async ({ id, changes }: { id: string; changes: WorkspaceChanges }) =>
+      unwrap(await api.PATCH('/api/v1/workspaces/{id}', { params: { path: { id } }, body: changes })),
+    onSuccess: invalidate,
+  });
+}
+
+/** Replaces the workspace's grants; 403 for items the signed-in user doesn't hold. */
+export function useSetWorkspacePermissions() {
+  const invalidate = useInvalidateStaff();
+  return useMutation({
+    mutationFn: async ({ id, permissions }: { id: string; permissions: string[] }) =>
+      unwrap(await api.PUT('/api/v1/workspaces/{id}/permissions', { params: { path: { id } }, body: { permissions } })),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteWorkspace() {
   const invalidate = useInvalidateStaff();
   return useMutation({
     mutationFn: async (id: string) => {
-      unwrap(await api.DELETE('/api/v1/staff-assignments/{id}', { params: { path: { id } } }));
+      unwrap(await api.DELETE('/api/v1/workspaces/{id}', { params: { path: { id } } }));
     },
     onSuccess: invalidate,
   });

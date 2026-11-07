@@ -10,11 +10,15 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { SmsCampaign, SmsMessage } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 export function CampaignDetail({ campaign, onClose, onUpdated }: {
   campaign: SmsCampaign;
   onClose: () => void;
   onUpdated: () => void;
 }) {
+  const { can } = usePermissions();
   const [messageRows, setMessageRows] = useState<SmsMessage[]>([]);
   const { data: patients = [] } = usePatients();
   const messages = db.joinOne(messageRows, 'patient', patients, 'patient_id');
@@ -98,7 +102,7 @@ export function CampaignDetail({ campaign, onClose, onUpdated }: {
         </div>
 
         {(campaign.status === 'draft' || campaign.status === 'sending') && (
-          <button onClick={cancelCampaign} className="btn-secondary w-full">
+          can(CAN.updateSmsCampaign) && <button onClick={cancelCampaign} className="btn-secondary w-full">
             لغو کمپین
           </button>
         )}

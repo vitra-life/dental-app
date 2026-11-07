@@ -9,10 +9,10 @@ export const keys = {
   doctors: ['doctors'] as const,
   me: ['auth', 'me'] as const,
   staff: ['staff'] as const,
-  staffAssignments: ['staff-assignments'] as const,
+  workspaces: ['workspaces'] as const,
   staffTypes: ['reference', 'staff-types'] as const,
   relationshipTypes: ['reference', 'relationship-types'] as const,
-  roles: ['roles'] as const,
+  templates: ['permission-templates'] as const,
   permissionCatalog: ['reference', 'permissions'] as const,
   auditLogs: (page: number, action: string | null) => ['audit-logs', page, action] as const,
 };

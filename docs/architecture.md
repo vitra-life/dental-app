@@ -16,7 +16,7 @@ A screen never calls `fetch`, localStorage or the seed files directly.
 
 ## Navigation
 
-There is no router. `src/app.tsx` wraps everything in `AuthGate` (`src/features/auth/`), which shows the login, change-password or clinic-picker screen until the user is signed in with an active clinic. Then it keeps the current page in state (`currentPage: PageKey`) and renders the matching page component inside `Layout`. Pages the user's roles don't grant are left out of the menu; if the current one isn't granted, the first granted page shows instead.
+There is no router. `src/app.tsx` wraps everything in `AuthGate` (`src/features/auth/`), which shows the login, change-password or workspace-picker screen until the user is signed in with an active workspace. Then it keeps the current page in state (`currentPage: PageKey`) and renders the matching page component inside `Layout`. Pages the active workspace can't open are left out of the menu; if the current one isn't granted, the first granted page shows instead.
 
 `Layout` is a full-height frame: a sidebar that can be collapsed to icons, a top bar, and a `<main>` area that scrolls and adds the page padding. The window itself never scrolls.
 
@@ -91,8 +91,8 @@ Things to know:
 - **Mapping** happens only in `src/lib/api/mappers.ts`. The API says `client`, `description` and Rial; the app says `patient`, `notes` and Toman. An appointment arrives as a UTC `start_time` and a `duration_minutes` (one of 20, 30, 45, 60, 90, 120: `APPOINTMENT_DURATIONS` in `src/constants/schedule.ts`); it becomes `appointment_date` + `start_time` in local time, and `end_time` is worked out from the duration. Appointments have no price; where a value is needed (reports, the assistant) a visit counts at its service's default price.
 - **Errors** are `ApiError`s. `errorMessage(error)` gives a Persian message; a 400's `fieldErrors` names the invalid fields; `<LoadError>` replaces a screen whose data failed to load.
 - **Sign-in:** `src/lib/auth/session.ts` keeps the access token in memory and the refresh token in localStorage. The client's middleware adds `Authorization: Bearer`, and on a 401 refreshes once (requests failing together share one refresh) and repeats the request; a refused refresh signs the user out. The active clinic is part of the session on the server, so no clinic is sent with requests.
-- **Permissions:** `useMe()` loads `GET /auth/me` (user, clinics, permissions in the active clinic). `useCan(code)` / `usePermissions().can(code)` check a catalogue code; the codes the app uses are in `src/lib/permissions.ts` (`PAGE_PERMISSION` per page, `CAN` for features and actions). Hiding a button is a convenience: the backend checks the same code. `usePermissions().scopes` gives the scope of each granted code.
-- **Staff and roles** (Settings → پرسنل, نقش‌ها و دسترسی‌ها, گزارش رویدادها) use the API's real members and roles. Each tab needs its `view` action; changes need `manage`. The role editor's tree rules (`src/lib/permission-tree.ts`) mirror the backend: checking an item checks its parents, and you can only grant what you hold at your scope or narrower. The browser store's old `staff` table is still what treatments, lab orders and reports point at.
+- **Workspaces and permissions:** `useMe()` loads `GET /auth/me`: the user, their clinics with their workspaces, the active workspace and its permission codes. `useActiveWorkspace()` gives the active clinic and workspace; `useSwitchWorkspace()` switches (the top bar's `WorkspaceSwitcher`) and clears every cached query except `me`. `useCan(code)` / `usePermissions().can(code)` check one `resource.action` item; the codes the app uses are `CAN` in `src/lib/permissions.ts`, and `canOpen(can, page)` says whether a page opens (its `view` item; settings opens with any of its tabs'). Every button checks its own item. Hiding a button is a convenience: the backend checks the same code. Screens that still save in the browser are gated the same way.
+- **Staff, workspaces and templates** (Settings → پرسنل و جایگاه‌ها, الگوهای دسترسی, گزارش رویدادها) use the API. Adding a doctor creates their practice workspace; a secretary or assistant gets one workspace per doctor they work for, or a clinic-wide one. Every workspace starts with no permissions; its «دسترسی‌ها» dialog is a grouped checklist (`permission-checklist.tsx`, rules in `src/lib/permission-list.ts`) where items you don't hold are disabled, with «پر کردن از الگو» to tick a template's items. The browser store's old `staff` table is still what treatments, lab orders and reports point at.
 - **A patient's balance** is computed from the invoices in the browser store (`src/lib/patient-balance.ts`), not stored.
 
 ### The store
@@ -164,7 +164,7 @@ Do not use `new Date().toISOString().split('T')[0]` for "today". It returns the 
 2. Create `src/features/<name>/<name>-page.tsx`.
 3. Add a `case` for it in `src/app.tsx`.
 4. Add a sidebar entry to `navItems` in `src/components/layout.tsx`.
-5. Add its page permission to `PAGE_PERMISSION` in `src/lib/permissions.ts` (the code must exist in the backend's permission catalogue).
+5. Add its `view` item to `PAGE_PERMISSION` in `src/lib/permissions.ts`, and an item to `CAN` for each of its actions (the codes must exist in the backend's permission catalogue).
 6. Add it to the list in `src/app.test.tsx`.
 
 ### Add a table

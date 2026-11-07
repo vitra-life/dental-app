@@ -6,7 +6,7 @@ import { Tabs, type TabItem } from '@/components/ui/tabs';
 import { currentJalaliMonth, todayISO, type JalaliMonth } from '@/lib/date';
 import { formatNumber } from '@/lib/format';
 import { bookedSlots, clinicWorkingHours, freeSlotsOn, workingSlots } from '@/lib/schedule';
-import { useAppointments, useSetAppointmentStatus } from '@/data/appointments';
+import { useAppointments, useDeleteAppointment, useSetAppointmentStatus } from '@/data/appointments';
 import { usePatients } from '@/data/patients';
 import { useServices } from '@/data/services';
 import { useCan } from '@/data/session';
@@ -51,6 +51,7 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
   const { data: allPatients = [] } = usePatients();
   const { data: allServices = [] } = useServices();
   const setStatus = useSetAppointmentStatus();
+  const deleteAppointment = useDeleteAppointment();
   const patients = useMemo(() => [...allPatients].sort((a, b) => a.first_name.localeCompare(b.first_name, 'fa')), [allPatients]);
   const services = useMemo(() => allServices.filter((s) => s.active), [allServices]);
   const [hours, setHours] = useState<WorkingHours | null>(null);
@@ -76,6 +77,16 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
       syncPlanWithAppointment(updated, status);
       loadLocal();
       showToast('وضعیت نوبت بروزرسانی شد');
+    } catch (error) {
+      showToast(errorMessage(error), 'error');
+    }
+  }
+
+  async function removeAppointment(id: string) {
+    if (!window.confirm('این نوبت حذف شود؟')) return;
+    try {
+      await deleteAppointment.mutateAsync(id);
+      showToast('نوبت حذف شد');
     } catch (error) {
       showToast(errorMessage(error), 'error');
     }
@@ -116,7 +127,7 @@ export function Appointments({ onOpenPatient }: AppointmentsProps) {
       <Tabs tabs={views} active={viewMode} onChange={setViewMode} fit />
 
       {viewMode === 'list' && (
-        <AppointmentListView appointments={appointments} planned={planned} loading={loading} onNew={() => openBooking()} onStatusChange={updateStatus} onOpenPatient={onOpenPatient} />
+        <AppointmentListView appointments={appointments} planned={planned} loading={loading} onNew={() => openBooking()} onStatusChange={updateStatus} onDelete={removeAppointment} onOpenPatient={onOpenPatient} />
       )}
       {viewMode === 'day' && (
         <AppointmentDayView

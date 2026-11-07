@@ -5,7 +5,11 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { ClinicSettings } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 export function ClinicTab() {
+  const { can } = usePermissions();
   const [clinic, setClinic] = useState<ClinicSettings | null>(null);
   /** Kept apart from `clinic` so the field can be emptied while typing; empty saves as 0. */
   const [taxRate, setTaxRate] = useState<number | null>(null);
@@ -63,9 +67,9 @@ export function ClinicTab() {
               <NumberInput decimal value={taxRate} onChange={setTaxRate} placeholder="0" />
             </div>
           </div>
-          <button onClick={saveClinic} className="btn-primary px-6 py-2.5">
+          {can(CAN.updateClinicSettings) && (<button onClick={saveClinic} className="btn-primary px-6 py-2.5">
             ذخیره تغییرات
-          </button>
+          </button>)}
         </div>
       )}
 
@@ -74,10 +78,10 @@ export function ClinicTab() {
           <h2 className="text-sm font-semibold text-surface-700">داده‌های نمونه</h2>
           <p className="text-xs text-surface-400 mt-1">اطلاعات در همین مرورگر ذخیره می‌شود. بازنشانی، همه تغییرات را حذف و داده‌های نمونه را بازمی‌گرداند.</p>
         </div>
-        <button onClick={resetData} className="btn-danger shrink-0">
+        {can(CAN.updateClinicSettings) && (<button onClick={resetData} className="btn-danger shrink-0">
           <RotateCcw size={16} />
           بازنشانی داده‌ها
-        </button>
+        </button>)}
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import { Patients } from '@/features/patients/patients-page';
 import { Reports } from '@/features/reports/reports-page';
 import { Settings } from '@/features/settings/settings-page';
 import { SMSPanel } from '@/features/sms/sms-panel-page';
-import { PAGE_PERMISSION } from '@/lib/permissions';
+import { canOpen } from '@/lib/permissions';
 import type { PageKey } from '@/lib/types';
 
 /** The order pages are tried in when the current one is not allowed. */
@@ -43,7 +43,7 @@ function ClinicApp() {
   }, []);
 
   // A page the user may not open falls back to the first one they may.
-  const page = can(PAGE_PERMISSION[currentPage]) ? currentPage : PAGE_ORDER.find((p) => can(PAGE_PERMISSION[p]));
+  const page = canOpen(can, currentPage) ? currentPage : PAGE_ORDER.find((p) => canOpen(can, p));
 
   const renderPage = () => {
     switch (page) {

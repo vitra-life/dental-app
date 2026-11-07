@@ -1,37 +1,41 @@
 import { useState } from 'react';
-import { KeyRound, Trash2 } from 'lucide-react';
+import { KeyRound, ShieldCheck, Trash2 } from 'lucide-react';
 import { CheckboxList } from '@/components/ui/checkbox-list';
 import { Modal } from '@/components/ui/modal';
-import { useRoles } from '@/data/roles';
+import { useActiveWorkspace, useCan } from '@/data/session';
 import {
-  useCreateStaffAssignment,
-  useDeleteStaffAssignment,
+  useCreateWorkspace,
+  useDeleteWorkspace,
   useRelationshipTypes,
   useResetStaffPassword,
   useSetDoctorProfile,
-  useStaffAssignments,
   useStaffTypes,
   useUpdateStaffMember,
+  useUpdateWorkspace,
   type StaffMember,
+  type Workspace,
 } from '@/data/staff';
+import { formatNumber } from '@/lib/format';
+import { CAN } from '@/lib/permissions';
 import { showToast } from '@/lib/toast';
 import { staffErrorMessage } from './staff-messages';
 import { TemporaryPasswordModal } from './temporary-password-modal';
+import { WorkspacePermissionsModal } from './workspace-permissions-modal';
 
 interface StaffDetailProps {
   member: StaffMember;
-  /** All members, for choosing the doctors this member works for. */
+  /** All members, for choosing the doctor of a new position. */
   staff: StaffMember[];
-  /** Without `settings.staff.manage` everything is read-only. */
-  canManage: boolean;
   onClose: () => void;
 }
 
 const isDoctor = (m: StaffMember) => m.staff_types.includes('doctor');
 
-/** One member: access (staff types, roles, active), doctor profile, links to doctors, password reset. */
-export function StaffDetail({ member, staff, canManage, onClose }: StaffDetailProps) {
+/** One person: who they are, their doctor profile, their workspaces and what each may do, and password reset. */
+export function StaffDetail({ member, staff, onClose }: StaffDetailProps) {
+  const canReset = useCan(CAN.resetStaffPassword);
   const [password, setPassword] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Workspace | null>(null);
   const resetPassword = useResetStaffPassword();
 
   async function reset() {
@@ -45,15 +49,15 @@ export function StaffDetail({ member, staff, canManage, onClose }: StaffDetailPr
 
   return (
     <>
-      <Modal open={password === null} onClose={onClose} title={member.full_name} size="lg">
+      <Modal open={password === null && editing === null} onClose={onClose} title={member.full_name} size="lg">
         <div className="space-y-6">
           <p className="text-sm text-surface-500 -mt-2" dir="ltr" style={{ textAlign: 'right' }}>
             {member.mobile}
           </p>
-          <AccessSection member={member} canManage={canManage} />
-          {isDoctor(member) && <DoctorProfileSection member={member} canManage={canManage} />}
-          <LinksSection member={member} staff={staff} canManage={canManage} />
-          {canManage && (
+          <PersonSection member={member} />
+          {isDoctor(member) && <DoctorProfileSection member={member} />}
+          <WorkspacesSection member={member} staff={staff} onEdit={setEditing} />
+          {canReset && (
             <section className="pt-4 border-t border-surface-100">
               <button type="button" onClick={reset} disabled={resetPassword.isPending} className="btn-secondary text-sm">
                 <KeyRound size={15} />
@@ -63,6 +67,7 @@ export function StaffDetail({ member, staff, canManage, onClose }: StaffDetailPr
           )}
         </div>
       </Modal>
+      {editing && <WorkspacePermissionsModal workspace={editing} onClose={() => setEditing(null)} />}
       <TemporaryPasswordModal
         name={member.full_name}
         mobile={member.mobile}
@@ -77,18 +82,14 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="text-sm font-semibold text-surface-700 mb-3">{children}</h3>;
 }
 
-function AccessSection({ member, canManage }: { member: StaffMember; canManage: boolean }) {
+/** What the person is (doctor / secretary / assistant) and whether they can sign in to this clinic. */
+function PersonSection({ member }: { member: StaffMember }) {
+  const canUpdate = useCan(CAN.updateStaff);
   const { data: staffTypes = [] } = useStaffTypes();
-  const { data: roles = [] } = useRoles();
   const update = useUpdateStaffMember();
-  const [form, setForm] = useState({
-    is_active: member.is_active,
-    staff_types: member.staff_types,
-    role_ids: member.roles.map((r) => r.id),
-  });
+  const [form, setForm] = useState({ is_active: member.is_active, staff_types: member.staff_types });
 
   async function save() {
-    if (form.role_ids.length === 0) { showToast('حداقل یک نقش انتخاب کنید', 'error'); return; }
     try {
       await update.mutateAsync({ membershipId: member.membership_id, changes: form });
       showToast('ذخیره شد');
@@ -99,38 +100,26 @@ function AccessSection({ member, canManage }: { member: StaffMember; canManage: 
 
   return (
     <section>
-      <SectionTitle>دسترسی</SectionTitle>
+      <SectionTitle>سمت</SectionTitle>
       <div className="space-y-3">
-        <div>
-          <span className="label-field">سمت</span>
-          <CheckboxList
-            options={staffTypes.map((t) => ({ value: t.code, label: t.name }))}
-            value={form.staff_types}
-            onChange={(staff_types) => setForm({ ...form, staff_types })}
-            disabled={!canManage}
-          />
-        </div>
-        <div>
-          <span className="label-field">نقش‌ها</span>
-          <CheckboxList
-            options={roles.map((r) => ({ value: r.id, label: r.name }))}
-            value={form.role_ids}
-            onChange={(role_ids) => setForm({ ...form, role_ids })}
-            disabled={!canManage}
-          />
-        </div>
+        <CheckboxList
+          options={staffTypes.map((t) => ({ value: t.code, label: t.name }))}
+          value={form.staff_types}
+          onChange={(staff_types) => setForm({ ...form, staff_types })}
+          disabled={!canUpdate}
+        />
         <label className="inline-flex items-center gap-2 text-sm text-surface-700">
           <input
             type="checkbox"
             checked={form.is_active}
-            disabled={!canManage}
+            disabled={!canUpdate}
             onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
           />
           فعال (می‌تواند وارد این کلینیک شود)
         </label>
-        {canManage && (
+        {canUpdate && (
           <div>
-            <button type="button" onClick={save} disabled={update.isPending} className="btn-primary text-sm">ذخیره دسترسی</button>
+            <button type="button" onClick={save} disabled={update.isPending} className="btn-secondary text-sm">ذخیره</button>
           </div>
         )}
       </div>
@@ -138,7 +127,8 @@ function AccessSection({ member, canManage }: { member: StaffMember; canManage: 
   );
 }
 
-function DoctorProfileSection({ member, canManage }: { member: StaffMember; canManage: boolean }) {
+function DoctorProfileSection({ member }: { member: StaffMember }) {
+  const canUpdate = useCan(CAN.updateDoctorProfile);
   const setProfile = useSetDoctorProfile();
   const [form, setForm] = useState({
     medical_license: member.doctor_profile?.medical_license ?? '',
@@ -169,7 +159,7 @@ function DoctorProfileSection({ member, canManage }: { member: StaffMember; canM
             id="doctor-license"
             className="input-field"
             value={form.medical_license}
-            disabled={!canManage}
+            disabled={!canUpdate}
             onChange={(e) => setForm({ ...form, medical_license: e.target.value })}
           />
         </div>
@@ -179,7 +169,7 @@ function DoctorProfileSection({ member, canManage }: { member: StaffMember; canM
             id="doctor-specialty"
             className="input-field"
             value={form.specialty}
-            disabled={!canManage}
+            disabled={!canUpdate}
             onChange={(e) => setForm({ ...form, specialty: e.target.value })}
           />
         </div>
@@ -188,12 +178,12 @@ function DoctorProfileSection({ member, canManage }: { member: StaffMember; canM
         <input
           type="checkbox"
           checked={form.license_verified}
-          disabled={!canManage}
+          disabled={!canUpdate}
           onChange={(e) => setForm({ ...form, license_verified: e.target.checked })}
         />
         شماره نظام پزشکی بررسی شده است
       </label>
-      {canManage && (
+      {canUpdate && (
         <div className="mt-3">
           <button type="button" onClick={save} disabled={setProfile.isPending} className="btn-secondary text-sm">ذخیره پروفایل</button>
         </div>
@@ -202,77 +192,107 @@ function DoctorProfileSection({ member, canManage }: { member: StaffMember; canM
   );
 }
 
-function LinksSection({ member, staff, canManage }: { member: StaffMember; staff: StaffMember[]; canManage: boolean }) {
-  const { data: assignments = [] } = useStaffAssignments();
-  const { data: relationshipTypes = [] } = useRelationshipTypes();
-  const create = useCreateStaffAssignment();
-  const remove = useDeleteStaffAssignment();
-  const [doctorId, setDoctorId] = useState('');
-  const [relationship, setRelationship] = useState('');
+/** The person's positions: each with what it may do, on/off and remove; plus adding a position. */
+function WorkspacesSection({ member, staff, onEdit }: { member: StaffMember; staff: StaffMember[]; onEdit: (w: Workspace) => void }) {
+  const canCreate = useCan(CAN.createWorkspace);
+  const canUpdate = useCan(CAN.updateWorkspace);
+  const canDelete = useCan(CAN.deleteWorkspace);
+  const { workspace: active } = useActiveWorkspace();
+  const update = useUpdateWorkspace();
+  const remove = useDeleteWorkspace();
 
-  const worksFor = assignments.filter((a) => a.staff_membership_id === member.membership_id);
-  const team = assignments.filter((a) => a.doctor_membership_id === member.membership_id);
-  const doctors = staff.filter((m) => m.is_active && isDoctor(m) && m.membership_id !== member.membership_id);
-
-  async function add() {
-    if (!doctorId || !relationship) { showToast('پزشک و نوع ارتباط را انتخاب کنید', 'error'); return; }
+  async function setActive(workspace: Workspace, is_active: boolean) {
     try {
-      await create.mutateAsync({
-        staff_membership_id: member.membership_id,
-        doctor_membership_id: doctorId,
-        relationship_type: relationship,
-      });
-      setDoctorId('');
-      showToast('ارتباط ثبت شد');
-    } catch (error) {
-      showToast(staffErrorMessage(error, 'این ارتباط از قبل ثبت شده است'), 'error');
-    }
-  }
-
-  async function unlink(id: string) {
-    try {
-      await remove.mutateAsync(id);
-      showToast('ارتباط حذف شد');
+      await update.mutateAsync({ id: workspace.id, changes: { is_active } });
     } catch (error) {
       showToast(staffErrorMessage(error), 'error');
     }
   }
 
-  const row = (id: string, text: string) => (
-    <li key={id} className="flex items-center justify-between gap-2 py-2 text-sm text-surface-700">
-      <span>{text}</span>
-      {canManage && (
-        <button type="button" onClick={() => unlink(id)} title="حذف ارتباط" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
-          <Trash2 size={14} />
-        </button>
-      )}
-    </li>
-  );
+  async function removeWorkspace(workspace: Workspace) {
+    if (!window.confirm(`جایگاه «${workspace.label}» حذف شود؟`)) return;
+    try {
+      await remove.mutateAsync(workspace.id);
+      showToast('جایگاه حذف شد');
+    } catch (error) {
+      showToast(staffErrorMessage(error), 'error');
+    }
+  }
 
   return (
     <section className="pt-4 border-t border-surface-100">
-      <SectionTitle>ارتباط با پزشکان</SectionTitle>
+      <SectionTitle>جایگاه‌ها و دسترسی‌ها</SectionTitle>
       <p className="text-xs text-surface-500 mb-2">
-        نقش‌هایی با دسترسی «خودش و پزشکان مرتبط» نوبت‌ها و بیماران همین پزشکان را می‌بینند.
+        هر جایگاه دسترسی‌های خودش را دارد. در جایگاه وابسته به یک پزشک فقط نوبت‌ها و بیماران همان پزشک دیده می‌شود.
       </p>
-      {worksFor.length === 0 && team.length === 0 && <p className="text-sm text-surface-400">ارتباطی ثبت نشده است</p>}
+      {member.workspaces.length === 0 && <p className="text-sm text-surface-400">جایگاهی ندارد؛ نمی‌تواند در این کلینیک کار کند.</p>}
       <ul className="divide-y divide-surface-100">
-        {worksFor.map((a) => row(a.id, `${a.relationship_name}: ${a.doctor_name}`))}
-        {team.map((a) => row(a.id, `${a.staff_name} (${a.relationship_name})`))}
+        {member.workspaces.map((w) => (
+          <li key={w.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+            <span className={`flex-1 min-w-40 ${w.is_active ? 'text-surface-700' : 'text-surface-400 line-through'}`}>{w.label}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${w.is_admin || w.permissions.length ? 'bg-primary-50 text-primary-700' : 'bg-warning-50 text-warning-700'}`}>
+              {w.is_admin ? 'همه دسترسی‌ها' : w.permissions.length ? `${formatNumber(w.permissions.length)} دسترسی` : 'بدون دسترسی'}
+            </span>
+            <button type="button" onClick={() => onEdit(w)} className="btn-secondary text-xs px-2 py-1">
+              <ShieldCheck size={13} />
+              دسترسی‌ها
+            </button>
+            {canUpdate && w.id !== active?.id && (
+              <button type="button" onClick={() => setActive(w, !w.is_active)} disabled={update.isPending} className="text-xs text-primary-600 hover:underline">
+                {w.is_active ? 'غیرفعال کردن' : 'فعال کردن'}
+              </button>
+            )}
+            {canDelete && w.id !== active?.id && (
+              <button type="button" onClick={() => removeWorkspace(w)} title="حذف جایگاه" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </li>
+        ))}
       </ul>
-      {canManage && doctors.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-2 mt-3">
-          <select className="input-field sm:flex-1" value={relationship} onChange={(e) => setRelationship(e.target.value)}>
-            <option value="">-- نوع ارتباط --</option>
-            {relationshipTypes.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
-          </select>
-          <select className="input-field sm:flex-1" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-            <option value="">-- پزشک --</option>
-            {doctors.map((d) => <option key={d.membership_id} value={d.membership_id}>{d.full_name}</option>)}
-          </select>
-          <button type="button" onClick={add} disabled={create.isPending} className="btn-secondary text-sm whitespace-nowrap">افزودن</button>
-        </div>
-      )}
+      {canCreate && <AddPosition member={member} staff={staff} />}
     </section>
+  );
+}
+
+/** A new staff position (secretary / assistant / ... of a doctor) or a clinic-wide one. It starts with no permissions. */
+function AddPosition({ member, staff }: { member: StaffMember; staff: StaffMember[] }) {
+  const { data: relationshipTypes = [] } = useRelationshipTypes();
+  const create = useCreateWorkspace();
+  const [doctorId, setDoctorId] = useState('');
+  const [relationship, setRelationship] = useState('');
+  const doctors = staff.filter((m) => m.is_active && isDoctor(m) && m.membership_id !== member.membership_id);
+
+  async function add() {
+    const wholeClinic = doctorId === 'clinic';
+    if (!doctorId || (!wholeClinic && !relationship)) { showToast('پزشک و نوع جایگاه را انتخاب کنید', 'error'); return; }
+    try {
+      await create.mutateAsync(
+        wholeClinic
+          ? { membership_id: member.membership_id, kind: 'clinic' }
+          : { membership_id: member.membership_id, kind: 'staff', doctor_membership_id: doctorId, relationship_type: relationship },
+      );
+      setDoctorId('');
+      showToast('جایگاه اضافه شد؛ حالا دسترسی‌هایش را بدهید');
+    } catch (error) {
+      showToast(staffErrorMessage(error), 'error');
+    }
+  }
+
+  return (
+    <div className="flex flex-col sm:flex-row gap-2 mt-3">
+      <select aria-label="برای" className="input-field sm:flex-1" value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
+        <option value="">-- جایگاه جدید برای --</option>
+        {doctors.map((d) => <option key={d.membership_id} value={d.membership_id}>{d.full_name}</option>)}
+        <option value="clinic">کل کلینیک</option>
+      </select>
+      {doctorId !== 'clinic' && (
+        <select aria-label="نوع جایگاه" className="input-field sm:flex-1" value={relationship} onChange={(e) => setRelationship(e.target.value)}>
+          <option value="">-- نوع جایگاه --</option>
+          {relationshipTypes.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
+        </select>
+      )}
+      <button type="button" onClick={add} disabled={create.isPending} className="btn-secondary text-sm whitespace-nowrap">افزودن جایگاه</button>
+    </div>
   );
 }

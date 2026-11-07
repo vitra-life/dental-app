@@ -50,3 +50,19 @@ export function useUpdatePatient() {
     },
   });
 }
+
+/** Deletes a patient (hidden, not erased); their upcoming appointments are cancelled. */
+export function useDeletePatient() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      unwrap(await api.DELETE('/api/v1/clients/{id}', { params: { path: { id } } }));
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.patients }),
+        queryClient.invalidateQueries({ queryKey: keys.appointments }),
+      ]);
+    },
+  });
+}

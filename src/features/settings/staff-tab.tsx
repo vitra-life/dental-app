@@ -21,11 +21,11 @@ const activeFilters: { value: ActiveFilter; label: string }[] = [
   { value: 'all', label: 'همه' },
 ];
 
-/** The clinic's members: who they are, what they do and which roles they hold. */
+/** The clinic's people: what they are, and their workspaces (positions) with what each may do. */
 export function StaffTab() {
   const { data: staff = [], isPending, error, refetch } = useStaff();
   const { data: staffTypes = [] } = useStaffTypes();
-  const canManage = useCan(CAN.manageStaff);
+  const canCreate = useCan(CAN.createStaff);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<ActiveFilter>('active');
   const [adding, setAdding] = useState(false);
@@ -56,7 +56,7 @@ export function StaffTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-surface-700">پرسنل ({formatNumber(staff.filter((m) => m.is_active).length)})</h2>
-        {canManage && (
+        {canCreate && (
           <button onClick={() => setAdding(true)} className="btn-primary">
             <Plus size={16} />
             عضو جدید
@@ -108,9 +108,15 @@ export function StaffTab() {
                     {m.doctor_profile && <> · نظام پزشکی {m.doctor_profile.medical_license}</>}
                   </div>
                 </div>
-                <div className="hidden sm:flex flex-wrap gap-1 justify-end max-w-[40%]">
-                  {m.roles.map((r) => (
-                    <span key={r.id} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full">{r.name}</span>
+                <div className="hidden sm:flex flex-wrap gap-1 justify-end max-w-[45%]">
+                  {m.workspaces.filter((w) => w.is_active).map((w) => (
+                    <span
+                      key={w.id}
+                      className={`text-xs px-2 py-0.5 rounded-full ${w.is_admin || w.permissions.length ? 'bg-primary-50 text-primary-700' : 'bg-warning-50 text-warning-700'}`}
+                    >
+                      {w.label}
+                      {!w.is_admin && ` · ${w.permissions.length ? formatNumber(w.permissions.length) : 'بدون دسترسی'}`}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -121,7 +127,7 @@ export function StaffTab() {
 
       {adding && <StaffForm onClose={() => setAdding(false)} onCreated={onCreated} />}
       {open && (
-        <StaffDetail key={open.membership_id} member={open} staff={staff} canManage={canManage} onClose={() => setOpenId(null)} />
+        <StaffDetail key={open.membership_id} member={open} staff={staff} onClose={() => setOpenId(null)} />
       )}
       <TemporaryPasswordModal
         name={created?.name ?? ''}

@@ -18,6 +18,9 @@ import type { Installment, Invoice, Patient } from '@/lib/types';
 import { InvoiceDetail } from './invoice-detail';
 import { InvoiceForm } from './invoice-form';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 type InvoiceFilter = 'all' | Invoice['status'];
 
 const filters: { value: InvoiceFilter; label: string }[] = [
@@ -30,6 +33,7 @@ interface BillingProps {
 }
 
 export function Billing({ onOpenPatient }: BillingProps) {
+  const { can } = usePermissions();
   const [invoiceRows, setInvoiceRows] = useState<Invoice[]>([]);
   const { data: allPatients = [] } = usePatients();
   const { data: allServices = [] } = useServices();
@@ -72,10 +76,10 @@ export function Billing({ onOpenPatient }: BillingProps) {
   return (
     <div className="space-y-5">
       <PageHeader title="صورتحساب" subtitle={<>{formatNumber(invoices.length)} فاکتور</>}>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        {can(CAN.createInvoice) && (<button onClick={() => setShowForm(true)} className="btn-primary">
           <Plus size={16} />
           فاکتور جدید
-        </button>
+        </button>)}
       </PageHeader>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
