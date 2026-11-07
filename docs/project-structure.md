@@ -60,6 +60,9 @@ data/
 ├── keys.ts                 query keys; mutations invalidate by prefix
 ├── patients.ts             usePatients (all pages), usePatient, useCreatePatient, useUpdatePatient
 ├── appointments.ts         useAppointments (shared window), usePatientAppointments, create, update, status
+├── staff.ts                useStaff, assignments, staff and relationship types; create, update, doctor profile, reset password
+├── roles.ts                useRoles, usePermissionCatalog; create, update, delete
+├── audit.ts                useAuditLogs (one page)
 ├── services.ts             useServices, useCreateService, useUpdateService, useDeleteService
 ├── doctors.ts              useDoctors: the clinic's active doctors, for the booking form
 ├── session.ts              useSession, useMe, usePermissions, useCan, login, logout, switch clinic, change password
@@ -162,7 +165,14 @@ features/
     ├── settings-page.tsx           tab container
     ├── clinic-tab.tsx              clinic details and the reset-data button
     ├── hours-tab.tsx               opening hours per weekday
-    ├── staff-tab.tsx               staff list
+    ├── staff-tab.tsx               the clinic's members from the API, with search and an active filter
+    ├── staff-form.tsx              add a member by mobile, with staff types and roles
+    ├── staff-detail.tsx            one member: roles, active, doctor profile, links to doctors, password reset
+    ├── temporary-password-modal.tsx  shows a new or reset temporary password once
+    ├── staff-messages.ts           Persian messages for staff and role errors (last admin, delegation…)
+    ├── roles-tab.tsx               system and custom roles
+    ├── role-editor.tsx             a role's name and grants, as a tree of the permission catalogue
+    ├── audit-tab.tsx               the audit log, paged and filtered by action
     ├── services-tab.tsx            service catalogue table with category filters
     ├── service-form.tsx            add or edit a service
     ├── plans-tab.tsx               treatment-plan templates, and a read-only list of all plans
@@ -194,6 +204,8 @@ constants/
 lib/
 ├── env.ts                  reads `VITE_API_BASE_URL`; fails at startup if it is missing
 ├── permissions.ts          the permission codes the app checks: `PAGE_PERMISSION` per page, `CAN` for actions
+├── permission-tree.ts      the role editor's rules: check parents, uncheck children, only grant what you hold
+├── permission-tree.test.ts
 ├── auth/
 │   └── session.ts          the tokens: access token in memory, refresh token in localStorage
 ├── api/

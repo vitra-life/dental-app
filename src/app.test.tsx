@@ -38,7 +38,14 @@ const allCodes = [
   'clients.list.view', 'clients.record.view', 'clients.record.create', 'clients.record.update',
   'appointments.list.view', 'appointments.booking.create', 'appointments.status.change', 'appointments.status.cancel',
   'settings.clinic', 'settings.hours', 'settings.services', 'settings.services.manage', 'settings.staff', 'settings.plans',
+  'settings.staff.view', 'settings.staff.manage', 'settings.roles', 'settings.roles.view', 'settings.roles.manage',
+  'settings.audit', 'settings.audit.view',
 ];
+const member = {
+  membership_id: 'membership', user_id: 'user', full_name: 'سارا احمدی', mobile: '09120000000', is_active: true,
+  joined_at: stamp, staff_types: ['doctor'], doctor_profile: null,
+  roles: [{ id: 'role-admin', code: 'clinic_admin', name: 'مدیر کلینیک', is_system: true }],
+};
 const me = () => ({
   user: { id: 'user', full_name: 'سارا احمدی', mobile: '09120000000', must_change_password: false },
   clinics: [{ clinic_id: 'clinic', clinic_name: 'کلینیک ویترا', membership_id: 'membership', roles: [], staff_types: ['doctor'] }],
@@ -55,6 +62,11 @@ async function fakeApi(input: RequestInfo | URL): Promise<Response> {
   if (pathname === '/api/v1/clients') return json({ items: [client], total: 1, page: 1, page_size: 100 });
   if (pathname === '/api/v1/services') return json([service]);
   if (pathname === '/api/v1/appointments') return json([appointment()]);
+  if (pathname === '/api/v1/staff') return json([member]);
+  if (pathname === '/api/v1/staff-assignments') return json([]);
+  if (pathname === '/api/v1/staff-types') return json([{ id: 't1', code: 'doctor', name: 'پزشک' }]);
+  if (pathname === '/api/v1/relationship-types') return json([]);
+  if (pathname === '/api/v1/roles') return json([{ ...member.roles[0], clinic_id: null, member_count: 1, permissions: [] }]);
   return new Response(null, { status: 404 });
 }
 
@@ -142,5 +154,28 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'بازگشت' }));
     expect(await pageTitle('بیماران')).toBeTruthy();
+  });
+
+  it('shows the staff list read-only without the manage permission', async () => {
+    granted = ['dashboard', 'settings', 'settings.staff', 'settings.staff.view'];
+    renderApp();
+    await pageTitle('داشبورد');
+    openFromSidebar('تنظیمات');
+    expect(await screen.findByText('مدیر کلینیک')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'عضو جدید' })).toBeNull();
+    // Only the staff tab is granted, so the roles and audit tabs are hidden.
+    expect(screen.queryByRole('button', { name: 'نقش‌ها و دسترسی‌ها' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'گزارش رویدادها' })).toBeNull();
+  });
+
+  it('lets a staff manager add members and open the roles', async () => {
+    renderApp();
+    await pageTitle('داشبورد');
+    openFromSidebar('تنظیمات');
+    fireEvent.click(await screen.findByRole('button', { name: 'پرسنل' }));
+    expect(await screen.findByRole('button', { name: 'عضو جدید' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'نقش‌ها و دسترسی‌ها' }));
+    expect(await screen.findByText('سیستمی')).toBeTruthy();
   });
 });

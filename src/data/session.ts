@@ -4,10 +4,11 @@ import { api, refreshSession } from '@/lib/api/client';
 import { unwrap } from '@/lib/api/errors';
 import type { components } from '@/lib/api/schema';
 import { clearSession, getAccessToken, hasSession, setTokens, subscribe } from '@/lib/auth/session';
+import { keys } from './keys';
 
 export type Me = components['schemas']['MeDto'];
 
-const meKey = ['auth', 'me'] as const;
+const meKey = keys.me;
 
 /** Whether the user is signed in (or can be, from the stored refresh token). */
 export function useSession(): boolean {
@@ -29,12 +30,15 @@ export function useMe() {
   });
 }
 
-/** `can(code)` for the active clinic: true if the permission is granted. */
+/**
+ * `can(code)` for the active clinic: true if the permission is granted.
+ * `scopes` maps each granted code to its scope (for the role editor).
+ */
 export function usePermissions() {
   const { data } = useMe();
   return useMemo(() => {
-    const granted = new Set(data?.permissions.map((p) => p.code));
-    return { can: (code: string) => granted.has(code), loaded: data !== undefined };
+    const scopes = new Map(data?.permissions.map((p) => [p.code, p.scope]));
+    return { can: (code: string) => scopes.has(code), scopes, loaded: data !== undefined };
   }, [data]);
 }
 

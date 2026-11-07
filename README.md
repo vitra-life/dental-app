@@ -4,7 +4,7 @@ A dental clinic management app. The interface is in Persian, laid out right-to-l
 
 It covers patients and their records, treatment plans, appointments, billing with instalments, lab orders, reports, a smart assistant, an SMS panel and clinic settings.
 
-Patients, appointments and services come from the backend, [Dental-Api](../Dental-Api). The other areas (billing, lab, SMS, treatment plans, staff, clinic settings) have no API yet: they start from sample data and keep every change in the browser's localStorage.
+Patients, appointments and services come from the backend, [Dental-Api](../Dental-Api). Staff, roles and the audit log (Settings) do too. The other areas (billing, lab, SMS, treatment plans, clinic settings) have no API yet: they start from sample data and keep every change in the browser's localStorage.
 
 ## Getting started
 

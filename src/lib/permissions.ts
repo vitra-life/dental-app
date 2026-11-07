@@ -30,5 +30,12 @@ export const CAN = {
   settingsHours: 'settings.hours',
   settingsServices: 'settings.services',
   settingsStaff: 'settings.staff',
+  viewStaff: 'settings.staff.view',
+  manageStaff: 'settings.staff.manage',
+  settingsRoles: 'settings.roles',
+  viewRoles: 'settings.roles.view',
+  manageRoles: 'settings.roles.manage',
   settingsPlans: 'settings.plans',
+  settingsAudit: 'settings.audit',
+  viewAudit: 'settings.audit.view',
 } as const;

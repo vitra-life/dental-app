@@ -280,6 +280,27 @@ export interface paths {
         patch: operations["StaffController_update_v1"];
         trace?: never;
     };
+    "/api/v1/staff/{membershipId}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gives the member a new temporary password, returned once, and signs them
+         *     out everywhere. Not for your own account, nor for someone who also
+         *     belongs to another clinic.
+         */
+        post: operations["StaffController_resetPassword_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staff/{membershipId}/doctor-profile": {
         parameters: {
             query?: never;
@@ -711,6 +732,10 @@ export interface components {
             staff_types?: string[];
             /** @description Replaces the current set. */
             role_ids?: string[];
+        };
+        PasswordResetDto: {
+            /** @description Shown this once; the user must change it at first login. */
+            temporary_password: string;
         };
         SetDoctorProfileDto: {
             /** @description شماره نظام پزشکی; unique across all doctors. */
@@ -1988,6 +2013,54 @@ export interface operations {
                 };
             };
             /** @description Would leave the clinic without an active admin */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    StaffController_resetPassword_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                membershipId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordResetDto"];
+                };
+            };
+            /** @description Not signed in, or the session ended */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Not a member, or missing the permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description Your own account (reason self) or a member of another clinic (reason other_clinics) */
             409: {
                 headers: {
                     [name: string]: unknown;
