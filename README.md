@@ -4,7 +4,7 @@ A dental clinic management app. The interface is in Persian, laid out right-to-l
 
 It covers patients and their records, treatment plans, appointments, billing with instalments, lab orders, reports, a smart assistant, an SMS panel and clinic settings.
 
-Patients, appointments and services come from the backend, [Dental-Api](../Dental-Api). The other areas (billing, lab, SMS, treatment plans, staff, clinic settings) have no API yet: they start from sample data and keep every change in the browser's localStorage.
+Patients, appointments and services come from the backend, [Dental-Api](../Dental-Api). Staff, workspaces, permission templates and the audit log (Settings) do too. The other areas (billing, lab, SMS, treatment plans, clinic settings) have no API yet: they start from sample data and keep every change in the browser's localStorage.
 
 ## Getting started
 
@@ -107,7 +107,8 @@ Files and folders under `src/` are kebab-case (`patient-form.tsx`); lint enforce
 
 - Users sign in with mobile and password. The access token lives in memory and the refresh token in localStorage (`vitra:refresh-token`); an expired access token is refreshed once and the request repeated.
 - A user in several clinics picks one after signing in and can switch from the user menu; switching clears the cached data.
-- The menu, pages and buttons show only what the user's roles grant in the active clinic, from `GET /auth/me`. The backend enforces the same permission codes.
+- After sign-in the user picks a clinic and a **workspace** (a position such as «دستیار پزشک: دکتر الف»); the top bar switches between them. A workspace decides what the user may do and whose data they see.
+- The menu, pages and buttons show only what the active workspace holds, one permission item per action (`appointment.create`, `appointment.cancel`, …), from `GET /auth/me`. The backend enforces the same codes.
 
 ## Things that are simulated
 

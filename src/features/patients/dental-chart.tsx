@@ -11,6 +11,9 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { DentalRecord } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 interface DentalChartProps {
   patientId: string;
 }
@@ -23,6 +26,7 @@ const upperTeeth = [[18, 17, 16, 15, 14, 13, 12, 11], [21, 22, 23, 24, 25, 26, 2
 const lowerTeeth = [[48, 47, 46, 45, 44, 43, 42, 41], [31, 32, 33, 34, 35, 36, 37, 38]];
 
 export function DentalChart({ patientId }: DentalChartProps) {
+  const { can } = usePermissions();
   const [records, setRecords] = useState<DentalRecord[]>([]);
   const { data: allServices = [] } = useServices();
   const services = allServices.filter((s) => s.active);
@@ -163,7 +167,7 @@ export function DentalChart({ patientId }: DentalChartProps) {
             </div>
           </div>
           <div className="flex gap-2 mt-3">
-            <button onClick={saveRecord} className="btn-primary flex-1">ذخیره</button>
+            {can(CAN.updateDentalChart) && (<button onClick={saveRecord} className="btn-primary flex-1">ذخیره</button>)}
             <button onClick={() => setSelectedTooth(null)} className="btn-secondary flex-1">انصراف</button>
           </div>
           {selectedRecord?.treatment_date && (
@@ -192,9 +196,9 @@ export function DentalChart({ patientId }: DentalChartProps) {
                     {record.notes && <p className="text-xs text-surface-400 truncate">{record.notes}</p>}
                   </div>
                   <StatusBadge status={sc} />
-                  <button onClick={() => deleteRecord(record.tooth_number)} title="حذف" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
+                  {can(CAN.updateDentalChart) && (<button onClick={() => deleteRecord(record.tooth_number)} title="حذف" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
                     <Trash2 size={14} />
-                  </button>
+                  </button>)}
                 </div>
               );
             })}

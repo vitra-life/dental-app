@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Edit3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit3, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { Tabs, type TabItem } from '@/components/ui/tabs';
+import { usePermissions } from '@/data/session';
 import { getAge } from '@/lib/date';
+import { CAN } from '@/lib/permissions';
 import { formatCurrency, formatNumber, fullName } from '@/lib/format';
 import { patientBalance } from '@/lib/patient-balance';
 import * as db from '@/lib/store';
@@ -23,22 +25,28 @@ interface PatientDetailProps {
   onBack: () => void;
   /** Opens the edit form; absent when the user can't edit clients. */
   onEdit?: () => void;
+  /** Deletes the patient; absent when the user can't delete clients. */
+  onDelete?: () => void;
   onNavigate: (page: PageKey) => void;
 }
 
 /** The patient record page: a breadcrumb, a summary card and one tab per part of the record. */
-export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit, onNavigate }: PatientDetailProps) {
+export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit, onDelete, onNavigate }: PatientDetailProps) {
+  const { can } = usePermissions();
   // Counted once per visit to the record; the plan tab reloads its own list.
   const [planCount] = useState(() => db.list('treatment_plans', (p) => p.patient_id === patient.id).length);
   const [balance] = useState(() => patientBalance(patient.id));
 
-  const tabs: TabItem<PatientTab>[] = [
+  // Each part of the record needs its own view item; the base details only need the client.
+  const allTabs: (TabItem<PatientTab> & { permission?: string })[] = [
     { key: 'info', label: 'اطلاعات' },
-    { key: 'plan', label: `طرح درمان (${formatNumber(planCount)})` },
-    { key: 'dental', label: 'نمودار دندان' },
-    { key: 'rvg', label: 'تصاویر RVG' },
-    { key: 'history', label: 'سابقه' },
+    { key: 'plan', label: `طرح درمان (${formatNumber(planCount)})`, permission: CAN.viewTreatmentPlans },
+    { key: 'dental', label: 'نمودار دندان', permission: CAN.viewDentalChart },
+    { key: 'rvg', label: 'تصاویر RVG', permission: CAN.viewXrays },
+    { key: 'history', label: 'سابقه', permission: CAN.viewTreatments },
   ];
+  const tabs = allTabs.filter((t) => !t.permission || can(t.permission));
+  const tab = tabs.some((t) => t.key === activeTab) ? activeTab : 'info';
 
   return (
     <div className="space-y-5">
@@ -64,12 +72,21 @@ export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit,
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <button onClick={() => onNavigate('appointments')} className="btn-primary text-xs px-3 py-1.5">رزرو نوبت</button>
-                <button onClick={() => onNavigate('billing')} className="btn-secondary text-xs px-3 py-1.5">صدور فاکتور</button>
+                {can(CAN.bookAppointment) && (
+                  <button onClick={() => onNavigate('appointments')} className="btn-primary text-xs px-3 py-1.5">رزرو نوبت</button>
+                )}
+                {can(CAN.createInvoice) && (
+                  <button onClick={() => onNavigate('billing')} className="btn-secondary text-xs px-3 py-1.5">صدور فاکتور</button>
+                )}
                 {onEdit && (
                   <button onClick={onEdit} className="btn-secondary text-xs px-3 py-1.5">
                     <Edit3 size={13} />
                     ویرایش
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={onDelete} title="حذف بیمار" className="btn-secondary text-xs px-2 py-1.5 text-error-600">
+                    <Trash2 size={13} />
                   </button>
                 )}
               </div>
@@ -84,13 +101,13 @@ export function PatientDetail({ patient, activeTab, onTabChange, onBack, onEdit,
         </div>
       </div>
 
-      <Tabs tabs={tabs} active={activeTab} onChange={onTabChange} />
+      <Tabs tabs={tabs} active={tab} onChange={onTabChange} />
 
-      {activeTab === 'info' && <PatientInfoTab patient={patient} />}
-      {activeTab === 'plan' && <TreatmentPlanTab patientId={patient.id} />}
-      {activeTab === 'dental' && <DentalChart patientId={patient.id} />}
-      {activeTab === 'rvg' && <RvgManager patientId={patient.id} />}
-      {activeTab === 'history' && <PatientHistoryTab patientId={patient.id} />}
+      {tab === 'info' && <PatientInfoTab patient={patient} />}
+      {tab === 'plan' && <TreatmentPlanTab patientId={patient.id} />}
+      {tab === 'dental' && <DentalChart patientId={patient.id} />}
+      {tab === 'rvg' && <RvgManager patientId={patient.id} />}
+      {tab === 'history' && <PatientHistoryTab patientId={patient.id} />}
     </div>
   );
 }

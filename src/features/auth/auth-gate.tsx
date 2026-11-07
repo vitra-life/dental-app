@@ -2,12 +2,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { LoadError } from '@/components/ui/load-error';
 import { useMe, useSession } from '@/data/session';
 import { ChangePasswordPage } from './change-password-page';
-import { ClinicPickerPage } from './clinic-picker-page';
+import { WorkspacePickerPage } from './workspace-picker-page';
 import { LoginPage } from './login-page';
 
 /**
  * Shows the app only to a signed-in user with a permanent password and an
- * active clinic; otherwise the screen that gets them there.
+ * active workspace; otherwise the screen that gets them there.
  */
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const signedIn = useSession();
@@ -23,6 +23,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
   if (me.error || !me.data) return <LoadError error={me.error} onRetry={() => me.refetch()} />;
   if (me.data.user.must_change_password) return <ChangePasswordPage />;
-  if (!me.data.active_clinic_id) return <ClinicPickerPage me={me.data} />;
+  if (!me.data.active_workspace_id) return <WorkspacePickerPage me={me.data} />;
   return <>{children}</>;
 }

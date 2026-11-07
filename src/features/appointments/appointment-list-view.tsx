@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarDays, Plus } from 'lucide-react';
+import { CalendarDays, Plus, Trash2 } from 'lucide-react';
 import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SkeletonList } from '@/components/ui/skeleton';
@@ -19,6 +19,7 @@ interface AppointmentListViewProps {
   loading: boolean;
   onNew: () => void;
   onStatusChange: (id: string, status: Exclude<Appointment['status'], 'pending'>) => void;
+  onDelete: (id: string) => void;
   onOpenPatient: (patientId: string) => void;
 }
 
@@ -43,9 +44,12 @@ function duration(start: string, end: string): number {
 }
 
 /** All appointments as a filterable list, with the status actions on each row. */
-export function AppointmentListView({ appointments, planned, loading, onNew, onStatusChange, onOpenPatient }: AppointmentListViewProps) {
-  const canChange = useCan(CAN.changeAppointmentStatus);
+export function AppointmentListView({ appointments, planned, loading, onNew, onStatusChange, onDelete, onOpenPatient }: AppointmentListViewProps) {
+  const canConfirm = useCan(CAN.confirmAppointment);
+  const canComplete = useCan(CAN.completeAppointment);
+  const canMarkNoShow = useCan(CAN.markNoShow);
   const canCancel = useCan(CAN.cancelAppointment);
+  const canDelete = useCan(CAN.deleteAppointment);
   const [period, setPeriod] = useState<Period>('upcoming');
   const [status, setStatus] = useState<StatusFilter>('all');
   const today = todayISO();
@@ -95,14 +99,20 @@ export function AppointmentListView({ appointments, planned, loading, onNew, onS
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                 <StatusBadge status={statusStyle(appointmentStatus, apt.status, 'pending')} />
-                {canChange && apt.status === 'pending' && (
+                {canConfirm && apt.status === 'pending' && (
                   <button onClick={() => onStatusChange(apt.id, 'confirmed')} className="btn-chip px-2 py-1 bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100">تأیید</button>
                 )}
                 {(apt.status === 'pending' || apt.status === 'confirmed') && (
                   <>
-                    {canChange && <button onClick={() => onStatusChange(apt.id, 'completed')} className="btn-chip px-2 py-1 bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100">انجام شد</button>}
+                    {canComplete && <button onClick={() => onStatusChange(apt.id, 'completed')} className="btn-chip px-2 py-1 bg-surface-50 text-surface-600 border-surface-200 hover:bg-surface-100">انجام شد</button>}
+                    {canMarkNoShow && <button onClick={() => onStatusChange(apt.id, 'no_show')} className="btn-chip px-2 py-1 bg-warning-50 text-warning-700 border-warning-200 hover:bg-warning-100">غیبت</button>}
                     {canCancel && <button onClick={() => onStatusChange(apt.id, 'cancelled')} className="btn-chip px-2 py-1 bg-error-50 text-error-600 border-error-200 hover:bg-error-100">لغو</button>}
                   </>
+                )}
+                {canDelete && (
+                  <button onClick={() => onDelete(apt.id)} title="حذف نوبت" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
+                    <Trash2 size={14} />
+                  </button>
                 )}
               </div>
             </div>

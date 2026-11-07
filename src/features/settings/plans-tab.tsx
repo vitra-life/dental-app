@@ -12,11 +12,15 @@ import { showToast } from '@/lib/toast';
 import type { TreatmentPlan, TreatmentPlanTemplate } from '@/lib/types';
 import { TemplateForm } from './template-form';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 /**
  * The treatment-plan templates the clinic offers, and every patient's plans (read-only:
  * plans are edited from the patient record).
  */
 export function PlansTab() {
+  const { can } = usePermissions();
   const [planRows, setPlanRows] = useState<TreatmentPlan[]>([]);
   const { data: patients = [] } = usePatients();
   const plans = db.joinOne(planRows, 'patient', patients, 'patient_id');
@@ -46,10 +50,10 @@ export function PlansTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-surface-700">الگوهای طرح درمان ({formatNumber(templates.length)})</h2>
-        <button onClick={() => setEditing(null)} className="btn-primary">
+        {can(CAN.createPlanTemplate) && (<button onClick={() => setEditing(null)} className="btn-primary">
           <Plus size={16} />
           الگوی جدید
-        </button>
+        </button>)}
       </div>
 
       {templates.length === 0 && <div className="card p-6 text-center text-sm text-surface-400">هنوز الگویی تعریف نشده است</div>}
@@ -64,8 +68,8 @@ export function PlansTab() {
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${template.active ? 'bg-accent-100 text-accent-700' : 'bg-surface-100 text-surface-500'}`}>
                 {template.active ? 'فعال' : 'غیرفعال'}
               </span>
-              <button onClick={() => setEditing(template)} className="text-xs text-primary-600 hover:underline">ویرایش</button>
-              <button onClick={() => deleteTemplate(template.id)} className="text-xs text-error-500 hover:underline">حذف</button>
+              {can(CAN.updatePlanTemplate) && (<button onClick={() => setEditing(template)} className="text-xs text-primary-600 hover:underline">ویرایش</button>)}
+              {can(CAN.deletePlanTemplate) && (<button onClick={() => deleteTemplate(template.id)} className="text-xs text-error-500 hover:underline">حذف</button>)}
             </div>
           </div>
           <div className="space-y-1.5 border-t border-surface-100 pt-3">

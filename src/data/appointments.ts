@@ -86,3 +86,14 @@ export function useSetAppointmentStatus() {
     onSuccess: invalidate,
   });
 }
+
+/** Deletes an appointment (it is hidden, not erased, and no longer blocks the doctor's time). */
+export function useDeleteAppointment() {
+  const invalidate = useInvalidateAfterWrite();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      unwrap(await api.DELETE('/api/v1/appointments/{id}', { params: { path: { id } } }));
+    },
+    onSuccess: invalidate,
+  });
+}

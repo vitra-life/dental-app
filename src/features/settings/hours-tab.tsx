@@ -5,11 +5,15 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { WorkingHours } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 /** What a closed day opens with when it is switched back on. */
 const DEFAULT_DAY = { start: '09:00', end: '18:00' };
 
 /** Opening hours per weekday. They decide which appointment slots each day offers. */
 export function HoursTab() {
+  const { can } = usePermissions();
   const [clinicId] = useState(() => db.first('clinic_settings')?.id ?? null);
   const [hours, setHours] = useState<WorkingHours>(() => ({ ...DEFAULT_WORKING_HOURS, ...db.first('clinic_settings')?.working_hours }));
 
@@ -63,7 +67,7 @@ export function HoursTab() {
           );
         })}
       </div>
-      <button onClick={save} className="btn-primary mt-5 px-6 py-2.5">ذخیره ساعات کاری</button>
+      {can(CAN.updateClinicSettings) && (<button onClick={save} className="btn-primary mt-5 px-6 py-2.5">ذخیره ساعات کاری</button>)}
     </div>
   );
 }
