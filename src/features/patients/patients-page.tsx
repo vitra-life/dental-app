@@ -5,12 +5,13 @@ import { ChoiceChips } from '@/components/ui/choice-chips';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { SkeletonList } from '@/components/ui/skeleton';
-import { usePatients } from '@/data/patients';
+import { useDeletePatient, usePatients } from '@/data/patients';
 import { useCan } from '@/data/session';
 import { errorMessage } from '@/lib/api/errors';
 import { formatDate } from '@/lib/date';
 import { formatCurrency, formatNumber, fullName } from '@/lib/format';
 import { patientBalances } from '@/lib/patient-balance';
+import { showToast } from '@/lib/toast';
 import { CAN } from '@/lib/permissions';
 import type { PageKey, Patient } from '@/lib/types';
 import { PatientDetail, type PatientTab } from './patient-detail';
@@ -34,6 +35,8 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
   const { data: patients = [], isPending: loading, error, refetch } = usePatients();
   const canCreate = useCan(CAN.createClient);
   const canUpdate = useCan(CAN.updateClient);
+  const canDelete = useCan(CAN.deleteClient);
+  const deletePatient = useDeletePatient();
   /** What each patient owes, from the invoices in the browser store (a cheap read, done every render). */
   const balances = patientBalances();
   const [search, setSearch] = useState('');
@@ -60,6 +63,17 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
     );
   });
 
+  async function removePatient(patient: Patient) {
+    if (!window.confirm(`${fullName(patient)} حذف شود؟ نوبت‌های آینده‌اش لغو می‌شود.`)) return;
+    try {
+      await deletePatient.mutateAsync(patient.id);
+      setDetailId(null);
+      showToast('بیمار حذف شد');
+    } catch (error) {
+      showToast(errorMessage(error), 'error');
+    }
+  }
+
   function openNewForm() {
     setEditingPatient(null);
     setShowForm(true);
@@ -82,6 +96,7 @@ export function Patients({ selectedPatientId, onNavigate }: PatientsProps) {
           onTabChange={setActiveTab}
           onBack={() => { setDetailId(null); setActiveTab('info'); }}
           onEdit={canUpdate ? () => { setEditingPatient(detailPatient); setShowForm(true); } : undefined}
+          onDelete={canDelete ? () => removePatient(detailPatient) : undefined}
           onNavigate={onNavigate}
         />
         {form}

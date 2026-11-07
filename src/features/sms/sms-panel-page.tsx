@@ -15,6 +15,9 @@ import { buyPackage, type SmsPackageOffer } from './sms-packages';
 import { SmsPackagesTab } from './sms-packages-tab';
 import { SmsReportsTab } from './sms-reports-tab';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 type SmsTab = 'overview' | 'campaigns' | 'packages' | 'reports';
 
 const tabs: TabItem<SmsTab>[] = [
@@ -28,6 +31,7 @@ const tabs: TabItem<SmsTab>[] = [
 const RECENT_MESSAGES = 100;
 
 export function SMSPanel() {
+  const { can } = usePermissions();
   const [tab, setTab] = useState<SmsTab>('overview');
   const [packages, setPackages] = useState<SmsPackage[]>([]);
   const [campaigns, setCampaigns] = useState<SmsCampaign[]>([]);
@@ -65,11 +69,11 @@ export function SMSPanel() {
   return (
     <div className="space-y-5">
       <PageHeader title="پنل پیامک" subtitle="ارسال پیامک انبوه، مدیریت کمپین‌ها و بسته‌ها">
-        <button onClick={() => setShowPackageModal(true)} className="btn-secondary">خرید بسته</button>
-        <button onClick={() => setShowCampaignForm(true)} className="btn-primary">
+        {can(CAN.buySmsPackage) && (<button onClick={() => setShowPackageModal(true)} className="btn-secondary">خرید بسته</button>)}
+        {can(CAN.createSmsCampaign) && (<button onClick={() => setShowCampaignForm(true)} className="btn-primary">
           <Plus size={16} />
           کمپین جدید
-        </button>
+        </button>)}
       </PageHeader>
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} />

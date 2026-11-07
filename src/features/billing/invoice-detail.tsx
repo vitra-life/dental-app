@@ -14,6 +14,9 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Installment, Invoice, InvoiceItem, Payment } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 const paymentMethods = (['cash', 'card', 'online', 'transfer'] as const).map((m) => ({ value: m, label: paymentMethodLabel(m) }));
 
 export function InvoiceDetail({ invoice, onClose, onUpdated }: {
@@ -21,6 +24,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
   onClose: () => void;
   onUpdated: () => void;
 }) {
+  const { can } = usePermissions();
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -198,7 +202,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated }: {
           {invoice.balance > 0 && (
             <div className="border-t border-surface-100 pt-4">
               {!showPayment ? (
-                <button onClick={() => { setPayAmount(invoice.balance); setShowPayment(true); }} className="btn-primary w-full py-2.5 bg-accent-600 hover:bg-accent-700">
+                can(CAN.createPayment) && <button onClick={() => { setPayAmount(invoice.balance); setShowPayment(true); }} className="btn-primary w-full py-2.5 bg-accent-600 hover:bg-accent-700">
                   <DollarSign size={18} />
                   ثبت پرداخت
                 </button>

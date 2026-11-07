@@ -15,7 +15,11 @@ import { showToast } from '@/lib/toast';
 import { createPlanFromTemplate } from '@/lib/treatment-plans';
 import type { TreatmentPlan, TreatmentPlanItem, TreatmentPlanTemplate } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 export function TreatmentPlanTab({ patientId }: { patientId: string }) {
+  const { can } = usePermissions();
   const [planRows, setPlanRows] = useState<TreatmentPlan[]>([]);
   const { data: allServices = [] } = useServices();
   const services = allServices.filter((s) => s.active);
@@ -105,10 +109,10 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-surface-700">طرح‌های درمان</h2>
-        <button onClick={() => setShowPlanForm(!showPlanForm)} className="btn-primary text-xs px-3 py-1.5">
+        {can(CAN.createTreatmentPlan) && (<button onClick={() => setShowPlanForm(!showPlanForm)} className="btn-primary text-xs px-3 py-1.5">
           <Plus size={14} />
           طرح جدید
-        </button>
+        </button>)}
       </div>
 
       {showPlanForm && (
@@ -148,7 +152,7 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
             <textarea className="input-field min-h-[60px] resize-none" value={planForm.notes} onChange={(e) => setPlanForm({ ...planForm, notes: e.target.value })} placeholder="توضیحات اضافی..." />
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={createPlan} className="btn-primary">ذخیره طرح درمان</button>
+            {can(CAN.createTreatmentPlan) && (<button onClick={createPlan} className="btn-primary">ذخیره طرح درمان</button>)}
             <button onClick={() => setShowPlanForm(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
@@ -159,7 +163,7 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
           <EmptyState
             icon={ClipboardList}
             title="هنوز طرح درمانی ثبت نشده"
-            action={<button onClick={() => setShowPlanForm(true)} className="text-sm text-primary-600 hover:underline">+ ایجاد طرح درمان</button>}
+            action={can(CAN.createTreatmentPlan) && <button onClick={() => setShowPlanForm(true)} className="text-sm text-primary-600 hover:underline">+ ایجاد طرح درمان</button>}
           />
         </div>
       ) : (
@@ -179,9 +183,9 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <StatusBadge status={statusStyle(treatmentPlanStatus, plan.status, 'cancelled')} />
-                  <button onClick={() => deletePlan(plan.id)} title="حذف طرح" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
+                  {can(CAN.deleteTreatmentPlan) && (<button onClick={() => deletePlan(plan.id)} title="حذف طرح" className="p-1.5 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500">
                     <Trash2 size={14} />
-                  </button>
+                  </button>)}
                 </div>
               </div>
 
@@ -211,9 +215,9 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
                       <button onClick={() => updateItemStatus(item.id, 'completed')} className="btn-chip px-2 py-0.5 bg-accent-50 text-accent-700 border-accent-200 hover:bg-accent-100">تکمیل</button>
                     )}
                     <StatusBadge status={statusStyle(planItemStatus, item.status, 'planned')} className="px-1.5 py-0.5 rounded-sm" />
-                    <button onClick={() => deleteItem(item.id)} title="حذف" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
+                    {can(CAN.updateTreatmentPlan) && (<button onClick={() => deleteItem(item.id)} title="حذف" className="p-1 rounded-lg text-surface-300 hover:bg-error-50 hover:text-error-500">
                       <Trash2 size={12} />
-                    </button>
+                    </button>)}
                   </div>
                 ))}
               </div>
@@ -249,12 +253,12 @@ export function TreatmentPlanTab({ patientId }: { patientId: string }) {
                     <input className="input-field" value={itemForm.description} onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => addItem(plan.id)} className="btn-primary">افزودن خدمت</button>
+                    {can(CAN.updateTreatmentPlan) && (<button onClick={() => addItem(plan.id)} className="btn-primary">افزودن خدمت</button>)}
                     <button onClick={() => setShowItemForm(null)} className="btn-secondary">انصراف</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setShowItemForm(plan.id)} className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline mb-3">
+                can(CAN.updateTreatmentPlan) && <button onClick={() => setShowItemForm(plan.id)} className="inline-flex items-center gap-1 text-xs text-primary-600 hover:underline mb-3">
                   <Plus size={12} />
                   افزودن خدمت
                 </button>

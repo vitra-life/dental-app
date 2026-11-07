@@ -15,12 +15,12 @@ import {
   ChevronRight,
   ChevronDown,
   LogOut,
-  Building2,
   type LucideIcon,
 } from 'lucide-react';
 import logo from '@/assets/vitra-life-logo.svg';
-import { useLogout, useMe, usePermissions, useSwitchClinic } from '@/data/session';
-import { PAGE_PERMISSION } from '@/lib/permissions';
+import { useActiveWorkspace, useLogout, useMe, usePermissions } from '@/data/session';
+import { WorkspaceSwitcher } from './workspace-switcher';
+import { canOpen } from '@/lib/permissions';
 import type { PageKey } from '@/lib/types';
 
 interface LayoutProps {
@@ -48,41 +48,27 @@ interface SidebarContentProps {
   collapsed: boolean;
 }
 
-/** The signed-in user's name, their roles in the active clinic, and the active clinic. */
+/** The signed-in user's name, their position in the active workspace, and the active clinic. */
 function useSignedInUser() {
   const { data: me } = useMe();
-  const clinic = me?.clinics.find((c) => c.clinic_id === me.active_clinic_id);
+  const { clinic, workspace } = useActiveWorkspace();
   return {
     name: me?.user.full_name ?? '',
     initial: me?.user.full_name.trim().charAt(0) ?? '',
-    roles: clinic?.roles.map((r) => r.name).join('، ') ?? '',
+    position: workspace?.label ?? '',
     clinicName: clinic?.clinic_name ?? 'سیستم مدیریت دندانپزشکی',
-    otherClinics: me?.clinics.filter((c) => c.clinic_id !== me.active_clinic_id) ?? [],
   };
 }
 
-/** The user box: who is signed in, and a menu to switch clinic or log out. */
+/** The user box: who is signed in and in which position, and a menu to log out. Workspaces switch from the top bar. */
 function UserMenu({ collapsed }: { collapsed: boolean }) {
   const user = useSignedInUser();
   const logout = useLogout();
-  const switchClinic = useSwitchClinic();
   const [open, setOpen] = useState(false);
   return (
     <div className={`relative p-3 border-t border-surface-100 ${collapsed ? 'flex justify-center' : ''}`}>
       {open && (
         <div className="absolute bottom-full right-3 left-3 mb-2 min-w-48 bg-white border border-surface-200 rounded-xl shadow-lg p-1 z-30">
-          {user.otherClinics.length > 0 && <p className="text-xs text-surface-400 px-3 pt-2 pb-1">رفتن به کلینیک</p>}
-          {user.otherClinics.map((clinic) => (
-            <button
-              key={clinic.clinic_id}
-              disabled={switchClinic.isPending}
-              onClick={() => switchClinic.mutate(clinic.clinic_id, { onSettled: () => setOpen(false) })}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-surface-700 hover:bg-surface-50"
-            >
-              <Building2 size={16} className="text-surface-400" />
-              <span className="truncate">{clinic.clinic_name}</span>
-            </button>
-          ))}
           <button
             onClick={() => logout.mutate()}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-error-600 hover:bg-error-50"
@@ -103,7 +89,7 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
           <>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-surface-700 truncate">{user.name}</p>
-              <p className="text-xs text-surface-400 truncate">{user.roles}</p>
+              <p className="text-xs text-surface-400 truncate">{user.position}</p>
             </div>
             <ChevronDown size={16} className={`text-surface-400 transition-transform ${open ? 'rotate-180' : ''}`} />
           </>
@@ -120,7 +106,7 @@ function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentPr
   return (
     <>
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {navItems.filter(({ key }) => can(PAGE_PERMISSION[key])).map(({ key, label, icon: Icon }) => {
+        {navItems.filter(({ key }) => canOpen(can, key)).map(({ key, label, icon: Icon }) => {
           const active = currentPage === key;
           return (
             <button
@@ -136,7 +122,7 @@ function SidebarContent({ currentPage, onNavigate, collapsed }: SidebarContentPr
           );
         })}
 
-        {can(PAGE_PERMISSION.ai) && <div className="pt-2 mt-1 border-t border-surface-100">
+        {canOpen(can, 'ai') && <div className="pt-2 mt-1 border-t border-surface-100">
           <button
             onClick={() => onNavigate('ai')}
             title={collapsed ? 'دستیار هوشمند' : undefined}
@@ -231,6 +217,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-3 mr-auto">
+            <WorkspaceSwitcher />
             <button className="relative p-2 rounded-lg hover:bg-surface-100 text-surface-500 transition-colors">
               <Bell size={20} strokeWidth={1.8} />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error-500 rounded-full" />

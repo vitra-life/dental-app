@@ -1,75 +1,140 @@
-import { useState, useEffect } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
-import { formatNumber } from '@/lib/format';
-import * as db from '@/lib/store';
-import { showToast } from '@/lib/toast';
-import type { Staff } from '@/lib/types';
+import { useState } from 'react';
+import { Plus, Search, Users } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
+import { ChoiceChips } from '@/components/ui/choice-chips';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadError } from '@/components/ui/load-error';
+import { SkeletonList } from '@/components/ui/skeleton';
+import { useCan } from '@/data/session';
+import { useStaff, useStaffTypes, type StaffMember } from '@/data/staff';
+import { formatNumber, toLatinDigits } from '@/lib/format';
+import { CAN } from '@/lib/permissions';
+import { StaffDetail } from './staff-detail';
+import { StaffForm } from './staff-form';
+import { TemporaryPasswordModal } from './temporary-password-modal';
 
-const roles: { value: Staff['role']; label: string }[] = [
-  { value: 'dentist', label: 'دندانپزشک' },
-  { value: 'receptionist', label: 'منشی' },
-  { value: 'accountant', label: 'حسابدار' },
-  { value: 'manager', label: 'مدیر' },
+type ActiveFilter = 'active' | 'inactive' | 'all';
+
+const activeFilters: { value: ActiveFilter; label: string }[] = [
+  { value: 'active', label: 'فعال' },
+  { value: 'inactive', label: 'غیرفعال' },
+  { value: 'all', label: 'همه' },
 ];
 
+/** The clinic's people: what they are, and their workspaces (positions) with what each may do. */
 export function StaffTab() {
-  const [staff, setStaff] = useState<Staff[]>([]);
+  const { data: staff = [], isPending, error, refetch } = useStaff();
+  const { data: staffTypes = [] } = useStaffTypes();
+  const canCreate = useCan(CAN.createStaff);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<ActiveFilter>('active');
+  const [adding, setAdding] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  /** A new account's temporary password, shown once after adding. */
+  const [created, setCreated] = useState<{ name: string; mobile: string; password: string } | null>(null);
 
-  useEffect(() => {
-    setStaff(db.orderBy(db.list('staff'), 'full_name'));
-  }, []);
+  const typeName = (code: string) => staffTypes.find((t) => t.code === code)?.name ?? code;
+  const open = staff.find((m) => m.membership_id === openId);
 
-  /** Edits a row locally; nothing is stored until its save button is pressed. */
-  function edit(id: string, patch: Partial<Staff>) {
-    setStaff(staff.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const q = toLatinDigits(search.trim());
+  const filtered = staff.filter((m) => {
+    if (filter === 'active' && !m.is_active) return false;
+    if (filter === 'inactive' && m.is_active) return false;
+    return !q || m.full_name.includes(q) || m.mobile.includes(q);
+  });
+
+  function onCreated(member: StaffMember & { temporary_password: string | null }) {
+    setAdding(false);
+    if (member.temporary_password) {
+      setCreated({ name: member.full_name, mobile: member.mobile, password: member.temporary_password });
+    }
   }
 
-  function addStaff() {
-    const created = db.insert('staff', { full_name: 'نام جدید', role: 'dentist', color: '#3b82f6' });
-    setStaff([...staff, created]);
-    showToast('عضو جدید اضافه شد');
-  }
-
-  function saveStaff(s: Staff) {
-    db.update('staff', s.id, { full_name: s.full_name, role: s.role, phone: s.phone, color: s.color, active: s.active });
-    showToast('بروزرسانی شد');
-  }
-
-  function deleteStaff(id: string) {
-    db.remove('staff', id);
-    setStaff(staff.filter((s) => s.id !== id));
-    showToast('حذف شد');
-  }
+  if (error) return <LoadError error={error} onRetry={() => refetch()} />;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-surface-700">پرسنل ({formatNumber(staff.length)})</h2>
-        <button onClick={addStaff} className="btn-primary"><Plus size={16} />عضو جدید</button>
+        <h2 className="text-sm font-semibold text-surface-700">پرسنل ({formatNumber(staff.filter((m) => m.is_active).length)})</h2>
+        {canCreate && (
+          <button onClick={() => setAdding(true)} className="btn-primary">
+            <Plus size={16} />
+            عضو جدید
+          </button>
+        )}
       </div>
-      <div className="space-y-3">
-        {staff.map((s) => (
-          <div key={s.id} className="card p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shrink-0" style={{ backgroundColor: s.color }}>
-                {s.full_name.charAt(0)}
-              </div>
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-3">
-                <input className="input-field" value={s.full_name} onChange={(e) => edit(s.id, { full_name: e.target.value })} placeholder="نام" />
-                <select className="input-field" value={s.role} onChange={(e) => edit(s.id, { role: e.target.value as Staff['role'] })}>
-                  {roles.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                </select>
-                <input className="input-field" value={s.phone || ''} onChange={(e) => edit(s.id, { phone: e.target.value })} placeholder="تلفن" />
-                <div className="flex items-center gap-2">
-                  <input type="color" className="w-9 h-9 rounded-lg border border-surface-200 shrink-0" value={s.color} onChange={(e) => edit(s.id, { color: e.target.value })} />
-                  <button onClick={() => saveStaff(s)} className="btn-secondary text-xs">ذخیره</button>
-                  <button onClick={() => deleteStaff(s.id)} title="حذف" className="p-2 rounded-lg text-surface-400 hover:bg-error-50 hover:text-error-500"><Trash2 size={16} /></button>
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-surface-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجو بر اساس نام یا موبایل..."
+            className="input-field pr-9"
+          />
+        </div>
+        <ChoiceChips options={activeFilters} value={filter} onChange={setFilter} />
+      </div>
+
+      {isPending ? (
+        <div className="space-y-3">
+          <SkeletonList count={3} className="h-20" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState icon={Users} title="عضوی یافت نشد" description="عبارت جستجو یا فیلتر را تغییر دهید" />
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((m) => (
+            <button
+              key={m.membership_id}
+              type="button"
+              onClick={() => setOpenId(m.membership_id)}
+              className="card p-4 w-full text-right hover:border-primary-200 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <Avatar className="w-10 h-10 rounded-full text-base shrink-0">{m.full_name.trim().charAt(0)}</Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-surface-800">{m.full_name}</span>
+                    {!m.is_active && <span className="text-xs bg-surface-100 text-surface-500 px-2 py-0.5 rounded-full">غیرفعال</span>}
+                    {m.staff_types.map((t) => (
+                      <span key={t} className="text-xs bg-secondary-50 text-secondary-600 px-2 py-0.5 rounded-lg">{typeName(t)}</span>
+                    ))}
+                  </div>
+                  <div className="text-xs text-surface-500 mt-1">
+                    <span dir="ltr">{m.mobile}</span>
+                    {m.doctor_profile && <> · نظام پزشکی {m.doctor_profile.medical_license}</>}
+                  </div>
+                </div>
+                <div className="hidden sm:flex flex-wrap gap-1 justify-end max-w-[45%]">
+                  {m.workspaces.filter((w) => w.is_active).map((w) => (
+                    <span
+                      key={w.id}
+                      className={`text-xs px-2 py-0.5 rounded-full ${w.is_admin || w.permissions.length ? 'bg-primary-50 text-primary-700' : 'bg-warning-50 text-warning-700'}`}
+                    >
+                      {w.label}
+                      {!w.is_admin && ` · ${w.permissions.length ? formatNumber(w.permissions.length) : 'بدون دسترسی'}`}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {adding && <StaffForm onClose={() => setAdding(false)} onCreated={onCreated} />}
+      {open && (
+        <StaffDetail key={open.membership_id} member={open} staff={staff} onClose={() => setOpenId(null)} />
+      )}
+      <TemporaryPasswordModal
+        name={created?.name ?? ''}
+        mobile={created?.mobile ?? ''}
+        password={created?.password ?? null}
+        onClose={() => setCreated(null)}
+      />
     </div>
   );
 }

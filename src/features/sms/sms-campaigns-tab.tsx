@@ -7,6 +7,9 @@ import { formatDate } from '@/lib/date';
 import { formatNumber, percent } from '@/lib/format';
 import type { SmsCampaign } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 interface SmsCampaignsTabProps {
   campaigns: SmsCampaign[];
   onNew: () => void;
@@ -14,6 +17,7 @@ interface SmsCampaignsTabProps {
 }
 
 export function SmsCampaignsTab({ campaigns, onNew, onOpen }: SmsCampaignsTabProps) {
+  const { can } = usePermissions();
   return (
     <div className="space-y-4">
       {campaigns.length === 0 ? (
@@ -21,7 +25,7 @@ export function SmsCampaignsTab({ campaigns, onNew, onOpen }: SmsCampaignsTabPro
           icon={Send}
           title="هیچ کمپینی وجود ندارد"
           description="اولین کمپین پیامک خود را ایجاد کنید"
-          action={<button onClick={onNew} className="btn-primary"><Plus size={16} />کمپین جدید</button>}
+          action={can(CAN.createSmsCampaign) && <button onClick={onNew} className="btn-primary"><Plus size={16} />کمپین جدید</button>}
         />
       ) : (
         <div className="space-y-3">

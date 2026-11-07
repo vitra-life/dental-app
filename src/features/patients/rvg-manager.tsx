@@ -8,7 +8,11 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { RvgImage } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 export function RvgManager({ patientId }: { patientId: string }) {
+  const { can } = usePermissions();
   const [images, setImages] = useState<RvgImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -53,10 +57,10 @@ export function RvgManager({ patientId }: { patientId: string }) {
         aside={
           <div className="flex gap-2">
             <button onClick={() => showToast('دستگاه RVG متصل نیست', 'info')} className="btn-secondary text-xs px-3 py-1.5">اتصال به RVG</button>
-            <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
+            {can(CAN.uploadXray) && (<button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
               <Plus size={14} />
               افزودن تصویر
-            </button>
+            </button>)}
           </div>
         }
       />
@@ -78,7 +82,7 @@ export function RvgManager({ patientId }: { patientId: string }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={addImage} className="btn-primary">ثبت</button>
+            {can(CAN.uploadXray) && (<button onClick={addImage} className="btn-primary">ثبت</button>)}
             <button onClick={() => setShowAdd(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
@@ -98,18 +102,18 @@ export function RvgManager({ patientId }: { patientId: string }) {
                 {img.tooth_number && <p className="text-white/70 text-[11px]">دندان شماره {formatNumber(img.tooth_number)}</p>}
                 <div className="flex items-center gap-2 mt-2">
                   <a href={img.image_url} target="_blank" rel="noreferrer" className="px-2.5 py-1 bg-white/20 text-white text-xs rounded-lg hover:bg-white/30">مشاهده</a>
-                  <button onClick={() => deleteImage(img.id)} className="px-2.5 py-1 bg-error-500/80 text-white text-xs rounded-lg hover:bg-error-500">حذف</button>
+                  {can(CAN.deleteXray) && (<button onClick={() => deleteImage(img.id)} className="px-2.5 py-1 bg-error-500/80 text-white text-xs rounded-lg hover:bg-error-500">حذف</button>)}
                 </div>
               </div>
             </div>
           ))}
-          <button
+          {can(CAN.uploadXray) && (<button
             onClick={() => setShowAdd(true)}
             className="aspect-square bg-surface-50 rounded-xl flex flex-col items-center justify-center text-surface-400 border-2 border-dashed border-surface-200 hover:bg-surface-100 transition-colors"
           >
             <Image size={30} strokeWidth={1.5} className="mb-2" />
             <span className="text-xs">افزودن تصویر</span>
-          </button>
+          </button>)}
         </div>
       )}
     </div>

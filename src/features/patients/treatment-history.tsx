@@ -10,7 +10,11 @@ import * as db from '@/lib/store';
 import { showToast } from '@/lib/toast';
 import type { Treatment } from '@/lib/types';
 
+import { usePermissions } from '@/data/session';
+import { CAN } from '@/lib/permissions';
+
 export function TreatmentHistory({ patientId }: { patientId: string }) {
+  const { can } = usePermissions();
   const [treatmentRows, setTreatmentRows] = useState<Treatment[]>([]);
   const [loading, setLoading] = useState(true);
   const { data: allServices = [] } = useServices();
@@ -56,7 +60,7 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
         title={`درمان‌های انجام‌شده (${formatNumber(treatments.length)})`}
         className="mb-3"
         aside={
-          <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
+          can(CAN.createTreatment) && <button onClick={() => setShowAdd(!showAdd)} className="btn-primary text-xs px-3 py-1.5">
             <Plus size={14} />
             افزودن درمان
           </button>
@@ -94,7 +98,7 @@ export function TreatmentHistory({ patientId }: { patientId: string }) {
             <textarea className="input-field min-h-[60px] resize-none" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={addTreatment} className="btn-primary">ثبت درمان</button>
+            {can(CAN.createTreatment) && (<button onClick={addTreatment} className="btn-primary">ثبت درمان</button>)}
             <button onClick={() => setShowAdd(false)} className="btn-secondary">انصراف</button>
           </div>
         </div>
